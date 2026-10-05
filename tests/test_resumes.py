@@ -433,6 +433,52 @@ def test_pdf_readability_and_overflow_warning(master, profile):
     assert validate_pdf(textual_pdf(pdf_text(master), x=700), profile, master).warnings
 
 
+@pytest.mark.parametrize(
+    "section,stored,printed",
+    [
+        ("workExperience", "Oct. 2025 – Present", "O ct. 2025 - Present"),
+        ("workExperience", "Jun. 2026 – Aug. 2026", "Jun. 2026 - Aug. 2026"),
+        ("education", "2024—2028", "2024 - 2028"),
+        ("personalProjects", "Apr. 2026 Present", "Apr. 2026 - Present"),
+        ("personalProjects", "Jun 2025 Aug 2025", "Jun 2025 - Aug 2025"),
+        ("personalProjects", "2023 2025", "2023 - 2025"),
+    ],
+)
+def test_pdf_accepts_exact_renderer_date_format_and_split_month(
+    section, stored, printed, master, profile
+):
+    rendered_data = copy.deepcopy(master)
+    rendered_data[section][0]["years"] = printed
+    rendered = pdf_text(rendered_data)
+    master[section][0]["years"] = stored
+    validate_pdf(textual_pdf(rendered), profile, master)
+
+
+@pytest.mark.parametrize(
+    "printed",
+    [
+        "Nov. 2025 - Present",
+        "Oct. 2024 - Present",
+        "Oct. 2025 - Current",
+        "Oct. 2025",
+        "Oct. 2025 - Presently",
+        "Oct. 12025 - Present",
+    ],
+)
+def test_pdf_date_format_tolerance_rejects_changed_or_missing_dates(printed, master, profile):
+    old = master["workExperience"][0]["years"]
+    rendered = pdf_text(master).replace(old, printed)
+    master["workExperience"][0]["years"] = "Oct. 2025 – Present"
+    with pytest.raises(ResumeValidationError, match="structured factual"):
+        validate_pdf(textual_pdf(rendered), profile, master)
+
+
+def test_pdf_split_month_tolerance_does_not_relax_other_identity_checks(master, profile):
+    rendered = pdf_text(master).replace("Example Labs", "E xample Labs")
+    with pytest.raises(ResumeValidationError, match="structured factual"):
+        validate_pdf(textual_pdf(rendered), profile, master)
+
+
 def test_processing_timeout_reuses_uploaded_master(tmp_path, master, profile, job, match):
     backend = Backend(master)
     backend.processing_status = "processing"

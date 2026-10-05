@@ -31,6 +31,56 @@ def contains_value(text: str, value: str) -> bool:
     return bool(re.search(r"(?<!\w)" + re.escape(normalized(value)) + r"(?!\w)", text))
 
 
+def _rendered_date_range(value: str) -> str:
+    """Mirror pinned frontend lib/utils.ts formatDateRange, without changing date facts."""
+    value = re.sub(r"\s*-\s*", " - ", value.replace("–", "-").replace("—", "-"))
+    value = re.sub(r"([A-Za-z]+\.?\s+\d{4})\s+([A-Za-z]+\.?\s+\d{4})", r"\1 - \2", value)
+    value = re.sub(r"(\d{4})\s+(\d{4})", r"\1 - \2", value)
+    return re.sub(
+        r"([A-Za-z]+\.?\s+\d{4})\s+(Present|Current|Now|Ongoing)",
+        r"\1 - \2",
+        value,
+        flags=re.IGNORECASE,
+    )
+
+
+def _contains_rendered_date(text: str, value: str) -> bool:
+    expected = normalized(_rendered_date_range(value))
+    months = {
+        "jan",
+        "january",
+        "feb",
+        "february",
+        "mar",
+        "march",
+        "apr",
+        "april",
+        "may",
+        "jun",
+        "june",
+        "jul",
+        "july",
+        "aug",
+        "august",
+        "sep",
+        "sept",
+        "september",
+        "oct",
+        "october",
+        "nov",
+        "november",
+        "dec",
+        "december",
+    }
+    parts = re.split(r"([a-z]+)", expected)
+    # Chromium glyph runs can extract "O ct."; tolerate spacing inside a month only.
+    # Month letters, punctuation, complete years, range boundaries and endpoints stay exact.
+    pattern = "".join(
+        r"\s*".join(map(re.escape, part)) if part in months else re.escape(part) for part in parts
+    )
+    return bool(re.search(r"(?<!\w)" + pattern + r"(?!\w)", text))
+
+
 def resume_text(data: dict[str, Any]) -> str:
     def strings(value: Any) -> list[str]:
         if isinstance(value, str):
@@ -255,7 +305,12 @@ def validate_pdf(
         for row in tailored.get(section, []):
             for key in fields:
                 value = row.get(key, "")
-                if value and not contains_value(text, value):
+                found = (
+                    _contains_rendered_date(text, value)
+                    if key == "years"
+                    else contains_value(text, value)
+                )
+                if value and not found:
                     raise ResumeValidationError("PDF omitted structured factual information")
     for skill in tailored.get("additional", {}).get("technicalSkills", []):
         if not contains_value(text, skill):
