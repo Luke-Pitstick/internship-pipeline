@@ -96,3 +96,62 @@ def test_directory_api_candidates_remain_disabled_until_validation(monkeypatch, 
     candidates = discovery.discover_companies(name=name, limit=2)
     assert len(candidates) == 1 and not candidates[0].enabled
     assert candidates[0].id == "ashby:example"
+
+
+def test_directory_limit_applies_after_support_filtering(monkeypatch):
+    module = pytest.importorskip("ats_scrapers")
+    import pandas as pd
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def companies(self):
+            # The real directory begins with ADP URLs unresolved by the URL API.
+            unsupported = [
+                dict(
+                    ats="adp",
+                    name=f"Unsupported {index}",
+                    slug=f"tenant-{index}",
+                    url=f"https://workforcenow.adp.com/recruitment.html?cid={index}",
+                )
+                for index in range(201)
+            ]
+            supported = [
+                dict(
+                    ats="ashby",
+                    name=f"Example {index}",
+                    slug=f"example-{index}",
+                    url=f"https://jobs.ashbyhq.com/example-{index}",
+                )
+                for index in range(201)
+            ]
+            return pd.DataFrame(unsupported + supported)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "Client", Client)
+    candidates = discovery.discover_companies(limit=200)
+    assert len(candidates) == 200
+    assert all(company.provider == "ashby" and not company.enabled for company in candidates)
+    assert candidates[-1].id == "ashby:example-199"
+
+
+def test_directory_schema_mismatch_is_explicit(monkeypatch):
+    module = pytest.importorskip("ats_scrapers")
+    import pandas as pd
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def companies(self):
+            return pd.DataFrame([dict(company_name="Example", careers_url="https://example.com")])
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "Client", Client)
+    with pytest.raises(ValueError, match="missing required"):
+        discovery.discover_companies()

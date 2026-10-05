@@ -126,6 +126,11 @@ custom domains are reported without fabricating slugs or adapters.
 `discover_companies(name=None, limit=200, timeout=30) -> list[Company]` uses actual
 `Client.companies()` or `Client.find_company(name, limit=...)` against the library
 directory. It preserves real directory URLs and filters unsupported adapters.
+The verified directory columns are `ats`, `name`, `slug`, and `url`; a missing
+column raises an explicit contract error. The directory is grouped by provider,
+so the limit applies **after** support filtering and deduplication. Limiting raw
+rows first can return zero candidates when the initial provider's URLs cannot be
+resolved by the installed URL API.
 `candidates_from_jobs(jobs)` recognizes actual supported employer URLs from source
 postings and produces company board URLs for the three audited providers.
 Candidates start `enabled=False, priority=False`; discovery never invents user
@@ -134,8 +139,8 @@ enabling, baseline ingestion and refresh timing. Run synchronous directory
 discovery in the daily discovery role, independently of fast polling.
 
 The directory is a source for approximately 100–200 candidates, not a claim that
-100–200 relevant companies have been checked or enabled. Live directory refresh,
-large-registry coverage and personal candidate relevance remain operational work.
+100–200 relevant companies have been checked or enabled. Large-registry board
+coverage and personal candidate relevance remain operational work.
 
 ## Validation evidence — October 5, 2026
 
@@ -146,11 +151,18 @@ large-registry coverage and personal candidate relevance remain operational work
   `Denver, CO`, `results_wanted=1`, `hours_old=72` completed through the child
   process but returned no rows. Its coverage was explicitly unverified; no live
   JobSpy posting-field success is claimed.
+- Public directory inspection returned **80,390 rows** with the documented
+  `ats/name/slug/url` columns. After fixing limit placement,
+  `discover_companies(limit=200)` returned **200 distinct supported Ashby
+  candidates**, all disabled. This checked directory and offline adapter support
+  only; it did not poll those 200 boards or establish candidate relevance.
 - Focused offline tests exercise installed ATS parsing with synthetic transport
   responses, malformed payloads, duplicate identity, timeouts, completed-board
   streaming, Retry-After, material revisions, cross-source application identities,
   provider isolation, budgets, result caps, logged errors, real process killing,
   registry resolution and disabled directory candidates.
+  Regression cases include 201 unsupported directory rows preceding supported
+  rows and explicit schema mismatch reporting.
 - Ruff and mypy run against owned source files; targeted pytest runs on the
   shared Python 3.12 environment and the isolated scraper environment. No actual
   candidate data, credentials, notification delivery or deployment is involved.

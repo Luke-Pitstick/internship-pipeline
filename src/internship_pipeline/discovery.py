@@ -66,9 +66,14 @@ def discover_companies(
     with httpx.Client(timeout=timeout) as transport:
         client = Client(http_client=transport, prefer_parquet=False)
         try:
-            frame = (
-                client.find_company(name, limit=limit) if name else client.companies().head(limit)
-            )
+            frame = client.companies()
+            required_columns = {"ats", "name", "slug", "url"}
+            if not required_columns.issubset(frame.columns):
+                raise ValueError("ATS directory is missing required ats/name/slug/url columns")
+            # The live directory is grouped by provider. Its first 200 rows can
+            # all be unresolvable ADP boards, so limit accepted candidates only.
+            if name:
+                frame = client.find_company(name, limit=len(frame))
             rows = frame.to_dict(orient="records")
         finally:
             client.close()
@@ -85,6 +90,8 @@ def discover_companies(
             )
             if resolve_board(company).supported:
                 companies[company.id] = company
+                if len(companies) >= limit:
+                    break
         except (KeyError, ValueError, TypeError):
             continue
     return list(companies.values())
