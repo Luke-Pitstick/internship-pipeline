@@ -515,3 +515,50 @@ def test_structured_internship_type_is_direct_evidence() -> None:
         Settings(),
     )
     assert result.accepted
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "2027 Summer Intern – Machine Learning Intern (Master’s)",
+        "2027 Summer Intern – Machine Learning Intern (PhD)",
+        "Machine Learning Intern (Ph.D.)",
+        "Machine Learning Intern (Master's/PhD)",
+        "Machine Learning Intern – Master's",
+    ],
+)
+def test_explicit_graduate_title_cohort_rejects_bachelor(title: str) -> None:
+    result = match_job(
+        job(title, "Build machine learning models using Python."),
+        CandidateProfile(constraints=Constraints(degree_level="bachelor")),
+        Settings(),
+    )
+    assert not result.accepted
+    assert result.eligible is False
+    assert any("title cohort" in reason for reason in result.reasons)
+
+
+@pytest.mark.parametrize(
+    ("title", "degree"),
+    [
+        ("Machine Learning Intern (Master’s)", "master"),
+        ("Machine Learning Intern (PhD)", "phd"),
+        ("Software Engineer Intern (Bachelor's or Master's)", "bachelor"),
+        ("Software Engineer Intern (Master's preferred)", "bachelor"),
+        ("Software Engineer Intern – Master Data Systems", "bachelor"),
+    ],
+)
+def test_title_degree_cohort_keeps_eligible_and_nonmandatory_roles(title: str, degree: str) -> None:
+    result = match_job(
+        job(title),
+        CandidateProfile(constraints=Constraints(degree_level=degree)),
+        Settings(),
+    )
+    assert result.accepted
+
+
+def test_title_degree_cohort_preserves_unknown_candidate_degree() -> None:
+    result = match_job(job("Machine Learning Intern (Master’s)"), CandidateProfile(), Settings())
+    assert result.accepted
+    assert result.eligible is None
+    assert any("Degree eligibility is unverified: Master’s" in value for value in result.unknowns)

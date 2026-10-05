@@ -268,6 +268,34 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
         unknowns.append("Internship term is not supplied.")
 
     degree_rank = _degree_rank(constraints.degree_level) if constraints.degree_level else None
+    # Explicit title cohorts such as "ML Intern (Master's)" restrict the opening
+    # even when the supplied description omits that eligibility requirement.
+    title_cohorts = []
+    for match in re.finditer(r"\(([^()]*)\)|[-–—:]\s*([^()]*)$", job.posting.title):
+        cohort = next(value for value in match.groups() if value is not None).strip()
+        remainder = _DEGREE.sub("", cohort)
+        remainder = re.sub(
+            r"\b(?:or|and|degree|students?|candidates?|program|only|required)\b|[\s/,&.\-]",
+            "",
+            remainder,
+            flags=re.I,
+        )
+        if _DEGREE.search(cohort) and not remainder:
+            title_cohorts.append(cohort)
+    if title_cohorts:
+        ranks = [
+            rank
+            for cohort in title_cohorts
+            for match in _DEGREE.finditer(cohort)
+            if (rank := _degree_rank(match[0]))
+        ]
+        if degree_rank is not None and min(ranks) > degree_rank:
+            conflicts.append(
+                "Confirmed degree conflicts with the explicit title cohort: "
+                + ", ".join(title_cohorts)
+            )
+        elif degree_rank is None:
+            unknowns.append("Degree eligibility is unverified: " + ", ".join(title_cohorts))
     degree_requirements = [line for line in requirements if _DEGREE.search(line)]
     for line in degree_requirements:
         ranks = [rank for match in _DEGREE.finditer(line) if (rank := _degree_rank(match[0]))]
@@ -299,7 +327,7 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
             unknowns.append(f"Degree eligibility is unverified: {line}")
         elif mandatory and optional:
             unknowns.append(f"Confirm degree or alternative-experience requirements: {line}")
-    if not degree_requirements:
+    if not degree_requirements and not title_cohorts:
         unknowns.append("Degree requirements are not supplied.")
 
     no_sponsorship = re.search(
