@@ -74,9 +74,12 @@ class ResumeMatcherClient:
                             ambiguous=mutation,
                         )
                     chunks.append(chunk)
-                return httpx.Response(
-                    resp.status_code, headers=resp.headers, content=b"".join(chunks)
-                )
+                # iter_bytes() already decoded compression. Retaining the wire encoding/length
+                # would make the new Response decode again or advertise the compressed size.
+                headers = resp.headers.copy()
+                for header in ("content-encoding", "content-length"):
+                    headers.pop(header, None)
+                return httpx.Response(resp.status_code, headers=headers, content=b"".join(chunks))
         except httpx.HTTPError as exc:
             raise ResumeMatcherError(
                 "Resume Matcher transport failed", retryable=True, ambiguous=mutation
