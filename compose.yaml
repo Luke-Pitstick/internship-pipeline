@@ -42,10 +42,10 @@ services:
     <<: *worker
     command: [worker, discovery]
   resume-matcher:
-    image: internship-resume-matcher:63fc344a9a59a79db6fa9d96aff188dc9faf545b
+    image: internship-resume-matcher:local
     build:
-      context: https://github.com/srbhr/Resume-Matcher.git#63fc344a9a59a79db6fa9d96aff188dc9faf545b
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: deploy/resume-matcher/Dockerfile
     restart: unless-stopped
     init: true
     environment:

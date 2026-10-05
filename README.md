@@ -35,7 +35,7 @@ Fill the profile with supported facts and put your current resume at `private/ma
 
 For Apprise, put notification URLs in the ignored settings file or `PIPELINE_NOTIFICATION_URLS` as a JSON array. Use a service supporting PDF attachments. For Dot, set `dot_outbox_path: data/dot-outbox` and configure the [local relay](docs/deployment.md#dot-relay). Set `recording_notifications_path: null` for either live transport. A recording transport is only an offline test sink.
 
-Run the pinned Resume Matcher service and configure its model through its local settings UI. Optional pipeline matching assessment has separate `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` settings; without these, matching uses deterministic evidence and unknown-eligibility checks. Resume generation always uses Resume Matcher.
+Run the pinned Resume Matcher wrapper service for structured resume storage and PDF rendering. The resume worker uses the installed Codex CLI with your saved ChatGPT subscription login; sign in with `codex login --device-auth` inside its environment and persist `CODEX_HOME`. Resume Matcher needs no model credentials. Optional pipeline matching assessment has separate `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` settings; without these, matching uses deterministic evidence and unknown-eligibility checks. See [Render deployment](docs/render-deployment.md) for server provisioning and Dot delivery.
 
 ```sh
 uv run internship-pipeline --config config/settings.local.yaml scan --once --collect-only
