@@ -552,6 +552,7 @@ def test_structured_internship_type_is_direct_evidence() -> None:
         "Machine Learning Intern (Ph.D.)",
         "Machine Learning Intern (Master's/PhD)",
         "Machine Learning Intern – Master's",
+        "Product Manager Intern, MBA Level - Summer 2027 (Apex Legends)",
     ],
 )
 def test_explicit_graduate_title_cohort_rejects_bachelor(title: str) -> None:
@@ -573,6 +574,7 @@ def test_explicit_graduate_title_cohort_rejects_bachelor(title: str) -> None:
         ("Software Engineer Intern (Bachelor's or Master's)", "bachelor"),
         ("Software Engineer Intern (Master's preferred)", "bachelor"),
         ("Software Engineer Intern – Master Data Systems", "bachelor"),
+        ("Product Manager Intern, MBA Level - Summer 2027", "master"),
     ],
 )
 def test_title_degree_cohort_keeps_eligible_and_nonmandatory_roles(title: str, degree: str) -> None:

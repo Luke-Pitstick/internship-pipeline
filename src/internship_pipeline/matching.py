@@ -43,13 +43,14 @@ _DEGREES = {
     "undergraduate": 2,
     "master": 3,
     "masters": 3,
+    "mba": 3,
     "graduate": 3,
     "phd": 4,
     "doctorate": 4,
     "doctoral": 4,
 }
 _DEGREE = re.compile(
-    r"\b(bachelor(?:['’]?s)?|master(?:['’]?s)?|ph\.?d\.?|doctorate|doctoral)\b", re.I
+    r"\b(bachelor(?:['’]?s)?|master(?:['’]?s)?|mba|ph\.?d\.?|doctorate|doctoral)\b", re.I
 )
 _ENGINEERING_DISCIPLINES = (
     r"structural|civil|electrical|electronics?|power|energy|mechanical|chemical|aerospace|"
@@ -280,11 +281,11 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
     # Explicit title cohorts such as "ML Intern (Master's)" restrict the opening
     # even when the supplied description omits that eligibility requirement.
     title_cohorts = []
-    for match in re.finditer(r"\(([^()]*)\)|[-–—:]\s*([^()]*)$", job.posting.title):
+    for match in re.finditer(r"\(([^()]*)\)|[,–—:\-]\s*([^(),–—:\-]*)", job.posting.title):
         cohort = next(value for value in match.groups() if value is not None).strip()
         remainder = _DEGREE.sub("", cohort)
         remainder = re.sub(
-            r"\b(?:or|and|degree|students?|candidates?|program|only|required)\b|[\s/,&.\-]",
+            r"\b(?:or|and|degree|level|students?|candidates?|program|only|required)\b|[\s/,&.\-]",
             "",
             remainder,
             flags=re.I,
