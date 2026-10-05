@@ -21,6 +21,10 @@ USER root
 COPY --from=codex /usr/local/bin/node /usr/local/bin/node
 COPY --from=codex /opt/codex /opt/codex
 RUN ln -s /opt/codex/node_modules/.bin/codex /usr/local/bin/codex
+RUN usermod -s /bin/bash pipeline \
+    && mkdir -p /home/pipeline/.ssh \
+    && chmod 0700 /home/pipeline/.ssh \
+    && chown pipeline:pipeline /home/pipeline/.ssh
 COPY deploy/worker-entrypoint.py /app/worker-entrypoint.py
 ENV CODEX_HOME=/var/data/codex
 USER pipeline
