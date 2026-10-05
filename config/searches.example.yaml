@@ -1,0 +1,8 @@
+# Adjust country/location/term before enabling this query.
+- id: software-intern
+  search_term: software engineering intern
+  location: ""
+  country: USA
+  sites: [indeed]
+  hours_old: 72
+  results_wanted: 100

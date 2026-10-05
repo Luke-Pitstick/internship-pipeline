@@ -1,0 +1,20 @@
+# Synthetic example. Copy to profile.local.yaml and replace it with your own facts.
+name: Example Candidate
+email: demo@example.invalid
+constraints:
+  countries: []
+  locations: []
+  term_keywords: []
+  degree_level: null
+  graduation_date: null
+  requires_sponsorship: null
+  work_authorization: []
+facts:
+  - id: python-project
+    text: Built a Python search prototype for a class project.
+    skills: [Python]
+    role_families: [swe, ml_ai, ds]
+protected_values: []
+master_resume_path: private/master-resume.pdf
+master_resume_id: null
+max_resume_pages: 1

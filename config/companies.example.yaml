@@ -1,0 +1,7 @@
+# Replace this placeholder; it is not a live company board.
+- id: example
+  name: Example Company
+  careers_url: https://jobs.ashbyhq.com/replace-with-company
+  provider: ashby
+  priority: true
+  enabled: false

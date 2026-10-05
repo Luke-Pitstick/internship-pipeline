@@ -179,6 +179,19 @@ class Store:
                 (provider, until),
             )
 
+    def provider_ready_at(self, provider: str) -> float:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT next_allowed FROM providers WHERE id=?", (provider,)
+            ).fetchone()
+            return float(row["next_allowed"]) if row else 0
+
+    def defer_target(self, target_id: str, until: float) -> None:
+        with self.transaction() as connection:
+            connection.execute(
+                "UPDATE targets SET next_due=?,lease_until=0 WHERE id=?", (until, target_id)
+            )
+
     def finish_target(
         self, target_id: str, next_due: float, result: FetchResult, now: float
     ) -> None:
@@ -293,9 +306,17 @@ class Store:
                         updates["event"] = "reopened"
                     job = job.model_copy(update=updates)
                     connection.execute(
-                        "UPDATE jobs SET data=?,status='open',last_seen=?,content_hash=? "
+                        "UPDATE jobs SET data=?,status='open',last_seen=?,content_hash=?, "
+                        "canonical_url=?,requisition_id=? "
                         "WHERE id=?",
-                        (job.model_dump_json(), timestamp, job.content_hash, job.id),
+                        (
+                            job.model_dump_json(),
+                            timestamp,
+                            job.content_hash,
+                            canonical_url(job.posting.apply_url),
+                            job.posting.requisition_id,
+                            job.id,
+                        ),
                     )
                     if reopened and target["baselined"]:
                         enqueue(
@@ -336,6 +357,9 @@ class Store:
                                 "UPDATE jobs SET status='closed',data=? WHERE id=?",
                                 (job.model_dump_json(), job.id),
                             )
+            # A partial inventory can establish the observed baseline without proving absences.
+            # Later additions are first observations, never claims of publication time.
+            if result.jobs or (result.complete and result.error is None):
                 connection.execute("UPDATE targets SET baselined=1 WHERE id=?", (target_id,))
         return new_jobs
 

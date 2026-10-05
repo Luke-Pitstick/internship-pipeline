@@ -121,3 +121,11 @@ class Queue:
                 sql += " AND id=?"
                 params.append(task_id)
             return connection.execute(sql, params).rowcount
+
+    def needs_attention(self, task: Task, reason: str) -> None:
+        with self.store.transaction() as connection:
+            connection.execute(
+                "UPDATE tasks SET status='failed',error=?,lease_until=NULL,updated=? "
+                "WHERE id=? AND token=? AND status='running'",
+                (reason, utcnow().timestamp(), task.id, task.token),
+            )

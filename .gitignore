@@ -2,10 +2,10 @@
 .env
 .env.*
 !.env.example
-private/
-data/
-artifacts/
-resumes/
+/private/
+/data/
+/artifacts/
+/resumes/
 config/*.local.*
 *.sqlite
 *.sqlite3

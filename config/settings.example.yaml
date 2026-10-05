@@ -1,0 +1,20 @@
+# Paths are relative to the working directory, not this file.
+database_path: data/pipeline.sqlite3
+artifact_dir: artifacts
+profile_path: config/profile.local.yaml
+companies_path: config/companies.local.yaml
+searches_path: null
+resume_matcher_url: http://localhost:3000
+# Set real URLs in this ignored local file or PIPELINE_NOTIFICATION_URLS (JSON list).
+notification_urls: []
+# Explicit offline transport; set null when live notifications are configured.
+recording_notifications_path: data/notifications.jsonl
+priority_interval_seconds: 300
+standard_interval_seconds: 900
+search_interval_seconds: 3600
+request_timeout_seconds: 30
+generation_timeout_seconds: 180
+lease_seconds: 300
+max_attempts: 5
+llm_base_url: null
+llm_model: null
