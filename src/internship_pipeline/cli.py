@@ -50,6 +50,7 @@ def parser() -> argparse.ArgumentParser:
     worker.add_argument(
         "--once", action="store_true", help="Process at most one available work item"
     )
+    commands.add_parser("serve", help="Supervise all continuous workers in one service")
     commands.add_parser("status", help="Show sanitized task and provider health")
     jobs = commands.add_parser("jobs", help="List observed jobs")
     jobs.add_argument("--backlog", action="store_true")
@@ -142,6 +143,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         settings = load_settings(args.config)
         store = Store(settings.database_path)
+        if args.command == "serve":
+            from internship_pipeline.supervisor import run_workers
+
+            _require_destination(settings)
+            load_profile(settings.profile_path)
+            return run_workers(args.config)
         if args.command == "status":
             print(json.dumps(store.health(), indent=2))
         elif args.command == "jobs":
