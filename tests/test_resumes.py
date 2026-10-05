@@ -27,6 +27,7 @@ from internship_pipeline.resumes.client import (
     ResumeMatcherError,
     ResumeReconciliationRequired,
 )
+from internship_pipeline.resumes.codex import CodexResumeGenerator
 from internship_pipeline.resumes.service import ResumeService
 from internship_pipeline.resumes.validation import (
     ResumeValidationError,
@@ -150,8 +151,9 @@ class Backend:
         self.pdf = textual_pdf(pdf_text(self.tailored))
         self.processing_status = "ready"
         self.bad_status: tuple[str, int] | None = None
-        self.model_config = {"provider": "synthetic", "model": "fixture-model", "api_key": "masked"}
-        self.language = "en"
+        self.creations: Counter[str] = Counter()
+        self.generation_calls: Counter[str] = Counter()
+        self.publications: dict[str, dict[str, Any]] = {}
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path.removeprefix("/api/v1/")
@@ -159,18 +161,16 @@ class Backend:
         self.calls[signature] += 1
         if self.bad_status and self.bad_status[0] == signature:
             return httpx.Response(self.bad_status[1], json={"detail": "private-token-never-log"})
-        if signature == "GET config/llm-api-key":
-            result = self.model_config
-        elif signature == "GET config/language":
-            result = {"content_language": self.language}
-        elif signature == "POST resumes/upload":
-            assert b'name="file"' in request.content
-            assert b'filename="pipeline-master-' in request.content
-            filename = request.content.split(b'filename="')[1].split(b'"')[0].decode()
+        if signature == "POST resume-wizard/finalize":
+            body = json.loads(request.content)
+            assert set(body) == {"state"} and set(body["state"]) == {"resume_data"}
+            assert body["state"]["resume_data"] == self.master
+            if "master" not in self.resumes:
+                self.creations[signature] += 1
             self.resumes["master"] = {
                 "resume_id": "master",
                 "is_master": True,
-                "filename": filename,
+                "filename": "AI Resume Wizard - Alex Example.json",
                 "parent_id": None,
                 "processed_resume": self.master,
                 "raw_resume": {"processing_status": self.processing_status},
@@ -182,15 +182,18 @@ class Backend:
             assert body["resume_id"] == "master"
             self.jobs["remote-job"] = body["job_descriptions"][0]
             result = {"job_id": ["remote-job"]}
-        elif signature == "POST resumes/improve":
+        elif signature == "POST resumes/import-tailored":
             body = json.loads(request.content)
-            assert body == {
-                "resume_id": "master",
-                "job_id": "remote-job",
-                "prompt_id": "keywords",
-                "max_bullets_per_entry": 4,
-                "page_fit": {"template": "swiss-single", "pageSize": "A4"},
-            }
+            assert set(body) == {"generation_key", "master_id", "job_id", "resume_data", "title"}
+            assert len(body["generation_key"]) == 64
+            assert body["master_id"] == "master" and body["job_id"] == "remote-job"
+            assert body["resume_data"] == self.tailored
+            key = body["generation_key"]
+            if key not in self.publications:
+                self.publications[key] = body
+                self.creations[signature] += 1
+            else:
+                assert self.publications[key] == body
             self.resumes["tailored"] = {
                 "resume_id": "tailored",
                 "is_master": False,
@@ -199,18 +202,12 @@ class Backend:
                 "raw_resume": {"processing_status": "ready"},
             }
             result = {
-                "data": {
-                    "resume_id": "tailored",
-                    "job_id": "remote-job",
-                    "resume_preview": self.tailored,
-                    "warnings": ["upstream warning"],
-                }
+                "resume_id": "tailored",
+                "job_id": "remote-job",
+                "processing_status": "ready",
             }
         elif signature == "GET resumes":
             result = {"data": self.resumes[request.url.params["resume_id"]]}
-        elif signature == "GET resumes/list":
-            assert request.url.params["include_master"] == "true"
-            result = {"data": list(self.resumes.values())}
         elif signature == "GET resumes/tailored/job-description":
             result = {"job_id": "remote-job", "content": self.jobs["remote-job"]}
         elif signature == "GET resumes/tailored/pdf":
@@ -229,6 +226,20 @@ class Backend:
         return httpx.Response(200, json=result)
 
 
+class Generator(CodexResumeGenerator):
+    def __init__(self, backend: Backend):
+        super().__init__()
+        self.backend = backend
+
+    def parse_master(self, path, profile, deadline):
+        self.backend.generation_calls["parse"] += 1
+        return copy.deepcopy(self.backend.master)
+
+    def tailor(self, master, job, match, profile, deadline):
+        self.backend.generation_calls["tailor"] += 1
+        return copy.deepcopy(self.backend.tailored)
+
+
 def service(tmp_path: Path, backend: Backend, timeout: float = 180) -> ResumeService:
     settings = Settings(artifact_dir=tmp_path / "artifacts", generation_timeout_seconds=timeout)
     return ResumeService(
@@ -236,6 +247,7 @@ def service(tmp_path: Path, backend: Backend, timeout: float = 180) -> ResumeSer
         client=ResumeMatcherClient(
             settings.resume_matcher_url, transport=httpx.MockTransport(backend)
         ),
+        generator=Generator(backend),
     )
 
 
@@ -245,7 +257,6 @@ def test_http_sequence_manifest_cache_and_application_state(tmp_path, master, pr
     checkpoint: dict[str, object] = {}
     artifact = worker.generate(job, match, profile, checkpoint)
     assert artifact.pdf_path.read_bytes().startswith(b"%PDF-")
-    assert "upstream warning" in artifact.review_warnings
     assert any("Semantic grounding" in warning for warning in artifact.review_warnings)
     assert checkpoint["complete"] is True
     assert checkpoint["master_id"] == "master"
@@ -255,14 +266,12 @@ def test_http_sequence_manifest_cache_and_application_state(tmp_path, master, pr
     assert manifest["fact_ids"] == ["python"]
     calls = backend.calls.copy()
     assert service(tmp_path, backend).generate(job, match, profile) == artifact
-    assert {k: v for k, v in backend.calls.items() if not k.startswith("GET config/")} == {
-        k: v for k, v in calls.items() if not k.startswith("GET config/")
-    }
+    assert backend.calls == calls
     assert job.applied_at is None
     assert artifact.pdf_path.stat().st_mode & 0o777 == 0o600
 
 
-@pytest.mark.parametrize("stage", ["POST resumes/upload", "POST resumes/improve"])
+@pytest.mark.parametrize("stage", ["POST resume-wizard/finalize", "POST resumes/import-tailored"])
 def test_lost_write_response_reconciles_without_repeated_creation(
     stage, tmp_path, master, profile, job, match
 ):
@@ -273,7 +282,9 @@ def test_lost_write_response_reconciles_without_repeated_creation(
         worker.generate(job, match, profile)
     artifact = service(tmp_path, backend).generate(job, match, profile)
     assert artifact.resume_id == "tailored"
-    assert backend.calls[stage] == 1
+    assert backend.calls[stage] == 2
+    assert backend.creations[stage] == 1
+    assert backend.generation_calls["parse"] == 1 and backend.generation_calls["tailor"] == 1
     assert backend.calls["POST jobs/upload"] == 1
 
 
@@ -299,9 +310,9 @@ def test_download_retry_and_corrupt_artifact_reuse_remote_resume(
     artifact = worker.generate(job, match, profile)
     artifact.pdf_path.write_bytes(b"corrupt")
     worker.generate(job, match, profile)
-    assert backend.calls["POST resumes/upload"] == 1
+    assert backend.calls["POST resume-wizard/finalize"] == 1
     assert backend.calls["POST jobs/upload"] == 1
-    assert backend.calls["POST resumes/improve"] == 1
+    assert backend.calls["POST resumes/import-tailored"] == 1
     assert backend.calls["GET resumes/tailored/pdf"] == 3
 
 
@@ -310,7 +321,7 @@ def test_master_cached_across_jobs(tmp_path, master, profile, job, match):
     worker = service(tmp_path, backend)
     worker.generate(job, match, profile)
     worker.generate(job.model_copy(update={"id": "another"}), match, profile)
-    assert backend.calls["POST resumes/upload"] == 1
+    assert backend.calls["POST resume-wizard/finalize"] == 1
     assert backend.calls["POST jobs/upload"] == 2
 
 
@@ -429,22 +440,21 @@ def test_processing_timeout_reuses_uploaded_master(tmp_path, master, profile, jo
         worker.generate(job, match, profile)
     backend.resumes["master"]["raw_resume"]["processing_status"] = "ready"
     service(tmp_path, backend).generate(job, match, profile)
-    assert backend.calls["POST resumes/upload"] == 1
+    assert backend.calls["POST resume-wizard/finalize"] == 1
 
 
-def test_http_errors_redacted_and_ambiguous_tailor_not_retried(
-    tmp_path, master, profile, job, match
-):
+def test_http_errors_redacted_and_idempotent_publish_retried(tmp_path, master, profile, job, match):
     backend = Backend(master)
-    backend.bad_status = ("POST resumes/improve", 503)
+    backend.bad_status = ("POST resumes/import-tailored", 503)
     worker = service(tmp_path, backend)
     with pytest.raises(ResumeMatcherError, match="HTTP 503") as error:
         worker.generate(job, match, profile)
     assert "private-token" not in str(error.value)
     backend.bad_status = None
-    with pytest.raises(ResumeReconciliationRequired):
-        worker.generate(job, match, profile)
-    assert backend.calls["POST resumes/improve"] == 1
+    worker.generate(job, match, profile)
+    assert backend.calls["POST resumes/import-tailored"] == 2
+    assert backend.creations["POST resumes/import-tailored"] == 1
+    assert backend.generation_calls["tailor"] == 1
 
 
 def test_nonaccepted_match_never_calls_upstream(tmp_path, master, profile, job):
@@ -454,22 +464,20 @@ def test_nonaccepted_match_never_calls_upstream(tmp_path, master, profile, job):
     assert not backend.calls
 
 
-def test_provider_configuration_changes_invalidate_key(tmp_path, master, profile, job, match):
+def test_codex_model_identity_changes_invalidate_key(tmp_path, master, profile, job, match):
     backend = Backend(master)
     worker = service(tmp_path, backend)
     first = worker.generation_key(job, match, profile)
-    backend.model_config["api_key"] = "different-masked-key"
-    assert worker.generation_key(job, match, profile) == first
-    backend.model_config["model"] = "fixture-model-v2"
+    worker.generator.model = "tested-account-model"
     assert worker.generation_key(job, match, profile) != first
 
 
-def test_nonenglish_generation_needs_attention_before_writes(tmp_path, master, profile, job, match):
+def test_subscription_path_does_not_require_upstream_provider_config(
+    tmp_path, master, profile, job, match
+):
     backend = Backend(master)
-    backend.language = "fr"
-    with pytest.raises(ResumeValidationError, match="language en"):
-        service(tmp_path, backend).generate(job, match, profile)
-    assert not any(key.startswith("POST") for key in backend.calls)
+    service(tmp_path, backend).generate(job, match, profile)
+    assert not any("config/" in key or key.endswith("resumes/improve") for key in backend.calls)
 
 
 def test_corrupt_manifest_can_be_rebuilt_without_remote_mutations(
@@ -480,7 +488,7 @@ def test_corrupt_manifest_can_be_rebuilt_without_remote_mutations(
     artifact = worker.generate(job, match, profile)
     artifact.pdf_path.with_name("manifest.json").write_text("broken JSON")
     worker.generate(job, match, profile)
-    assert backend.calls["POST resumes/improve"] == 1
+    assert backend.calls["POST resumes/import-tailored"] == 1
     assert backend.calls["GET resumes/tailored/pdf"] == 2
 
 

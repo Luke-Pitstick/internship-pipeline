@@ -26,6 +26,7 @@ from internship_pipeline.resumes.client import (
     ResumeMatcherError,
     ResumeReconciliationRequired,
 )
+from internship_pipeline.resumes.codex import CodexResumeGenerator
 from internship_pipeline.resumes.validation import (
     ResumeValidationError,
     validate_facts,
@@ -36,10 +37,11 @@ from internship_pipeline.resumes.validation import (
 GENERATION_CONFIG: dict[str, Any] = {
     "upstream_revision": UPSTREAM_REVISION,
     "template": "swiss-single",
-    "prompt_id": "keywords",
+    "engine": "codex-cli-chatgpt",
     "page_size": "A4",
-    "max_bullets": 4,
-    "validation_revision": 1,
+    "max_bullets": 3,
+    "validation_revision": 2,
+    "publisher_revision": 1,
 }
 
 
@@ -104,22 +106,27 @@ def _lock(path: Path) -> Iterator[None]:
 
 
 class ResumeService:
-    def __init__(self, settings: Settings, *, client: ResumeMatcherClient | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        client: ResumeMatcherClient | None = None,
+        generator: CodexResumeGenerator | None = None,
+        codex_model: str | None = None,
+    ):
         self.settings = settings
         self.client = client or ResumeMatcherClient(
             settings.resume_matcher_url, settings.request_timeout_seconds
         )
         self.root = settings.artifact_dir.resolve()
         self.checkpoints = self.root / ".checkpoints"
+        self.generator = generator or CodexResumeGenerator(model=codex_model)
 
     def close(self) -> None:
         self.client.close()
 
     def generation_key(self, job: Job, match: MatchResult, profile: CandidateProfile) -> str:
         master_digest = self._master_digest(profile)
-        provider_config = self.client.generation_configuration()
-        if provider_config.get("content_language") != "en":
-            raise ResumeValidationError("Resume validation requires upstream content language en")
         return _hash(
             {
                 "job_id": job.id,
@@ -129,7 +136,7 @@ class ResumeService:
                 "role_family": match.role_family,
                 "fact_ids": sorted(match.fact_ids),
                 "config": GENERATION_CONFIG,
-                "provider_config": provider_config,
+                "generator": self.generator.identity,
                 "backend": self.settings.resume_matcher_url,
             }
         )
@@ -146,7 +153,7 @@ class ResumeService:
             )
         path = profile.master_resume_path
         if path is None or not path.is_file():
-            raise ResumeValidationError("A factual master resume PDF/DOCX or remote ID is required")
+            raise ResumeValidationError("A factual master resume PDF or remote ID is required")
         if path.stat().st_size > 10 * 1024 * 1024:
             raise ResumeValidationError("Master resume exceeds the 10 MB upload limit")
         return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -212,21 +219,28 @@ class ResumeService:
                         lambda: self.client.upload_job(job.posting.description, master_id),
                         "job_id",
                     )
-                if state.get("pending") == "tailor":
-                    self._reconcile_tailor(state_path, state)
+                if not state.get("tailored_data"):
+                    state["tailored_data"] = self.generator.tailor(
+                        master, job, match, profile, self._deadline()
+                    )
+                    validate_facts(master, state["tailored_data"], profile)
+                    _save(state_path, state)
+                validate_facts(master, state["tailored_data"], profile)
                 if not state.get("resume_id"):
+                    # Lost responses replay this exact generation key and structured payload.
                     self._mutation(
                         state_path,
                         state,
-                        "tailor",
-                        lambda: self.client.tailor(
-                            master_id, str(state["job_id"]), GENERATION_CONFIG
+                        "publish",
+                        lambda: self.client.publish_tailored(
+                            key,
+                            master_id,
+                            str(state["job_id"]),
+                            state["tailored_data"],
+                            f"{job.posting.company} — {job.posting.title}"[:300],
                         ),
                         "tailor_result",
                     )
-                    result = state["tailor_result"]
-                    state["resume_id"] = result["resume_id"]
-                    _save(state_path, state)
                 resume_id = str(state["resume_id"])
                 resume = self._ready(resume_id)
                 if resume.get("parent_id") != master_id:
@@ -318,6 +332,7 @@ class ResumeService:
                 "digest": self._master_digest(profile),
                 "backend": self.settings.resume_matcher_url,
                 "version": UPSTREAM_REVISION,
+                "generator": self.generator.identity,
             }
         )
         path = self.checkpoints / f"master-{master_key}.json"
@@ -325,32 +340,20 @@ class ResumeService:
             state = _load(path)
             if profile.master_resume_id:
                 state["master_id"] = profile.master_resume_id
-            filename = (
-                f"pipeline-master-{master_key}{profile.master_resume_path.suffix.lower()}"
-                if profile.master_resume_path
-                else ""
-            )
-            if state.get("pending") == "master":
-                matches = [
-                    row
-                    for row in self.client.list_resumes()
-                    if row.get("filename") == filename and row.get("is_master")
-                ]
-                if len(matches) != 1:
-                    raise ResumeReconciliationRequired(
-                        "Master upload outcome unknown; inspect deterministic upload filename"
-                    )
-                state["master_id"] = matches[0]["resume_id"]
-                state.pop("pending", None)
-                _save(path, state)
             if not state.get("master_id"):
                 if profile.master_resume_path is None:
                     raise ResumeValidationError("Master resume path is required")
+                if not state.get("master_data"):
+                    state["master_data"] = self.generator.parse_master(
+                        profile.master_resume_path, profile, self._deadline()
+                    )
+                    validate_master(state["master_data"], profile)
+                    _save(path, state)
                 self._mutation(
                     path,
                     state,
                     "master",
-                    lambda: self.client.upload_master(profile.master_resume_path, filename),
+                    lambda: self.client.import_master(state["master_data"]),
                     "master_id",
                 )
             master_id = str(state["master_id"])
@@ -376,19 +379,7 @@ class ResumeService:
                 raise ResumeMatcherError("Resume processing deadline exceeded", retryable=True)
             time.sleep(min(0.25, remaining))
 
-    def _reconcile_tailor(self, path: Path, state: dict[str, Any]) -> None:
-        matches = []
-        for row in self.client.list_resumes():
-            if row.get("parent_id") != state["master_id"]:
-                continue
-            resume_id = self.client._id(row.get("resume_id"))
-            context = self.client.job_context(resume_id)
-            if context.get("job_id") == state["job_id"]:
-                matches.append(resume_id)
-        if len(matches) != 1:
-            raise ResumeReconciliationRequired(
-                "Tailoring outcome unknown; inspect remote draft before clearing pending"
-            )
-        state["resume_id"] = matches[0]
-        state.pop("pending", None)
-        _save(path, state)
+    def _deadline(self) -> float:
+        if self.client.deadline is None:
+            raise ResumeMatcherError("Resume generation has no execution deadline")
+        return self.client.deadline

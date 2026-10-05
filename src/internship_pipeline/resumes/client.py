@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import time
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -39,20 +38,6 @@ class ResumeMatcherClient:
 
     def close(self) -> None:
         self.http.close()
-
-    def generation_configuration(self) -> dict[str, Any]:
-        model = self._json("GET", "config/llm-api-key")
-        language = self._json("GET", "config/language")
-        if not isinstance(model.get("provider"), str) or not isinstance(model.get("model"), str):
-            raise ResumeMatcherError("Upstream model configuration is missing")
-        # The masked API key is deliberately excluded from keys and disk metadata.
-        return {
-            "provider": model["provider"],
-            "model": model["model"],
-            "api_base": model.get("api_base"),
-            "reasoning_effort": model.get("reasoning_effort"),
-            "content_language": language.get("content_language"),
-        }
 
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         remaining = self.timeout
@@ -108,19 +93,10 @@ class ResumeMatcherClient:
                 "Invalid Resume Matcher response", ambiguous=method != "GET"
             ) from exc
 
-    def upload_master(self, path: Path, filename: str) -> str:
-        mime = {
-            ".pdf": "application/pdf",
-            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }
-        if path.suffix.lower() not in mime:
-            raise ResumeMatcherError("Master resume must be PDF or DOCX")
-        with path.open("rb") as stream:
-            data = self._json(
-                "POST",
-                "resumes/upload",
-                files={"file": (filename, stream, mime[path.suffix.lower()])},
-            )
+    def import_master(self, resume_data: dict[str, Any]) -> str:
+        data = self._json(
+            "POST", "resume-wizard/finalize", json={"state": {"resume_data": resume_data}}
+        )
         return self._id(data.get("resume_id"))
 
     @staticmethod
@@ -135,12 +111,6 @@ class ResumeMatcherClient:
             raise ResumeMatcherError("Invalid resume fetch payload")
         return data
 
-    def list_resumes(self) -> list[dict[str, Any]]:
-        data = self._json("GET", "resumes/list", params={"include_master": "true"}).get("data")
-        if not isinstance(data, list) or any(not isinstance(row, dict) for row in data):
-            raise ResumeMatcherError("Invalid resume list payload")
-        return data
-
     def upload_job(self, description: str, master_id: str) -> str:
         data = self._json(
             "POST", "jobs/upload", json={"job_descriptions": [description], "resume_id": master_id}
@@ -150,17 +120,20 @@ class ResumeMatcherClient:
             raise ResumeMatcherError("Invalid job upload payload", ambiguous=True)
         return self._id(ids[0])
 
-    def tailor(self, master_id: str, job_id: str, config: dict[str, Any]) -> dict[str, Any]:
-        payload = {
-            "resume_id": master_id,
-            "job_id": job_id,
-            "prompt_id": config["prompt_id"],
-            "max_bullets_per_entry": 4,
-            "page_fit": {"template": config["template"], "pageSize": "A4"},
-        }
-        data = self._json("POST", "resumes/improve", json=payload).get("data")
-        if not isinstance(data, dict):
-            raise ResumeMatcherError("Invalid tailor payload", ambiguous=True)
+    def publish_tailored(
+        self, key: str, master_id: str, job_id: str, resume_data: dict[str, Any], title: str
+    ) -> dict[str, Any]:
+        data = self._json(
+            "POST",
+            "resumes/import-tailored",
+            json={
+                "generation_key": key,
+                "master_id": master_id,
+                "job_id": job_id,
+                "resume_data": resume_data,
+                "title": title,
+            },
+        )
         self._id(data.get("resume_id"))
         return data
 
