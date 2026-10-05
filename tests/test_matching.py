@@ -263,3 +263,125 @@ def test_rejected_jobs_do_not_call_model(monkeypatch: pytest.MonkeyPatch) -> Non
         llm_settings(),
     )
     assert result.eligible is False
+
+
+@pytest.mark.parametrize(
+    ("title", "description", "fields", "accepted"),
+    [
+        ("Data Analyst Intern", "Analyze datasets using SQL.", {}, True),
+        ("Software Intern", "Build Python services.", {}, True),
+        ("Backend Intern", "Build services with Python.", {}, True),
+        ("SDE Intern", "Build Python services.", {}, True),
+        (
+            "Senior Software Engineer",
+            "Mentor interns and support the internship program.",
+            {},
+            False,
+        ),
+        ("Software Engineer", "Mentor interns. This position is permanent.", {}, False),
+        ("Marketing Intern", "Work alongside software engineering teams.", {}, False),
+        (
+            "Software Engineer Intern",
+            "Full-time summer schedule using Python.",
+            {"employment_type": "full-time"},
+            True,
+        ),
+        (
+            "Software Engineer",
+            "As an intern, you will build services.",
+            {"employment_type": "full-time"},
+            True,
+        ),
+    ],
+)
+def test_role_and_employment_ambiguity(
+    title: str, description: str, fields: dict[str, object], accepted: bool
+) -> None:
+    assert (
+        match_job(job(title, description, **fields), CandidateProfile(), Settings()).accepted
+        is accepted
+    )
+
+
+@pytest.mark.parametrize(
+    ("title", "description", "terms", "rejected"),
+    [
+        ("Summer 2026 Software Engineer Intern", "Python.", ["summer 2027"], True),
+        ("Fall 2027 Software Engineer Intern", "Python.", ["summer 2027"], True),
+        ("Autumn 2027 Software Engineer Intern", "Python.", ["fall 2027"], False),
+        ("Summer 2027 Software Engineer Intern", "Python.", ["summer 2027"], False),
+        ("Software Engineer Intern", "Python.", ["summer 2027"], False),
+        (
+            "Software Engineer Intern",
+            "Internship term: summer 2026. Python.",
+            ["summer 2027"],
+            True,
+        ),
+        ("Software Engineer Intern", "Summer internship 2026. Python.", ["summer 2027"], True),
+    ],
+)
+def test_title_only_term_and_year(
+    title: str, description: str, terms: list[str], rejected: bool
+) -> None:
+    result = match_job(
+        job(title, description),
+        CandidateProfile(constraints=Constraints(term_keywords=terms)),
+        Settings(),
+    )
+    assert (result.eligible is False) is rejected
+    assert result.accepted is not rejected
+
+
+@pytest.mark.parametrize(
+    ("description", "rejected"),
+    [
+        ("Ph.D. required. Build Python services.", True),
+        ("PhD is not required. Build Python services.", False),
+        ("No PhD required. Build Python services.", False),
+        ("Master’s degree required. Build Python services.", True),
+        ("Master's degree or equivalent experience required. Python.", False),
+        ("PhD candidates welcome. Build Python services.", False),
+        ("You must know Python, and PhD applicants are welcome.", False),
+        ("A PhD isn't needed, but Python experience is required.", False),
+        ("Must be currently enrolled in a PhD program. Python.", True),
+    ],
+)
+def test_degree_negation_preferences_and_alternatives(description: str, rejected: bool) -> None:
+    result = match_job(
+        job(description=description),
+        CandidateProfile(constraints=Constraints(degree_level="bachelor")),
+        Settings(),
+    )
+    assert (result.eligible is False) is rejected
+
+
+@pytest.mark.parametrize("locations", [["Remote, Canada"], ["Canada", "Unspecified office"]])
+def test_remote_or_partly_unknown_country_does_not_hard_reject(locations: list[str]) -> None:
+    result = match_job(
+        job(locations=locations),
+        CandidateProfile(constraints=Constraints(countries=["USA"])),
+        Settings(),
+    )
+    assert result.accepted
+    assert result.eligible is None
+
+
+def test_provider_timeout_retains_preliminary_match(
+    monkeypatch: pytest.MonkeyPatch, profile: CandidateProfile
+) -> None:
+    original_client = httpx.Client
+
+    def timeout(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("synthetic timeout", request=request)
+
+    monkeypatch.setattr(
+        matching.httpx,
+        "Client",
+        lambda **kwargs: original_client(
+            transport=httpx.MockTransport(timeout),
+            **kwargs,
+        ),
+    )
+    with pytest.raises(MatchAssessmentError) as error:
+        match_job(job(), profile, llm_settings())
+    assert error.value.deterministic_result.accepted

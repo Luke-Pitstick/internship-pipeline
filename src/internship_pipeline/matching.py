@@ -15,12 +15,13 @@ from internship_pipeline.models import CandidateProfile, Job, MatchResult, RoleF
 _INTERNSHIP = re.compile(r"\b(intern(?:ship)?s?|co[ -]?op(?:erative)?)\b", re.I)
 _ROLES = (
     (RoleFamily.ML_AI, r"\b(machine learning|artificial intelligence|deep learning|ml|ai)\b"),
-    (RoleFamily.DS, r"\b(data scien(?:ce|tist)|data analytics)\b"),
+    (RoleFamily.DS, r"\b(data scien(?:ce|tist)|data (?:analytics|analyst|analysis))\b"),
     (RoleFamily.PM, r"\b(product manag(?:er|ement)|associate product manager|apm)\b"),
     (
         RoleFamily.SWE,
-        r"\b(software (?:engineer(?:ing)?|develop(?:er|ment))|swe|"
+        r"\b(software (?:engineer(?:ing)?|develop(?:er|ment)|intern(?:ship)?)|swe|sde|"
         r"(?:front[ -]?end|back[ -]?end|full[ -]?stack) (?:engineer|developer)|"
+        r"(?:front[ -]?end|back[ -]?end|full[ -]?stack) intern(?:ship)?|data engineer(?:ing)?|"
         r"(?:web|mobile|application) develop(?:er|ment))\b",
     ),
 )
@@ -45,7 +46,9 @@ _DEGREES = {
     "doctorate": 4,
     "doctoral": 4,
 }
-_DEGREE = re.compile(r"\b(bachelor(?:'?s)?|master(?:'?s)?|ph\.?d\.?|doctorate|doctoral)\b", re.I)
+_DEGREE = re.compile(
+    r"\b(bachelor(?:['’]?s)?|master(?:['’]?s)?|ph\.?d\.?|doctorate|doctoral)\b", re.I
+)
 
 
 class MatchAssessmentError(RuntimeError):
@@ -86,6 +89,8 @@ def _role(job: Job) -> RoleFamily | None:
     for family, pattern in _ROLES:
         if re.search(pattern, title, re.I):
             return family
+    if re.search(r"\b(marketing|finance|accounting|sales|nursing|human resources)\b", title, re.I):
+        return None
     for family, pattern in _ROLES:
         if re.search(pattern, job.posting.description, re.I):
             return family
@@ -98,7 +103,11 @@ def _degree_rank(text: str) -> int | None:
 
 
 def _requirements(description: str) -> list[str]:
-    return [part.strip() for part in re.split(r"[\n;]|(?<=[.!?])\s+", description) if part.strip()]
+    return [
+        part.strip()
+        for part in re.split(r"[\n;]|(?<=[.!?])\s+(?!required\b|preferred\b)", description)
+        if part.strip()
+    ]
 
 
 def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], list[str]]:
@@ -108,7 +117,12 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
     description = job.posting.description
     requirements = _requirements(description)
 
-    # Location constraints only reject explicitly known countries or exact exclusive locations.
+    remote = bool(
+        re.search(
+            r"\bremote\b", " ".join([description, job.posting.title, *job.posting.locations]), re.I
+        )
+    )
+    # Reject only when every listed location identifies a conflicting country.
     if constraints.countries:
         allowed = {_country(item) for item in constraints.countries}
         known_countries = (
@@ -124,17 +138,17 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
             }
             | allowed
         )
-        observed = {
-            _country(part)
+        location_countries = [
+            {_country(part) for part in location.split(",") if _country(part) in known_countries}
             for location in job.posting.locations
-            for part in location.split(",")
-            if _country(part) in known_countries
-        }
-        if observed and not observed & allowed and not re.search(r"\bremote\b", description, re.I):
+        ]
+        observed = set().union(*location_countries)
+        all_known = bool(location_countries) and all(location_countries)
+        if all_known and not observed & allowed and not remote:
             conflicts.append(
                 "All explicitly listed countries conflict with the configured countries."
             )
-        elif not observed or re.search(r"\bremote\b", description, re.I):
+        elif not all_known or remote:
             unknowns.append("Country eligibility or remote work jurisdiction needs confirmation.")
     if constraints.locations:
         posted = {_normalized(item) for item in job.posting.locations}
@@ -143,7 +157,8 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
     if not job.posting.locations:
         unknowns.append("Work location is not supplied.")
 
-    terms = set(re.findall(r"\b(summer|spring|fall|autumn|winter)\b", description, re.I))
+    term_data = job.posting.title + "\n" + description
+    terms = set(re.findall(r"\b(summer|spring|fall|autumn|winter)\b", term_data, re.I))
     terms = {"fall" if item.casefold() == "autumn" else item.casefold() for item in terms}
     if constraints.term_keywords:
         wanted = set()
@@ -151,11 +166,27 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
             wanted.update(re.findall(r"\b(summer|spring|fall|autumn|winter)\b", term.casefold()))
         wanted = {"fall" if item == "autumn" else item for item in wanted}
         # Seasonal mentions elsewhere in a JD aren't proof of an exclusive internship term.
+        explicit_terms = (
+            set(re.findall(r"\b(summer|spring|fall|autumn|winter)\b", job.posting.title, re.I))
+            if _INTERNSHIP.search(job.posting.title)
+            else set()
+        )
+        explicit_terms.update(
+            re.findall(
+                r"\b(summer|spring|fall|autumn|winter)\s+(?:20\d{2}\s+)?intern(?:ship)?\b",
+                description,
+                re.I,
+            )
+        )
+        explicit_terms.update(
+            re.findall(
+                r"\binternship\s+(?:term|period)\s*:\s*(summer|spring|fall|autumn|winter)\b",
+                description,
+                re.I,
+            )
+        )
         explicit_terms = {
-            term
-            for term in terms
-            if re.search(rf"\b{term}\s+(?:20\d{{2}}\s+)?intern(?:ship)?\b", description, re.I)
-            or re.search(rf"\binternship\s+(?:term|period)\s*:\s*{term}\b", description, re.I)
+            "fall" if term.casefold() == "autumn" else term.casefold() for term in explicit_terms
         }
         if wanted and explicit_terms and not wanted & explicit_terms:
             conflicts.append(
@@ -163,6 +194,36 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
             )
         elif not wanted or not explicit_terms:
             unknowns.append("Internship term compatibility needs confirmation.")
+        wanted_years = {
+            int(year)
+            for term in constraints.term_keywords
+            for year in re.findall(r"\b20\d{2}\b", term)
+        }
+        term_sources = [job.posting.title] if _INTERNSHIP.search(job.posting.title) else []
+        term_sources.extend(
+            re.findall(
+                r"\b(?:summer|spring|fall|autumn|winter)\s+(?:20\d{2}\s+)?intern(?:ship)?(?:\s+20\d{2})?\b",
+                description,
+                re.I,
+            )
+        )
+        term_sources.extend(
+            re.findall(
+                r"\binternship\s+(?:term|period)\s*:\s*([^\n.;]+)",
+                description,
+                re.I,
+            )
+        )
+        posted_years = {
+            int(year) for term in term_sources for year in re.findall(r"\b20\d{2}\b", term)
+        }
+        if wanted_years and posted_years:
+            if not wanted_years & posted_years:
+                conflicts.append(
+                    "The explicitly stated internship year conflicts with the configured term."
+                )
+        elif wanted_years:
+            unknowns.append("Internship year compatibility needs confirmation.")
     elif not terms:
         unknowns.append("Internship term is not supplied.")
 
@@ -170,12 +231,34 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
     degree_requirements = [line for line in requirements if _DEGREE.search(line)]
     for line in degree_requirements:
         ranks = [rank for match in _DEGREE.finditer(line) if (rank := _degree_rank(match[0]))]
-        mandatory = bool(re.search(r"\b(must|required|requires|only)\b", line, re.I))
+        # Associate mandatory language with the degree, not an unrelated skill clause.
+        mandatory = bool(
+            re.search(
+                rf"{_DEGREE.pattern}(?:\.)?(?:\s+(?:degree|candidates|students|program))?"
+                r"\s+(?:is\s+)?(?:required|only)\b|"
+                r"\b(?:must|requires?|minimum)\s+"
+                r"(?:(?:be|currently|pursuing|enrolled|in|have|hold|possess|a|an)\s+){0,8}"
+                rf"{_DEGREE.pattern}",
+                line,
+                re.I,
+            )
+        )
         preferred = bool(re.search(r"\b(preferred|desirable|nice to have)\b", line, re.I))
-        if mandatory and not preferred and degree_rank is not None and min(ranks) > degree_rank:
+        optional = bool(
+            re.search(r"\b(?:not required|no .{0,20}required|equivalent experience)\b", line, re.I)
+        )
+        if (
+            mandatory
+            and not preferred
+            and not optional
+            and degree_rank is not None
+            and min(ranks) > degree_rank
+        ):
             conflicts.append(f"Confirmed degree conflicts with the explicit requirement: {line}")
-        elif degree_rank is None:
+        elif degree_rank is None or (not mandatory and not preferred):
             unknowns.append(f"Degree eligibility is unverified: {line}")
+        elif mandatory and optional:
+            unknowns.append(f"Confirm degree or alternative-experience requirements: {line}")
     if not degree_requirements:
         unknowns.append("Degree requirements are not supplied.")
 
@@ -203,6 +286,7 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
             re.search(r"\bgraduat", line, re.I)
             and len(years) == 2
             and re.search(r"\b(?:must|required|between)\b", line, re.I)
+            and not re.search(r"\b(?:preferred|desirable|not required)\b", line, re.I)
         ):
             if graduation and re.match(r"20\d{2}", graduation):
                 year = int(graduation[:4])
@@ -212,16 +296,23 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
                     unknowns.append(f"Confirm the exact graduation-date bounds: {line}")
             else:
                 unknowns.append(f"Graduation eligibility is unverified: {line}")
+        elif re.search(r"\bgraduat", line, re.I):
+            unknowns.append(f"Confirm graduation requirements: {line}")
     return conflicts, list(dict.fromkeys(unknowns))
 
 
 def _deterministic_match(job: Job, profile: CandidateProfile) -> MatchResult:
     family = _role(job)
-    internship = bool(_INTERNSHIP.search(job.posting.title)) or bool(
+    title_internship = bool(_INTERNSHIP.search(job.posting.title)) or bool(
         _INTERNSHIP.fullmatch(job.posting.employment_type or "")
     )
-    if not internship:
-        internship = bool(_INTERNSHIP.search(job.posting.description))
+    internship = title_internship or bool(
+        re.search(
+            r"\b(?:internship|co[ -]?op|as an intern|intern (?:will|responsibilities))\b",
+            job.posting.description,
+            re.I,
+        )
+    )
     conflicts, unknowns = _hard_constraints(job, profile)
     if conflicts:
         return MatchResult(
@@ -236,15 +327,32 @@ def _deterministic_match(job: Job, profile: CandidateProfile) -> MatchResult:
             ],
             unknowns=unknowns,
         )
-    if not internship and re.search(
-        r"\b(?:permanent|senior|staff|principal|full[ -]time)\b",
+    explicit_noninternship = re.search(
+        r"\b(?:permanent|senior|staff|principal)\b",
+        job.posting.title,
+        re.I,
+    ) or re.search(r"\bpermanent\b", job.posting.employment_type or "", re.I)
+    full_time = re.search(
+        r"\bfull[ -]time\b",
         job.posting.title + " " + (job.posting.employment_type or ""),
+        re.I,
+    )
+    if not title_internship and (explicit_noninternship or (full_time and not internship)):
+        return MatchResult(
+            fit="weak",
+            role_family=family,
+            reasons=["The posting explicitly describes a non-internship role."],
+            unknowns=unknowns,
+        )
+    if not title_internship and re.search(
+        r"\b(?:permanent (?:position|role|employment)|this (?:position|role) is permanent)\b",
+        job.posting.description,
         re.I,
     ):
         return MatchResult(
             fit="weak",
             role_family=family,
-            reasons=["The posting explicitly describes a non-internship role."],
+            reasons=["The posting explicitly describes permanent employment."],
             unknowns=unknowns,
         )
     if not internship:
@@ -342,8 +450,12 @@ def _llm_assessment(
             preliminary,
         ) from exc
     reasons = [preliminary.reasons[0]]
-    if assessment.fact_ids:
-        reasons.append("Candidate evidence: " + ", ".join(assessment.fact_ids) + ".")
+    selected_ids = set(assessment.fact_ids)
+    reasons.extend(
+        f"Candidate evidence ({fact.id}): {fact.text}"
+        for fact in profile.facts
+        if fact.id in selected_ids
+    )
     reasons.extend(
         f"Posting evidence: {excerpt}" for excerpt in assessment.requirement_excerpts[:2]
     )
