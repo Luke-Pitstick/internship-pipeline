@@ -73,6 +73,7 @@ def test_cli_flags_default_model_and_subscription_environment(tmp_path, master, 
     assert "--ephemeral" in args and "--skip-git-repo-check" in args
     assert args[args.index("--sandbox") + 1] == "read-only"
     assert 'web_search="disabled"' in args
+    assert 'forced_login_method="chatgpt"' in args
     for feature in DISABLED_FEATURES:
         index = args.index(feature)
         assert args[index - 1] == "--disable"

@@ -244,6 +244,8 @@ class CodexResumeGenerator:
                 'web_search="disabled"',
                 "-c",
                 'model_reasoning_effort="high"',
+                "-c",
+                'forced_login_method="chatgpt"',
             ]
             for feature in DISABLED_FEATURES:
                 command.extend(["--disable", feature])
