@@ -553,6 +553,7 @@ def test_structured_internship_type_is_direct_evidence() -> None:
         "Machine Learning Intern (Master's/PhD)",
         "Machine Learning Intern – Master's",
         "Product Manager Intern, MBA Level - Summer 2027 (Apex Legends)",
+        "2026/2027 PhD Residency - AI for Science, Early Stage Project",
     ],
 )
 def test_explicit_graduate_title_cohort_rejects_bachelor(title: str) -> None:

@@ -281,6 +281,12 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
     # Explicit title cohorts such as "ML Intern (Master's)" restrict the opening
     # even when the supplied description omits that eligibility requirement.
     title_cohorts = []
+    for cohort in re.finditer(
+        rf"{_DEGREE.pattern}\s+(?:intern(?:ship)?|residen(?:cy|t)|co[ -]?op)\b",
+        job.posting.title,
+        re.I,
+    ):
+        title_cohorts.append(cohort[1])
     for match in re.finditer(r"\(([^()]*)\)|[,–—:\-]\s*([^(),–—:\-]*)", job.posting.title):
         cohort = next(value for value in match.groups() if value is not None).strip()
         remainder = _DEGREE.sub("", cohort)
