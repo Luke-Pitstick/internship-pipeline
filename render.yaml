@@ -1,0 +1,38 @@
+# Private candidate data and Codex login are provisioned over SSH, never in Git.
+services:
+  - type: worker
+    name: internship-pipeline
+    runtime: docker
+    repo: https://github.com/Luke-Pitstick/internship-pipeline
+    branch: main
+    region: oregon
+    plan: standard
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    disk:
+      name: internship-pipeline-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: CODEX_HOME
+        value: /var/data/codex
+      - key: RESUME_MATCHER_URL
+        value: http://internship-resume-matcher:3000
+  - type: pserv
+    name: internship-resume-matcher
+    runtime: docker
+    repo: https://github.com/Luke-Pitstick/internship-pipeline
+    branch: main
+    region: oregon
+    plan: standard
+    dockerfilePath: ./deploy/resume-matcher/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    disk:
+      name: internship-resume-data
+      mountPath: /app/backend/data
+      sizeGB: 2
+    envVars:
+      - key: FRONTEND_BASE_URL
+        value: http://localhost:3000

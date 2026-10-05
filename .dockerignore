@@ -3,5 +3,7 @@
 !uv.lock
 !src/
 !src/**
+!deploy/
+!deploy/**
 **/__pycache__/
 **/*.pyc

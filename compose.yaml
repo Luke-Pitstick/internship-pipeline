@@ -1,7 +1,9 @@
 name: internship-pipeline
 
 x-worker: &worker
-  build: .
+  build:
+    context: .
+    target: pipeline
   image: internship-pipeline:local
   restart: unless-stopped
   init: true
