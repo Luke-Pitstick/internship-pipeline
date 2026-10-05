@@ -157,3 +157,77 @@ def test_deleted_child_is_not_silently_recreated(publisher):
             await publisher.db.close()
 
     asyncio.run(exercise())
+
+
+@pytest.fixture
+def wizard(publisher, monkeypatch):
+    unused = types.ModuleType("app.services.resume_wizard")
+    unused.RESUME_WIZARD_MAX_QUESTIONS = 10
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Finalize must never call a wizard LLM turn helper")
+
+    for name in ("apply_back", "apply_review", "build_initial_wizard_state", "run_ai_turn"):
+        setattr(unused, name, forbidden)
+    monkeypatch.setitem(sys.modules, "app.services.resume_wizard", unused)
+    path = Path(UPSTREAM) / "apps/backend/app/routers/resume_wizard.py"
+    spec = importlib.util.spec_from_file_location("native_wizard_contract", path)
+    native = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, native)
+    spec.loader.exec_module(native)
+    monkeypatch.setattr(native, "db", publisher.db)
+    publisher.app.include_router(native.router, prefix="/api/v1")
+    return publisher
+
+
+def test_native_finalize_replays_concurrently_without_llm(wizard):
+    async def exercise():
+        try:
+            raw = json.loads((Path(__file__).parent / "fixtures/resume_master.json").read_text())
+            payload = {"state": {"resume_data": raw}}
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=wizard.app), base_url="http://synthetic"
+            ) as client:
+                responses = await asyncio.gather(
+                    *[client.post("/api/v1/resume-wizard/finalize", json=payload) for _ in range(6)]
+                )
+            assert [r.status_code for r in responses] == [200] * 6
+            assert len({r.json()["resume_id"] for r in responses}) == 1
+            rows = await wizard.db.list_resumes()
+            assert len(rows) == 1 and rows[0]["is_master"] is True
+            assert responses[0].json()["processing_status"] == "ready"
+        finally:
+            await wizard.db.close()
+
+    asyncio.run(exercise())
+
+
+def test_native_finalize_replays_at_master_limit_and_rejects_new_master(wizard):
+    async def exercise():
+        try:
+            raw = json.loads((Path(__file__).parent / "fixtures/resume_master.json").read_text())
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=wizard.app), base_url="http://synthetic"
+            ) as client:
+                first = None
+                for number in range(5):
+                    data = copy.deepcopy(raw)
+                    data["summary"] = f"Synthetic factual variation {number}"
+                    payload = {"state": {"resume_data": data}}
+                    if first is None:
+                        first = copy.deepcopy(payload)
+                    assert (
+                        await client.post("/api/v1/resume-wizard/finalize", json=payload)
+                    ).status_code == 200
+                replay = await client.post("/api/v1/resume-wizard/finalize", json=first)
+                assert replay.status_code == 200
+                raw["summary"] = "New sixth synthetic master"
+                rejected = await client.post(
+                    "/api/v1/resume-wizard/finalize", json={"state": {"resume_data": raw}}
+                )
+                assert rejected.status_code == 409
+            assert len(await wizard.db.list_resumes()) == 5
+        finally:
+            await wizard.db.close()
+
+    asyncio.run(exercise())
