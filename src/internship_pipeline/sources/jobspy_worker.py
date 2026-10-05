@@ -9,7 +9,7 @@ import sys
 
 from internship_pipeline.models import FetchResult, SearchQuery
 from internship_pipeline.sources.errors import failure_result
-from internship_pipeline.sources.jobspy import normalize_row
+from internship_pipeline.sources.jobspy import MissingEmployerError, normalize_row
 
 
 class _Errors(logging.Handler):
@@ -50,14 +50,25 @@ def collect(query: SearchQuery) -> FetchResult:
             )
         rows = frame.to_dict(orient="records")
         counts = dict.fromkeys(query.sites, 0)
+        missing_employers = 0
         for row in rows:
+            site = row.get("site")
+            if isinstance(site, str) and site in counts:
+                # Provider caps include rows omitted because metadata is missing.
+                counts[site] += 1
             try:
                 job = normalize_row(row, query)
                 jobs.append(job)
-                counts[job.source.removeprefix("jobspy:")] += 1
+            except MissingEmployerError:
+                missing_employers += 1
             except Exception as exc:
                 errors.messages.append(f"Invalid search posting: {exc}")
         actual_failure = bool(errors.messages)
+        if missing_employers:
+            errors.messages.append(
+                f"Skipped {missing_employers} postings with missing employer names; "
+                "coverage is partial"
+            )
         capped = [site for site, count in counts.items() if count >= query.results_wanted]
         if capped:
             errors.messages.append(

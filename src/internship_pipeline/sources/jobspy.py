@@ -16,6 +16,10 @@ SUPPORTED_SITES = frozenset(
 )
 
 
+class MissingEmployerError(ValueError):
+    """JobSpy allows absent employer names; the posting's identity is incomplete."""
+
+
 def _text(value: Any) -> str:
     if value is None:
         return ""
@@ -36,8 +40,12 @@ def normalize_row(row: dict[str, Any], query: SearchQuery) -> SourceJob:
     canonical_url(apply_url)
     title = _text(row.get("title"))
     company = _text(row.get("company"))
-    if not title or not company or site not in query.sites:
-        raise ValueError("Search result has no valid title, company or requested site")
+    if not title:
+        raise ValueError("Search result title is missing")
+    if site not in query.sites:
+        raise ValueError("Search result site is missing or was not requested")
+    if not company:
+        raise MissingEmployerError("Search result employer name is missing")
     posted = row.get("date_posted")
     posted_at = None
     if isinstance(posted, datetime):
