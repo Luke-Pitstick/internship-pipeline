@@ -6,6 +6,8 @@ COPY --from=uv /uv /usr/local/bin/uv
 COPY --from=codex /usr/local/bin/node /usr/local/bin/node
 COPY --from=codex /opt/codex /opt/codex
 RUN ln -s /opt/codex/node_modules/.bin/codex /usr/local/bin/codex
+RUN apt-get update && apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 COPY pyproject.toml uv.lock ./
@@ -26,6 +28,7 @@ RUN usermod -s /bin/bash pipeline \
     && chmod 0700 /home/pipeline/.ssh \
     && chown pipeline:pipeline /home/pipeline/.ssh
 COPY deploy/worker-entrypoint.py /app/worker-entrypoint.py
+COPY deploy/web-entrypoint.py /app/web-entrypoint.py
 ENV CODEX_HOME=/var/data/codex
 USER pipeline
-ENTRYPOINT ["python", "/app/worker-entrypoint.py"]
+ENTRYPOINT ["python", "/app/web-entrypoint.py"]

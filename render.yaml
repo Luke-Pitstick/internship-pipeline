@@ -1,7 +1,7 @@
 # Private candidate data and Codex login are provisioned over SSH, never in Git.
 services:
-  - type: worker
-    name: internship-pipeline
+  - type: web
+    name: internship-pipeline-api
     runtime: docker
     repo: https://github.com/Luke-Pitstick/internship-pipeline
     branch: main
@@ -10,11 +10,16 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     autoDeployTrigger: checksPass
+    healthCheckPath: /healthz
     disk:
       name: internship-pipeline-data
       mountPath: /var/data
       sizeGB: 5
     envVars:
+      - key: DASHBOARD_API_TOKEN
+        sync: false
+      - key: RESUME_GENERATION_PAUSED
+        value: "1"
       - key: CODEX_HOME
         value: /var/data/codex
       - key: RESUME_MATCHER_URL

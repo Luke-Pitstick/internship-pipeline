@@ -75,4 +75,9 @@ def run_workers(config: Path | None) -> int:
     base = [sys.executable, "-m", "internship_pipeline.cli"]
     if config is not None:
         base.extend(["--config", str(config.resolve())])
-    return supervise({role: [*base, "worker", role] for role in ROLES})
+    roles = [
+        role
+        for role in ROLES
+        if not (role == "resumes" and os.environ.get("RESUME_GENERATION_PAUSED") == "1")
+    ]
+    return supervise({role: [*base, "worker", role] for role in roles})
