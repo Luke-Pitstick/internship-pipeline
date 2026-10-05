@@ -562,3 +562,67 @@ def test_title_degree_cohort_preserves_unknown_candidate_degree() -> None:
     assert result.accepted
     assert result.eligible is None
     assert any("Degree eligibility is unverified: Master’s" in value for value in result.unknowns)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Internship, Systems Integration Engineer, Thermal Systems (Winter/Spring 2027)",
+        "Internship, Validation Engineer, Crash Safety (Winter/Spring 2027)",
+        "2027 Internship - Mixed Signal Products Applications Engineer",
+        "Systems Integration Engineer Intern",
+        "Applications Engineer Intern",
+        "Validation Engineer Intern",
+        "Reliability Engineer Intern",
+        "Test Engineer Intern",
+        "Design Engineer Intern",
+        "Embedded Systems Engineer Intern",
+        "Operations Intern",
+    ],
+)
+def test_specific_unsupported_job_function_cannot_be_reclassified_by_description(
+    title: str,
+) -> None:
+    result = match_job(
+        job(
+            title,
+            "Use software development, Python, machine learning and data science for testing.",
+        ),
+        CandidateProfile(),
+        Settings(),
+    )
+    assert not result.accepted
+    assert result.role_family is None
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Software Test Engineer Intern",
+        "Software Verification Engineer Intern",
+        "Software Validation Engineering Internship",
+        "Software Quality Assurance Intern",
+        "Embedded Firmware Engineer Intern",
+        "Firmware Development Co-op",
+        "Internship, Software Engineer, Thermal Systems (Winter/Spring 2027)",
+        "Software Engineer Intern – Hardware Integration",
+    ],
+)
+def test_positive_software_function_titles_remain_supported(title: str) -> None:
+    result = match_job(
+        job(title, "Develop and test Python services."), CandidateProfile(), Settings()
+    )
+    assert result.accepted
+    assert result.role_family == "swe"
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Research Intern", "Summer 2027 Research Internship", "Internship, Research", "Intern"],
+)
+def test_generic_internship_title_can_use_description_to_identify_role(title: str) -> None:
+    result = match_job(
+        job(title, "Research machine learning models using Python."), CandidateProfile(), Settings()
+    )
+    assert result.accepted
+    assert result.role_family == "ml_ai"

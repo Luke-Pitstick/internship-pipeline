@@ -19,7 +19,9 @@ _ROLES = (
     (RoleFamily.PM, r"\b(product manag(?:er|ement)|associate product manager|apm)\b"),
     (
         RoleFamily.SWE,
-        r"\b(software (?:engineer(?:ing)?|develop(?:er|ment)|intern(?:ship)?)|swe|sde|"
+        r"\b(software (?:(?:test|verification|validation|quality assurance|qa)\s+)?"
+        r"(?:engineer(?:ing)?|develop(?:er|ment)|intern(?:ship)?)|swe|sde|"
+        r"firmware (?:engineer(?:ing)?|develop(?:er|ment)|intern(?:ship)?)|"
         r"(?:front[ -]?end|back[ -]?end|full[ -]?stack) (?:engineer|developer)|"
         r"(?:front[ -]?end|back[ -]?end|full[ -]?stack) intern(?:ship)?|data engineer(?:ing)?|"
         r"(?:web|mobile|application) develop(?:er|ment))\b",
@@ -124,10 +126,17 @@ def _role(job: Job) -> RoleFamily | None:
     for family, pattern in _ROLES:
         if re.search(pattern, title, re.I):
             return family
-    if re.search(
-        r"\b(marketing|finance|accounting|sales|nursing|human resources|"
-        r"business systems analyst|cad designer|assembly technician)\b",
-        title,
+    # Description keywords can classify an unspecified internship, but cannot
+    # redefine a specific job function such as crash safety or mixed-signal design.
+    generic_title = re.sub(
+        r"\b(?:20\d{2}|summer|winter|spring|fall|autumn)\b", "", title, flags=re.I
+    )
+    generic_title = re.sub(r"[\s,–—()/\-]+", " ", generic_title).strip()
+    if not re.fullmatch(
+        r"(?:research\s+)?intern(?:ship)?|intern(?:ship)?\s+research|"
+        r"(?:research\s+)?co\s+op|student\s+developer|"
+        r"(?:general|student|university)\s+intern(?:ship)?",
+        generic_title,
         re.I,
     ):
         return None
