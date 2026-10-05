@@ -145,7 +145,21 @@ class Pipeline:
             raise OpeningPending()
         match = MatchResult.model_validate(task.payload["match"])
         artifact = self.resume_service.generate(job, match, self.profile)
-        self.store.save_artifact(artifact, list(self.destinations))
+        latest = self.store.get_job(job.id)
+        if (
+            latest.content_hash != job.content_hash
+            or latest.status != "open"
+            or latest.applied_at is not None
+            or latest.opening_revision != job.opening_revision
+        ):
+            return
+        self.store.save_artifact(
+            artifact,
+            list(self.destinations),
+            job.content_hash,
+            self.profile.revision,
+            job.opening_revision,
+        )
 
     def _deliver(self, task: Task) -> None:
         from internship_pipeline.notifications import (
@@ -177,6 +191,11 @@ class Pipeline:
                 f"Apply: {job.posting.apply_url}"
             )
         else:
+            if (
+                task.payload["content_hash"] != job.content_hash
+                or task.payload["profile_revision"] != self.profile.revision
+            ):
+                return
             if not self.store.delivered(
                 f"opening:{job.id}:{job.opening_revision}:{destination_id}"
             ):

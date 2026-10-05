@@ -1,0 +1,21 @@
+name: Offline checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.14"
+      - run: uv sync --python 3.12 --frozen --extra sources
+      - run: uv run --frozen ruff check src tests
+      - run: uv run --frozen mypy src/internship_pipeline
+      - run: uv run --frozen pytest -q
+      - run: uv build
+      - run: uv run --frozen internship-pipeline demo
+      - run: docker compose config --quiet

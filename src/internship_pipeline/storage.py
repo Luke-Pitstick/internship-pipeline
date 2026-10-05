@@ -464,9 +464,15 @@ class Store:
             ).fetchone()
             return MatchResult.model_validate_json(row[0]) if row else None
 
-    def save_artifact(self, artifact: ResumeArtifact, destination_ids: list[str]) -> None:
+    def save_artifact(
+        self,
+        artifact: ResumeArtifact,
+        destination_ids: list[str],
+        content_hash: str,
+        profile_revision: str,
+        opening_revision: int,
+    ) -> None:
         now = utcnow().timestamp()
-        job = self.get_job(artifact.job_id)
         with self.transaction() as connection:
             connection.execute(
                 "INSERT OR REPLACE INTO artifacts VALUES(?,?,?)",
@@ -476,13 +482,15 @@ class Store:
                 enqueue(
                     connection,
                     "delivery",
-                    f"resume:{artifact.key}:{job.opening_revision}:{destination}",
+                    f"resume:{artifact.key}:{opening_revision}:{destination}",
                     {
                         "job_id": artifact.job_id,
                         "kind": "resume",
                         "destination_id": destination,
                         "artifact_key": artifact.key,
-                        "opening_revision": job.opening_revision,
+                        "opening_revision": opening_revision,
+                        "content_hash": content_hash,
+                        "profile_revision": profile_revision,
                     },
                     now,
                 )

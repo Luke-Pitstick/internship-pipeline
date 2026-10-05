@@ -28,12 +28,15 @@ def register_targets(store: Store, companies: list[Company], queries: list[Searc
             company.enabled,
         )
     for query in queries:
-        store.register_target(
-            f"search:{query.id}",
-            "search",
-            query.model_dump_json(),
-            "jobspy:" + ",".join(sorted(query.sites)),
-        )
+        for site in sorted(set(query.sites)):
+            # Each site's failures and cooldown affect every query against that site.
+            single_site = query.model_copy(update={"sites": [site]})
+            store.register_target(
+                f"search:{query.id}:{site}",
+                "search",
+                single_site.model_dump_json(),
+                f"jobspy:{site}",
+            )
 
 
 async def collect_due(

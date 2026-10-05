@@ -1,0 +1,57 @@
+name: internship-pipeline
+
+x-worker: &worker
+  build: .
+  image: internship-pipeline:local
+  restart: unless-stopped
+  init: true
+  user: "${PIPELINE_UID:-10001}:${PIPELINE_GID:-10001}"
+  read_only: true
+  tmpfs:
+    - /tmp
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    RESUME_MATCHER_URL: http://resume-matcher:3000
+  volumes:
+    - ./config:/app/config:ro
+    - ./private:/app/private:ro
+    - ./data:/app/data
+    - ./artifacts:/app/artifacts
+  stop_grace_period: 45s
+
+services:
+  collector:
+    <<: *worker
+    command: [worker, collector]
+  matcher:
+    <<: *worker
+    command: [worker, matcher]
+  resumes:
+    <<: *worker
+    command: [worker, resumes]
+    depends_on:
+      - resume-matcher
+  delivery:
+    <<: *worker
+    command: [worker, delivery]
+  discovery:
+    <<: *worker
+    command: [worker, discovery]
+  resume-matcher:
+    image: internship-resume-matcher:63fc344a9a59a79db6fa9d96aff188dc9faf545b
+    build:
+      context: https://github.com/srbhr/Resume-Matcher.git#63fc344a9a59a79db6fa9d96aff188dc9faf545b
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      FRONTEND_BASE_URL: http://localhost:3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - resume-data:/app/backend/data
+
+volumes:
+  resume-data:

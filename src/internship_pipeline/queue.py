@@ -44,8 +44,11 @@ class Queue:
             row = connection.execute(
                 f"SELECT * FROM tasks WHERE kind IN ({placeholders}) AND attempts<? AND "
                 "((status='pending' AND available_at<=?) OR "
-                "(status='running' AND lease_until<=?)) ORDER BY available_at,id LIMIT 1",
-                (*kinds, self.max_attempts, now, now),
+                "(status='running' AND lease_until<=?)) ORDER BY "
+                "CASE WHEN created<=? THEN 0 "
+                "WHEN kind='resume' AND json_extract(payload,'$.match.fit')='strong' THEN 1 "
+                "ELSE 2 END,available_at,id LIMIT 1",
+                (*kinds, self.max_attempts, now, now, now - 300),
             ).fetchone()
             if row is None:
                 return None
