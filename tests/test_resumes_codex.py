@@ -1,36 +1,15 @@
 from __future__ import annotations
 
-import copy
 import json
 import sys
 import time
 from pathlib import Path
 
 import pytest
-from test_resumes import master as master_fixture
-from test_resumes import profile as profile_fixture
 
-from internship_pipeline.models import CandidateProfile
 from internship_pipeline.resumes.client import ResumeMatcherError
 from internship_pipeline.resumes.codex import DISABLED_FEATURES, CodexResumeGenerator
 from internship_pipeline.resumes.validation import ResumeValidationError
-
-master = master_fixture
-profile = profile_fixture
-
-
-def structured(master: dict) -> dict:
-    result = copy.deepcopy(master)
-    result.pop("sectionMeta")
-    result.pop("customSections")
-    result["personalInfo"]["title"] = ""
-    for row in result["workExperience"]:
-        row["location"] = None
-    for row in result["education"]:
-        row["description"] = None
-    for row in result["personalProjects"]:
-        row["github"] = row["website"] = None
-    return result
 
 
 def executable(tmp_path: Path, payload: dict, behavior: str = "ok") -> tuple[Path, Path]:
@@ -58,13 +37,14 @@ result.write_text("bad JSON" if behavior == "bad-json" else {json.dumps(payload)
     return path, recording
 
 
-def test_cli_flags_default_model_and_subscription_environment(tmp_path, master, monkeypatch):
-    binary, recording = executable(tmp_path, structured(master))
+def test_cli_flags_default_model_and_subscription_environment(tmp_path, monkeypatch):
+    binary, recording = executable(tmp_path, {"edits": [], "keywords": []})
     monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-used")
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / "saved-login"))
-    generator = CodexResumeGenerator(executable=str(binary))
-    result = generator._run("Synthetic transformation, source text only.", time.monotonic() + 5)
-    assert result["personalInfo"]["name"] == "Alex Example"
+    result = CodexResumeGenerator(executable=str(binary))._run(
+        "Synthetic edit plan", time.monotonic() + 5
+    )
+    assert result == {"edits": [], "keywords": []}
     record = json.loads(recording.read_text())
     args = record["args"]
     assert "--model" not in args
@@ -75,18 +55,18 @@ def test_cli_flags_default_model_and_subscription_environment(tmp_path, master, 
     assert 'web_search="disabled"' in args
     assert 'forced_login_method="chatgpt"' in args
     for feature in DISABLED_FEATURES:
-        index = args.index(feature)
-        assert args[index - 1] == "--disable"
+        assert args[args.index(feature) - 1] == "--disable"
     assert record["api_key_present"] is False
     assert record["codex_home"] == str(tmp_path / "saved-login")
-    assert record["prompt"] == "Synthetic transformation, source text only."
-    assert not Path(record["cwd"]).exists()  # Ephemeral schema/output directory was removed.
+    assert record["prompt"] == "Synthetic edit plan"
+    assert not Path(record["cwd"]).exists()
 
 
-def test_explicit_tested_model_is_passed(tmp_path, master):
-    binary, recording = executable(tmp_path, structured(master))
-    generator = CodexResumeGenerator(executable=str(binary), model="account-tested-model")
-    generator._run("Synthetic", time.monotonic() + 5)
+def test_explicit_tested_model_is_passed(tmp_path):
+    binary, recording = executable(tmp_path, {"edits": [], "keywords": []})
+    CodexResumeGenerator(executable=str(binary), model="account-tested-model")._run(
+        "Synthetic", time.monotonic() + 5
+    )
     args = json.loads(recording.read_text())["args"]
     assert args[args.index("--model") + 1] == "account-tested-model"
 
@@ -99,19 +79,20 @@ def test_explicit_tested_model_is_passed(tmp_path, master):
         ("bad-json", ResumeValidationError),
     ],
 )
-def test_failed_runs_are_bounded_redacted_and_rejected(behavior, error, tmp_path, master):
-    binary, recording = executable(tmp_path, structured(master), behavior)
-    generator = CodexResumeGenerator(executable=str(binary))
+def test_failed_runs_are_bounded_redacted_and_rejected(behavior, error, tmp_path):
+    binary, recording = executable(tmp_path, {"edits": [], "keywords": []}, behavior)
     start = time.monotonic()
     with pytest.raises(error) as result:
-        generator._run("Synthetic", start + (0.2 if behavior == "timeout" else 5))
+        CodexResumeGenerator(executable=str(binary))._run(
+            "Synthetic", start + (0.2 if behavior == "timeout" else 5)
+        )
     assert time.monotonic() - start < 3
     assert "private-provider-token" not in str(result.value)
     if recording.exists():
         assert not Path(json.loads(recording.read_text())["cwd"]).exists()
 
 
-def test_missing_cli_and_invalid_schema_are_rejected(tmp_path, master):
+def test_missing_cli_and_invalid_schema_are_rejected(tmp_path):
     with pytest.raises(ResumeMatcherError, match="cannot start"):
         CodexResumeGenerator(executable=str(tmp_path / "missing"))._run(
             "Synthetic", time.monotonic() + 5
@@ -119,28 +100,3 @@ def test_missing_cli_and_invalid_schema_are_rejected(tmp_path, master):
     binary, _ = executable(tmp_path, {"invented_schema": True})
     with pytest.raises(ResumeValidationError, match="invalid structured"):
         CodexResumeGenerator(executable=str(binary))._run("Synthetic", time.monotonic() + 5)
-
-
-def test_master_pdf_parsing_uses_extracted_data_and_rejects_added_numbers(
-    tmp_path, master, profile
-):
-    binary, recording = executable(tmp_path, structured(master))
-    generator = CodexResumeGenerator(executable=str(binary))
-    result = generator.parse_master(profile.master_resume_path, profile, time.monotonic() + 5)
-    assert result["workExperience"][0]["company"] == "Example Labs"
-    prompt = json.loads(recording.read_text())["prompt"]
-    assert "resume_text" in prompt and "Built a Python API serving 12" in prompt
-    bad = structured(master)
-    bad["summary"] += " Increased revenue by 900%."
-    binary, _ = executable(tmp_path, bad)
-    with pytest.raises(ResumeValidationError, match="unsupported numerical"):
-        CodexResumeGenerator(executable=str(binary)).parse_master(
-            profile.master_resume_path, profile, time.monotonic() + 5
-        )
-
-
-def test_pdf_source_requires_extractable_text(tmp_path):
-    source = tmp_path / "bad.pdf"
-    source.write_bytes(b"not a PDF")
-    with pytest.raises(ResumeValidationError, match="extract"):
-        CodexResumeGenerator().parse_master(source, CandidateProfile(), time.monotonic() + 5)

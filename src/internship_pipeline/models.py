@@ -125,6 +125,7 @@ class ResumeArtifact(Record):
     job_id: str
     pdf_path: Path
     resume_id: str
+    engine: str = "legacy-resume-matcher"
     change_summary: list[str] = Field(default_factory=list)
     review_warnings: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
