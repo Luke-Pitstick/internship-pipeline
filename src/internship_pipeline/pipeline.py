@@ -63,6 +63,8 @@ class Pipeline:
         }
         if settings.recording_notifications_path is not None:
             self.destinations["recording"] = "recording"
+        if settings.dot_outbox_path is not None:
+            self.destinations["dot"] = "dot"
 
     def process_next(self, kinds: list[str]) -> bool:
         task = self.queue.claim(kinds)
@@ -205,7 +207,13 @@ class Pipeline:
             attachment = artifact.pdf_path
             if not attachment.is_file():
                 raise DeliveryFailed("Saved resume file is missing")
-        if destination_id == "recording":
+        if destination_id == "dot":
+            from internship_pipeline.dot import write_notification
+
+            outbox = self.settings.dot_outbox_path
+            assert outbox is not None
+            sent = write_notification(outbox, task.key, title, body, attachment)
+        elif destination_id == "recording":
             path = self.settings.recording_notifications_path
             assert path is not None
             sent = record_notification(path, title, body, attachment)

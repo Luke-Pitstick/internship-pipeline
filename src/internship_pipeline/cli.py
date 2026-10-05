@@ -93,9 +93,13 @@ def _pipeline(settings: Settings, store: Store) -> Pipeline:
 
 
 def _require_destination(settings: Settings) -> None:
-    if not settings.notification_urls and settings.recording_notifications_path is None:
+    if (
+        not settings.notification_urls
+        and settings.recording_notifications_path is None
+        and settings.dot_outbox_path is None
+    ):
         raise ConfigurationError(
-            "Configure notification_urls or an explicit recording_notifications_path first"
+            "Configure notification_urls, dot_outbox_path, or a recording transport first"
         )
 
 

@@ -149,6 +149,7 @@ class Settings(Record):
     resume_matcher_url: str = "http://localhost:3000"
     notification_urls: list[str] = Field(default_factory=list, repr=False)
     recording_notifications_path: Path | None = None
+    dot_outbox_path: Path | None = None
     priority_interval_seconds: int = Field(default=300, ge=120)
     standard_interval_seconds: int = Field(default=900, ge=300)
     search_interval_seconds: int = Field(default=3600, ge=1800)

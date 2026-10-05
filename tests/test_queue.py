@@ -52,3 +52,15 @@ def test_provider_reservations_survive_restart(tmp_path: Path) -> None:
     store.cooldown_provider("ashby", 150)
     assert not store.reserve_provider("ashby", 149)
     assert store.reserve_provider("ashby", 150)
+
+
+def test_strong_resume_priority_yields_to_aged_work(tmp_path: Path) -> None:
+    store = Store(tmp_path / "db.sqlite")
+    with store.transaction() as connection:
+        enqueue(connection, "resume", "older", {"match": {"fit": "possible"}}, 100)
+        enqueue(connection, "resume", "strong", {"match": {"fit": "strong"}}, 200)
+    queue = Queue(store)
+    assert queue.claim(["resume"], now=250).key == "strong"
+    with store.transaction() as connection:
+        enqueue(connection, "resume", "another-strong", {"match": {"fit": "strong"}}, 450)
+    assert queue.claim(["resume"], now=500).key == "older"

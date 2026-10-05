@@ -162,3 +162,33 @@ def test_verified_reopening_gets_new_alert_and_pdf(tmp_path: Path) -> None:
     messages = [json.loads(line) for line in (tmp_path / "messages.jsonl").read_text().splitlines()]
     assert len(messages) == 4
     assert "reopen" in messages[2]["title"].lower()
+
+
+def test_posting_change_during_generation_suppresses_stale_attachment(tmp_path: Path) -> None:
+    pipeline, generator = configured_pipeline(tmp_path)
+    original = generator.generate
+
+    def change_during_generation(job, match, profile):
+        artifact = original(job, match, profile)
+        updated = job.posting.model_copy(
+            update={"description": "Python internship. New requirements."}
+        )
+        pipeline.store.ingest("acme", FetchResult(jobs=[updated]), profile.revision)
+        return artifact
+
+    generator.generate = change_during_generation
+    assert pipeline.process_next(["match"])
+    assert pipeline.process_next(["delivery"])
+    assert pipeline.process_next(["resume"])
+    assert not pipeline.process_next(["delivery"])
+    assert len((tmp_path / "messages.jsonl").read_text().splitlines()) == 1
+
+
+def test_profile_change_before_delivery_suppresses_stale_attachment(tmp_path: Path) -> None:
+    pipeline, _ = configured_pipeline(tmp_path)
+    pipeline.process_next(["match"])
+    pipeline.process_next(["delivery"])
+    pipeline.process_next(["resume"])
+    pipeline.profile = pipeline.profile.model_copy(update={"name": "Updated profile"})
+    pipeline.process_next(["delivery"])
+    assert len((tmp_path / "messages.jsonl").read_text().splitlines()) == 1

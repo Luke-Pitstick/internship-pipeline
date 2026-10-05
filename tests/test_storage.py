@@ -136,3 +136,19 @@ def test_backup_is_restorable(tmp_path: Path) -> None:
     backup = tmp_path / "backup.sqlite"
     store.backup(backup)
     assert Store(backup).get_job(job.id) == job
+
+
+def test_generic_apply_url_cannot_merge_different_requisitions(tmp_path: Path) -> None:
+    store = setup_store(tmp_path / "db.sqlite")
+    store.ingest(
+        "acme",
+        FetchResult(
+            jobs=[
+                posting("a", requisition_id="REQ-A", apply_url="https://example.invalid/apply"),
+                posting("b", requisition_id="REQ-B", apply_url="https://example.invalid/apply"),
+            ]
+        ),
+        "p1",
+        NOW,
+    )
+    assert len(store.list_jobs()) == 2
