@@ -2,7 +2,7 @@ database_path: /var/data/pipeline.sqlite3
 artifact_dir: /var/data/artifacts
 profile_path: /var/data/private/profile.yaml
 companies_path: /var/data/config/companies.yaml
-searches_path: null
+searches_path: /var/data/config/searches.yaml
 resume_matcher_url: http://internship-resume-matcher:3000
 notification_urls: []
 recording_notifications_path: null

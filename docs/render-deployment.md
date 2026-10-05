@@ -31,7 +31,10 @@ creating that marker, provision and verify:
 5. A subscription login through `codex login --device-auth` in the worker's SSH
    session, with `CODEX_HOME=/var/data/codex`. Complete the account authorization
    yourself. Never commit authentication caches or put them in image layers.
-6. A successful structured-output Codex probe and a synthetic renderer/PDF test.
+6. `/var/data/config/searches.yaml` from `deploy/searches.yaml`: four hourly
+   JobSpy searches covering SWE, PM, ML/AI and data science. These search the US
+   without a city filter; this is discovery scope, not a claim of work eligibility.
+7. A successful structured-output Codex probe and a synthetic renderer/PDF test.
 
 The installed CLI chooses its default model. Desktop model labels are not assumed
 to be valid CLI model names. Subscription limits still apply. Only one resume

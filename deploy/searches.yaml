@@ -1,0 +1,33 @@
+# Broad US discovery; the candidate profile applies term and eligibility filters.
+- id: swe-2027
+  search_term: software engineering intern 2027
+  location: ''
+  country: USA
+  sites:
+  - indeed
+  hours_old: 72
+  results_wanted: 100
+- id: pm-2027
+  search_term: product management intern 2027
+  location: ''
+  country: USA
+  sites:
+  - indeed
+  hours_old: 72
+  results_wanted: 100
+- id: ml-ai-2027
+  search_term: machine learning AI intern 2027
+  location: ''
+  country: USA
+  sites:
+  - indeed
+  hours_old: 72
+  results_wanted: 100
+- id: ds-2027
+  search_term: data science intern 2027
+  location: ''
+  country: USA
+  sites:
+  - indeed
+  hours_old: 72
+  results_wanted: 100
