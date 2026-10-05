@@ -175,7 +175,9 @@ def test_remote_snapshot_omits_private_payloads_and_preserves_source_times(tmp_p
     assert result["sources"][0]["last_success"] == now - 20
     assert result["sources"][0]["failures"] == 2
     assert result["recent_jobs"][0]["event"] == "backlog"
-    assert result["recent_jobs"][0]["published_at"] == "2026-10-01T00:00:00+00:00"
+    assert result["recent_jobs"][0]["source_timestamp"] == "2026-10-01T00:00:00+00:00"
+    assert result["recent_jobs"][0]["timestamp_kind"] == "source_time_ambiguous"
+    assert "published_at" not in result["recent_jobs"][0]
     assert result["recent_jobs"][0]["first_seen"] == now - 15
     assert result["recent_jobs"][0]["fit"] == "possible"
     assert result["relevance"]["accepted"] == 1
@@ -194,6 +196,7 @@ def synthetic_job(job_id: str, title: str, *, description: str = "Requires Pytho
             apply_url="https://example.test/jobs/" + job_id,
             description=description,
             published_at="2026-10-01T00:00:00Z",
+            timestamp_kind="source_time_ambiguous",
         ),
         first_seen_at=utcnow(),
         last_seen_at=utcnow(),
@@ -282,3 +285,7 @@ def test_html_uses_text_nodes_for_untrusted_values() -> None:
     assert "innerHTML" not in dashboard.HTML
     assert "textContent=value" in dashboard.HTML
     assert "setInterval(()=>refresh(),30000)" in dashboard.HTML
+    assert "Source publication" not in dashboard.HTML
+    assert "Source timestamp" in dashboard.HTML
+    assert "Ambiguous (published or updated)" in dashboard.HTML
+    assert "Ambiguous dates are not confirmed publication times." in dashboard.HTML

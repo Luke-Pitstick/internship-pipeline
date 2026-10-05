@@ -35,8 +35,10 @@ invokes LLM assessment, collection, resume generation, or delivery. The view
 includes database counts, task counts
 by role and state, oldest pending/running work, source attempt/success/due times
 and failure counts, and up to twenty preliminary profile matches. Source rows are limited
-to 100; summary counts cover all sources. First observation and source publication
-times remain separate, and backlog events retain their label. "Recorded
+to 100; summary counts cover all sources. First observation and source timestamps
+remain separate, and backlog events retain their label. The source timestamp
+column labels publication, update, aggregator dates, or an unknown/ambiguous kind;
+an ambiguous date is not a confirmed publication time. "Recorded
 deliveries" means database delivery records; local Dot relay and Google Sheets
 completion are outside this view.
 
