@@ -12,7 +12,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.9.14"
-      - run: uv sync --python 3.12 --frozen --extra sources
+      - run: uv sync --python 3.12 --frozen
       - run: uv run --frozen ruff check src tests
       - run: uv run --frozen mypy src/internship_pipeline
       - run: uv run --frozen pytest -q

@@ -481,16 +481,12 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "apprise" },
+    { name = "ats-scrapers" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pypdf" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-sources = [
-    { name = "ats-scrapers" },
     { name = "python-jobspy" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -504,14 +500,13 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apprise", specifier = ">=1,<2" },
-    { name = "ats-scrapers", marker = "extra == 'sources'" },
+    { name = "ats-scrapers", specifier = "==0.3.0" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "pydantic", specifier = ">=2,<3" },
     { name = "pypdf", specifier = ">=6,<7" },
-    { name = "python-jobspy", marker = "extra == 'sources'" },
+    { name = "python-jobspy", specifier = "==1.2.0" },
     { name = "pyyaml", specifier = ">=6,<7" },
 ]
-provides-extras = ["sources"]
 
 [package.metadata.requires-dev]
 dev = [

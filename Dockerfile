@@ -4,9 +4,9 @@ COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --extra sources --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
-RUN uv sync --frozen --no-dev --extra sources --no-editable \
+RUN uv sync --frozen --no-dev --no-editable \
     && useradd --uid 10001 --create-home pipeline \
     && mkdir -p /app/data /app/artifacts /app/config /app/private \
     && chown -R pipeline:pipeline /app/data /app/artifacts

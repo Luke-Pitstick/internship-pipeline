@@ -3,10 +3,10 @@ name = "internship-pipeline"
 version = "0.1.0"
 description = "Fast internship discovery, grounded resume tailoring, and alerts"
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2,<3", "httpx>=0.28,<1", "PyYAML>=6,<7", "apprise>=1,<2", "pypdf>=6,<7"]
-
-[project.optional-dependencies]
-sources = ["ats-scrapers", "python-jobspy"]
+dependencies = [
+    "pydantic>=2,<3", "httpx>=0.28,<1", "PyYAML>=6,<7", "apprise>=1,<2", "pypdf>=6,<7",
+    "ats-scrapers==0.3.0", "python-jobspy==1.2.0",
+]
 
 [project.scripts]
 internship-pipeline = "internship_pipeline.cli:main"
