@@ -78,6 +78,18 @@ def review_warnings(artifact: ResumeArtifact | None) -> list[str]:
     return list(dict.fromkeys(warnings))[:10]
 
 
+def resume_status(artifact: ResumeArtifact | None) -> str:
+    if artifact is not None:
+        return (
+            "draft_requires_review"
+            if artifact.engine == "original-latex"
+            else "legacy_preview_requires_review"
+        )
+    return (
+        "awaiting_latex_source" if os.getenv("RESUME_GENERATION_PAUSED") == "1" else "not_generated"
+    )
+
+
 class DashboardUnavailable(RuntimeError):
     """Return a generic unavailable response without private configuration details."""
 
@@ -231,14 +243,9 @@ class DashboardAPI:
                             "available": artifact is not None,
                             "download_path": f"/api/resumes/{job.id}" if artifact else None,
                             "created_at": artifact.created_at.isoformat() if artifact else None,
+                            "engine": artifact.engine if artifact else None,
                             "review_warnings": review_warnings(artifact),
-                            "status": (
-                                "legacy_preview_requires_review"
-                                if artifact
-                                else "awaiting_latex_source"
-                                if os.getenv("RESUME_GENERATION_PAUSED") == "1"
-                                else "not_generated"
-                            ),
+                            "status": resume_status(artifact),
                         },
                     }
                 )

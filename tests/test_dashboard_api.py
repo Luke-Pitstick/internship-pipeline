@@ -102,7 +102,11 @@ def api(tmp_path: Path) -> DashboardAPI:
 
 
 def register_pdf(
-    api: DashboardAPI, path: Path, job_id: str = "relevant", key: str = "artifact"
+    api: DashboardAPI,
+    path: Path,
+    job_id: str = "relevant",
+    key: str = "artifact",
+    engine: str = "legacy-resume-matcher",
 ) -> None:
     artifact = ResumeArtifact(
         key=key,
@@ -111,6 +115,7 @@ def register_pdf(
         resume_id=PRIVATE,
         change_summary=[PRIVATE],
         review_warnings=[PRIVATE],
+        engine=engine,
     )
     with sqlite3.connect(api.settings.database_path) as connection:
         connection.execute(
@@ -143,15 +148,25 @@ def test_jobs_use_shared_matching_without_exposing_candidate_facts(api: Dashboar
     assert api.settings.database_path.read_bytes() == before
 
 
-def test_existing_pdf_is_legacy_review_preview_and_download_is_db_backed(api: DashboardAPI) -> None:
+@pytest.mark.parametrize(
+    ("engine", "status"),
+    [
+        ("legacy-resume-matcher", "legacy_preview_requires_review"),
+        ("original-latex", "draft_requires_review"),
+    ],
+)
+def test_existing_pdf_status_identifies_engine_and_download_is_db_backed(
+    api: DashboardAPI, engine: str, status: str
+) -> None:
     pdf = b"%PDF-1.7\nsynthetic PDF bytes"
     path = api.settings.artifact_dir / "private-name.pdf"
     path.write_bytes(pdf)
-    register_pdf(api, path)
+    register_pdf(api, path, engine=engine)
     metadata = api.jobs()["jobs"][0]["resume"]
     assert metadata["available"] is True
     assert metadata["download_path"] == "/api/resumes/relevant"
-    assert metadata["status"] == "legacy_preview_requires_review"
+    assert metadata["status"] == status
+    assert metadata["engine"] == engine
     assert metadata["review_warnings"] == [
         "Additional stored review warnings need private review of the PDF."
     ]
@@ -161,6 +176,23 @@ def test_existing_pdf_is_legacy_review_preview_and_download_is_db_backed(api: Da
     assert api.resume("../private-name.pdf") is None
     assert api.resume("%2e%2e%2fprivate-name.pdf") is None
     assert api.resume("unknown") is None
+
+
+def test_saved_artifacts_without_engine_are_labeled_legacy(api: DashboardAPI) -> None:
+    path = api.settings.artifact_dir / "resume.pdf"
+    path.write_bytes(b"%PDF-1.7\nsynthetic")
+    register_pdf(api, path)
+    with sqlite3.connect(api.settings.database_path) as connection:
+        payload = json.loads(
+            connection.execute("SELECT data FROM artifacts WHERE key='artifact'").fetchone()[0]
+        )
+        payload.pop("engine")
+        connection.execute(
+            "UPDATE artifacts SET data=? WHERE key='artifact'", (json.dumps(payload),)
+        )
+    resume = api.jobs()["jobs"][0]["resume"]
+    assert resume["engine"] == "legacy-resume-matcher"
+    assert resume["status"] == "legacy_preview_requires_review"
 
 
 @pytest.mark.parametrize("unsafe", ["outside", "symlink", "invalid", "missing", "directory"])
