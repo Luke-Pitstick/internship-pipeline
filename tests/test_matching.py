@@ -385,3 +385,133 @@ def test_provider_timeout_retains_preliminary_match(
     with pytest.raises(MatchAssessmentError) as error:
         match_job(job(), profile, llm_settings())
     assert error.value.deterministic_result.accepted
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Structural Engineering Intern - Summer 2027",
+        "Electrical Engineering Co-op - Spring/Summer 2027",
+        "Civil Engineering Intern",
+        "Mechanical Engineering Intern",
+        "Chemical Engineering Intern",
+        "Aerospace Engineering Intern",
+        "Power Systems Engineering Intern",
+        "Hardware Engineer Intern",
+        "Materials & Process Engineering Intern",
+        "Water/Wastewater Engineering Intern",
+        "Water Resources Engineering Intern",
+        "Process Engineering Intern",
+        "Engineering Intern (Civil)",
+        "Electrical Engineering Intern - Machine Learning",
+        "Communication Systems Engineer Intern",
+    ],
+)
+def test_domain_engineering_does_not_qualify_through_description(
+    title: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def forbidden(**kwargs: object) -> None:
+        pytest.fail("Unsupported engineering roles must not reach model inference")
+
+    monkeypatch.setattr(matching.httpx, "Client", forbidden)
+    profile = CandidateProfile(
+        constraints=Constraints(degree_level="bachelor"),
+        facts=[
+            ExperienceFact(
+                id="cs-degree",
+                text="Pursuing a computer science bachelor's degree.",
+                skills=["Python", "SQL"],
+            ),
+        ],
+    )
+    posting = job(
+        title,
+        "Use Python for data analysis and collaborate with software engineering "
+        "and machine learning teams. Electrical or civil engineering students required.",
+    )
+    posting.posting.company = "WSP"
+    result = match_job(posting, profile, llm_settings())
+    assert not result.accepted
+    assert result.fit == "weak"
+    assert result.role_family is None
+
+
+@pytest.mark.parametrize(
+    ("title", "family"),
+    [
+        ("Software Engineer Intern - Electrical Engineering Tools", "swe"),
+        ("Embedded Software Engineering Intern - Summer 2027", "swe"),
+        ("Aerospace Software Engineer Intern", "swe"),
+        ("Flight Software Intern - Winter 2027", "swe"),
+        ("Machine Learning Engineer Intern - Mechanical Engineering", "ml_ai"),
+        ("Data Science Intern - Civil Engineering", "ds"),
+        ("Product Management Intern - Structural Engineering Software", "pm"),
+    ],
+)
+def test_target_roles_at_engineering_companies_remain_supported(title: str, family: str) -> None:
+    posting = job(title, "Develop software products with Python.")
+    posting.posting.company = "Example Electrical and Structural Engineering"
+    result = match_job(posting, CandidateProfile(), Settings())
+    assert result.accepted
+    assert result.role_family == family
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Assembly Technician I",
+        "Associate Mechanical Engineering Manager",
+        "Business Systems Analyst I",
+        "Business Systems Analyst II",
+        "CAD Designer I",
+        "Calibration Engineer",
+        "Combustion Engineer II",
+        "Communication Systems Engineer II",
+        "Director Business Development",
+        "Electrical Engineer I",
+        "Software Engineer",
+        "Software Engineer I",
+        "Senior Software Engineer",
+        "Software Engineering Manager",
+        "Director of Machine Learning",
+        "Lead Data Scientist",
+        "Product Manager",
+    ],
+)
+def test_regular_jobs_with_internship_boilerplate_are_not_accepted(title: str) -> None:
+    result = match_job(
+        job(
+            title,
+            "Our software engineering teams use Python and machine learning. "
+            "We offer internship programs and co-op benefits for students.",
+        ),
+        CandidateProfile(),
+        Settings(),
+    )
+    assert not result.accepted
+    assert result.fit == "weak"
+
+
+@pytest.mark.parametrize(
+    "description",
+    [
+        "This position is a 12-week internship. Build Python services.",
+        "We are hiring a software engineering intern to build Python services.",
+        "We are seeking an intern to build Python services.",
+        "We are looking for a software engineering co-op to build Python services.",
+        "As an intern, you will build Python services.",
+    ],
+)
+def test_generic_software_title_requires_clear_internship_hiring_context(description: str) -> None:
+    result = match_job(job("Software Engineer", description), CandidateProfile(), Settings())
+    assert result.accepted
+
+
+def test_structured_internship_type_is_direct_evidence() -> None:
+    result = match_job(
+        job("Software Engineer", "Build Python services.", employment_type="Internship / Co-op"),
+        CandidateProfile(),
+        Settings(),
+    )
+    assert result.accepted

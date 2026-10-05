@@ -5,7 +5,7 @@
   {"title": "Machine Learning Research Intern", "description": "Train machine learning models using Python.", "family": "ml_ai", "accepted": true},
   {"title": "Data Scientist Intern", "description": "Analyze data with Python and SQL.", "family": "ds", "accepted": true},
   {"title": "Research Internship", "description": "Research artificial intelligence systems.", "family": "ml_ai", "accepted": true},
-  {"title": "Student Developer", "description": "Software development using Python.", "family": "swe", "accepted": true},
+  {"title": "Student Developer", "description": "Software development using Python.", "family": "swe", "accepted": false},
   {"title": "Project Management Intern", "description": "Coordinate timelines with product management colleagues.", "family": null, "accepted": false},
   {"title": "Senior Software Engineer", "description": "Build services with Python.", "family": "swe", "accepted": false},
   {"title": "Finance Intern", "description": "Prepare financial reports and accounting records.", "family": null, "accepted": false}

@@ -49,6 +49,32 @@ _DEGREES = {
 _DEGREE = re.compile(
     r"\b(bachelor(?:['’]?s)?|master(?:['’]?s)?|ph\.?d\.?|doctorate|doctoral)\b", re.I
 )
+_ENGINEERING_DISCIPLINES = (
+    r"structural|civil|electrical|electronics?|power|energy|mechanical|chemical|aerospace|"
+    r"aeronautical|geotechnical|environmental|industrial|manufacturing|biomedical|nuclear|"
+    r"materials?(?:\s*(?:&|and)\s*process)?|process|water(?:\s*/\s*wastewater|\s+resources)?|"
+    r"wastewater|transportation|traffic|roadway|bridge|fire protection|hvac|thermal|"
+    r"propulsion|combustion|calibration|communication(?:s)?|hardware|mechatronics"
+)
+_DOMAIN_ENGINEERING_TITLE = re.compile(
+    rf"\b(?:{_ENGINEERING_DISCIPLINES})(?:\s+(?:design|project|systems))?\s+"
+    r"(?:engineer(?:ing)?|intern(?:ship)?|co[ -]?op)\b|"
+    r"\bengineer(?:ing)?\s+(?:intern(?:ship)?|co[ -]?op)\b[\s:/,–—(\-]+"
+    rf"(?:{_ENGINEERING_DISCIPLINES})\b",
+    re.I,
+)
+_INTERNSHIP_CONTEXT = re.compile(
+    r"\b(?:this|the)\s+(?:position|role|opportunity)\s+(?:is|will be)\s+"
+    r"(?:(?:an?|paid|unpaid|summer|winter|spring|fall|autumn|\d+|"
+    r"weeks?|week|months?|month|[ -])\s*){0,8}"
+    r"(?:internship|co[ -]?op)\b|"
+    r"\b(?:we\s+(?:are\s+)?(?:hiring|seeking|recruiting)|we(?:'re|’re)\s+(?:hiring|seeking)|"
+    r"we\s+are\s+looking\s+for)\s+(?:an?\s+)?(?:[\w/-]+\s+){0,6}"
+    r"(?:intern(?:ship)?|co[ -]?op)\b|"
+    r"\bas\s+an?\s+intern\b|"
+    r"^\s*(?:intern(?:ship)?|co[ -]?op)\s+(?:responsibilities|duties)\s*:",
+    re.I | re.M,
+)
 
 
 class MatchAssessmentError(RuntimeError):
@@ -86,10 +112,24 @@ def _role(job: Job) -> RoleFamily | None:
     # Project/program management is not product management, even when working with PMs.
     if re.search(r"\b(?:project|program) manag(?:er|ement)\b", title, re.I):
         return None
+    domain = _DOMAIN_ENGINEERING_TITLE.search(title)
+    if domain:
+        # A primary software/data/product role can serve an engineering domain.
+        # A primary discipline-specific engineer cannot qualify through incidental JD keywords.
+        for family, pattern in _ROLES:
+            match = re.search(pattern, title, re.I)
+            if match and match.start() < domain.start():
+                return family
+        return None
     for family, pattern in _ROLES:
         if re.search(pattern, title, re.I):
             return family
-    if re.search(r"\b(marketing|finance|accounting|sales|nursing|human resources)\b", title, re.I):
+    if re.search(
+        r"\b(marketing|finance|accounting|sales|nursing|human resources|"
+        r"business systems analyst|cad designer|assembly technician)\b",
+        title,
+        re.I,
+    ):
         return None
     for family, pattern in _ROLES:
         if re.search(pattern, job.posting.description, re.I):
@@ -304,15 +344,9 @@ def _hard_constraints(job: Job, profile: CandidateProfile) -> tuple[list[str], l
 def _deterministic_match(job: Job, profile: CandidateProfile) -> MatchResult:
     family = _role(job)
     title_internship = bool(_INTERNSHIP.search(job.posting.title)) or bool(
-        _INTERNSHIP.fullmatch(job.posting.employment_type or "")
+        _INTERNSHIP.search(job.posting.employment_type or "")
     )
-    internship = title_internship or bool(
-        re.search(
-            r"\b(?:internship|co[ -]?op|as an intern|intern (?:will|responsibilities))\b",
-            job.posting.description,
-            re.I,
-        )
-    )
+    internship = title_internship or bool(_INTERNSHIP_CONTEXT.search(job.posting.description))
     conflicts, unknowns = _hard_constraints(job, profile)
     if conflicts:
         return MatchResult(
@@ -328,7 +362,7 @@ def _deterministic_match(job: Job, profile: CandidateProfile) -> MatchResult:
             unknowns=unknowns,
         )
     explicit_noninternship = re.search(
-        r"\b(?:permanent|senior|staff|principal)\b",
+        r"\b(?:permanent|senior|staff|principal|manager|director|lead|chief|head)\b",
         job.posting.title,
         re.I,
     ) or re.search(r"\bpermanent\b", job.posting.employment_type or "", re.I)
@@ -356,7 +390,13 @@ def _deterministic_match(job: Job, profile: CandidateProfile) -> MatchResult:
             unknowns=unknowns,
         )
     if not internship:
-        unknowns.append("Internship or co-op status needs confirmation.")
+        return MatchResult(
+            fit="weak",
+            eligible=None,
+            role_family=family,
+            reasons=["No explicit internship or co-op hiring evidence is supplied for this role."],
+            unknowns=unknowns,
+        )
     description = _normalized(job.posting.description)
     fact_ids = []
     excerpts: list[str] = []
