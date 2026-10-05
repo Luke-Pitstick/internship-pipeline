@@ -65,3 +65,15 @@ message. A live deployment in that state is infrastructure only. After activatio
 verify all five roles, increasing collection observations, a factual match, a ready
 PDF, a successful SSH sync, and the separate Google Sheets and Dot checkpoints.
 Keep synthetic jobs outside the production database and tracker.
+
+### Deployment acceptance on 2026-10-05
+
+Both services reached live status. A request from the worker to the renderer's
+private health endpoint returned HTTP 200. Using the worker's installed Python
+environment (`/app/.venv/bin/python`), a fictional candidate passed master import,
+identical master replay, job upload, tailored import, identical tailored replay,
+and Chromium PDF export. The exported one-page PDF was checked for text and
+visually reviewed. These checks do not prove real job collection or candidate
+generation; those remain gated on private provisioning, subscription login and
+activation. SSH sessions start outside the image virtual environment, so use its
+absolute Python path when importing pipeline code.
