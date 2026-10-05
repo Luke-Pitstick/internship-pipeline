@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,20 @@ class ResumeMatcherClient:
 
     def close(self) -> None:
         self.http.close()
+
+    def generation_configuration(self) -> dict[str, Any]:
+        model = self._json("GET", "config/llm-api-key")
+        language = self._json("GET", "config/language")
+        if not isinstance(model.get("provider"), str) or not isinstance(model.get("model"), str):
+            raise ResumeMatcherError("Upstream model configuration is missing")
+        # The masked API key is deliberately excluded from keys and disk metadata.
+        return {
+            "provider": model["provider"],
+            "model": model["model"],
+            "api_base": model.get("api_base"),
+            "reasoning_effort": model.get("reasoning_effort"),
+            "content_language": language.get("content_language"),
+        }
 
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         remaining = self.timeout
@@ -110,7 +125,7 @@ class ResumeMatcherClient:
 
     @staticmethod
     def _id(value: Any) -> str:
-        if not isinstance(value, str) or not value or "/" in value or "?" in value:
+        if not isinstance(value, str) or re.fullmatch(r"[A-Za-z0-9_-]+", value) is None:
             raise ResumeMatcherError("Missing or invalid remote ID", ambiguous=True)
         return value
 

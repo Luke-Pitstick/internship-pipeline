@@ -27,6 +27,10 @@ def normalized(text: str) -> str:
     return " ".join(text.casefold().split())
 
 
+def contains_value(text: str, value: str) -> bool:
+    return bool(re.search(r"(?<!\w)" + re.escape(normalized(value)) + r"(?!\w)", text))
+
+
 def resume_text(data: dict[str, Any]) -> str:
     def strings(value: Any) -> list[str]:
         if isinstance(value, str):
@@ -86,6 +90,14 @@ def validate_schema(data: Any) -> dict[str, Any]:
         raise ResumeValidationError("Invalid summary")
     if not isinstance(data.get("customSections", {}), dict):
         raise ResumeValidationError("Invalid custom sections")
+    section_meta = data.get("sectionMeta", [])
+    if not isinstance(section_meta, list) or any(
+        not isinstance(row, dict)
+        or not isinstance(row.get("key"), str)
+        or not isinstance(row.get("displayName"), str)
+        for row in section_meta
+    ):
+        raise ResumeValidationError("Invalid section metadata")
     return data
 
 
@@ -97,7 +109,7 @@ def validate_master(data: dict[str, Any], profile: CandidateProfile) -> None:
             raise ResumeValidationError(f"Master {field_name} disagrees with factual profile")
     text = normalized(resume_text(data))
     for value in profile.protected_values:
-        if normalized(value) not in text:
+        if not contains_value(text, value):
             raise ResumeValidationError("Master is missing a protected factual value")
     allowed_skills = {normalized(skill) for fact in profile.facts for skill in fact.skills}
     skills = data.get("additional", {}).get("technicalSkills", [])
@@ -137,7 +149,7 @@ def validate_facts(
             report.changes.append(f"Selected a subset of {section} entries")
     text = normalized(resume_text(tailored))
     for value in profile.protected_values:
-        if normalized(value) not in text:
+        if not contains_value(text, value):
             raise ResumeValidationError("Tailoring removed a protected factual value")
     supported_skills = {normalized(skill) for fact in profile.facts for skill in fact.skills}
     current_additional = tailored.get("additional", {})
@@ -159,6 +171,11 @@ def validate_facts(
         )
     if json.dumps(master, sort_keys=True) != json.dumps(tailored, sort_keys=True):
         report.changes.append("Resume content or ordering changed; compare against the master")
+    for section in ("summary", "workExperience", "education", "personalProjects", "additional"):
+        if master.get(section) != tailored.get(section):
+            report.changes.append(f"Updated {section} content or selection")
+    if master.get("customSections", {}) != tailored.get("customSections", {}):
+        report.warnings.append("Changed custom-section claims require factual review")
     report.warnings.append(
         "Semantic grounding is unverified; review rewritten claims against factual experience"
     )
@@ -209,7 +226,7 @@ def validate_pdf(
     if len(text) < 80:
         raise ResumeValidationError("Insufficient readable resume PDF text")
     for value in (profile.name, profile.email, *profile.protected_values):
-        if value and normalized(value) not in text:
+        if value and not contains_value(text, value):
             raise ResumeValidationError("PDF is missing contact or protected factual text")
     sections = {
         "workExperience": ("experience",),
@@ -218,12 +235,33 @@ def validate_pdf(
         "summary": ("summary", "profile"),
     }
     for section, headings in sections.items():
+        custom_headings = [
+            normalized(row["displayName"])
+            for row in tailored.get("sectionMeta", [])
+            if row["key"] == section and row.get("displayName")
+        ]
+        if custom_headings:
+            headings = tuple(custom_headings)
         if tailored.get(section) and not any(
             re.search(r"\b" + heading + r"\b", text) for heading in headings
         ):
             raise ResumeValidationError(f"PDF is missing the {section} section")
     if tailored.get("additional", {}).get("technicalSkills") and "skills" not in text:
         raise ResumeValidationError("PDF is missing the skills section")
+    visible_fields = {
+        "workExperience": ("title", "company", "years"),
+        "education": ("institution", "degree", "years"),
+        "personalProjects": ("name", "role", "years"),
+    }
+    for section, fields in visible_fields.items():
+        for row in tailored.get(section, []):
+            for key in fields:
+                value = row.get(key, "")
+                if value and not contains_value(text, value):
+                    raise ResumeValidationError("PDF omitted structured factual information")
+    for skill in tailored.get("additional", {}).get("technicalSkills", []):
+        if not contains_value(text, skill):
+            raise ResumeValidationError("PDF omitted structured skills")
     for section in ("workExperience", "personalProjects"):
         for row in tailored.get(section, []):
             for bullet in row.get("description", []):

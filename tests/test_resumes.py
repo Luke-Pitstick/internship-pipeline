@@ -150,6 +150,8 @@ class Backend:
         self.pdf = textual_pdf(pdf_text(self.tailored))
         self.processing_status = "ready"
         self.bad_status: tuple[str, int] | None = None
+        self.model_config = {"provider": "synthetic", "model": "fixture-model", "api_key": "masked"}
+        self.language = "en"
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path.removeprefix("/api/v1/")
@@ -157,7 +159,11 @@ class Backend:
         self.calls[signature] += 1
         if self.bad_status and self.bad_status[0] == signature:
             return httpx.Response(self.bad_status[1], json={"detail": "private-token-never-log"})
-        if signature == "POST resumes/upload":
+        if signature == "GET config/llm-api-key":
+            result = self.model_config
+        elif signature == "GET config/language":
+            result = {"content_language": self.language}
+        elif signature == "POST resumes/upload":
             assert b'name="file"' in request.content
             assert b'filename="pipeline-master-' in request.content
             filename = request.content.split(b'filename="')[1].split(b'"')[0].decode()
@@ -249,7 +255,9 @@ def test_http_sequence_manifest_cache_and_application_state(tmp_path, master, pr
     assert manifest["fact_ids"] == ["python"]
     calls = backend.calls.copy()
     assert service(tmp_path, backend).generate(job, match, profile) == artifact
-    assert backend.calls == calls
+    assert {k: v for k, v in backend.calls.items() if not k.startswith("GET config/")} == {
+        k: v for k, v in calls.items() if not k.startswith("GET config/")
+    }
     assert job.applied_at is None
     assert artifact.pdf_path.stat().st_mode & 0o777 == 0o600
 
@@ -410,3 +418,106 @@ def test_nonaccepted_match_never_calls_upstream(tmp_path, master, profile, job):
     with pytest.raises(ResumeValidationError):
         service(tmp_path, backend).generate(job, MatchResult(fit="weak"), profile)
     assert not backend.calls
+
+
+def test_provider_configuration_changes_invalidate_key(tmp_path, master, profile, job, match):
+    backend = Backend(master)
+    worker = service(tmp_path, backend)
+    first = worker.generation_key(job, match, profile)
+    backend.model_config["api_key"] = "different-masked-key"
+    assert worker.generation_key(job, match, profile) == first
+    backend.model_config["model"] = "fixture-model-v2"
+    assert worker.generation_key(job, match, profile) != first
+
+
+def test_nonenglish_generation_needs_attention_before_writes(tmp_path, master, profile, job, match):
+    backend = Backend(master)
+    backend.language = "fr"
+    with pytest.raises(ResumeValidationError, match="language en"):
+        service(tmp_path, backend).generate(job, match, profile)
+    assert not any(key.startswith("POST") for key in backend.calls)
+
+
+def test_corrupt_manifest_can_be_rebuilt_without_remote_mutations(
+    tmp_path, master, profile, job, match
+):
+    backend = Backend(master)
+    worker = service(tmp_path, backend)
+    artifact = worker.generate(job, match, profile)
+    artifact.pdf_path.with_name("manifest.json").write_text("broken JSON")
+    worker.generate(job, match, profile)
+    assert backend.calls["POST resumes/improve"] == 1
+    assert backend.calls["GET resumes/tailored/pdf"] == 2
+
+
+def test_ready_remote_master_content_changes_invalidate_key(tmp_path, master, profile, job, match):
+    backend = Backend(master)
+    worker = service(tmp_path, backend)
+    worker.generate(job, match, profile)
+    profile.master_resume_id = "master"
+    first = worker.generation_key(job, match, profile)
+    backend.master["summary"] = "A changed factual master"
+    assert worker.generation_key(job, match, profile) != first
+
+
+def test_protected_number_cannot_match_substring(master, profile):
+    tailored = copy.deepcopy(master)
+    tailored["workExperience"][0]["description"] = ["Built a Python API serving 120 users."]
+    with pytest.raises(ResumeValidationError, match="protected factual"):
+        validate_facts(master, tailored, profile)
+
+
+def test_pdf_uses_upstream_custom_section_headings(master, profile):
+    master["sectionMeta"] = [{"key": "education", "displayName": "Academic Background"}]
+    text = pdf_text(master).replace("Education", "Academic Background")
+    validate_pdf(textual_pdf(text), profile, master)
+
+
+@pytest.mark.parametrize("invalid", ["name", "skills", "description", "metadata"])
+def test_invalid_structured_schema_rejected(invalid, master, profile):
+    if invalid == "name":
+        master["personalInfo"]["name"] = []
+    elif invalid == "skills":
+        master["additional"]["technicalSkills"] = "Python"
+    elif invalid == "description":
+        master["workExperience"][0]["description"] = "a bullet"
+    else:
+        master["sectionMeta"] = ["not metadata"]
+    with pytest.raises(ResumeValidationError):
+        validate_master(master, profile)
+
+
+def test_corrupt_checkpoint_stops_before_creation(tmp_path, master, profile, job, match):
+    backend = Backend(master)
+    worker = service(tmp_path, backend)
+    key = worker.generation_key(job, match, profile)
+    path = worker.checkpoints / f"{key}.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("broken JSON")
+    with pytest.raises(ResumeReconciliationRequired):
+        worker.generate(job, match, profile)
+    assert not any(key.startswith("POST") for key in backend.calls)
+
+
+def test_unsupported_match_fact_never_calls_upstream(tmp_path, master, profile, job, match):
+    backend = Backend(master)
+    match.fact_ids = ["invented-fact-id"]
+    with pytest.raises(ResumeValidationError, match="unsupported factual"):
+        service(tmp_path, backend).generate(job, match, profile)
+    assert not backend.calls
+
+
+def test_client_malformed_write_and_content_type_are_rejected():
+    client = ResumeMatcherClient(
+        "http://example.test",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, content=b"not JSON", headers={"content-type": "text/html"}
+            )
+        ),
+    )
+    with pytest.raises(ResumeMatcherError) as error:
+        client.upload_job("synthetic job", "master")
+    assert error.value.ambiguous is True
+    with pytest.raises(ResumeMatcherError, match="non-PDF"):
+        client.download_pdf("tailored", "swiss-single")

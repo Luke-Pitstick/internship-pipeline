@@ -117,6 +117,9 @@ class ResumeService:
 
     def generation_key(self, job: Job, match: MatchResult, profile: CandidateProfile) -> str:
         master_digest = self._master_digest(profile)
+        provider_config = self.client.generation_configuration()
+        if provider_config.get("content_language") != "en":
+            raise ResumeValidationError("Resume validation requires upstream content language en")
         return _hash(
             {
                 "job_id": job.id,
@@ -126,14 +129,21 @@ class ResumeService:
                 "role_family": match.role_family,
                 "fact_ids": sorted(match.fact_ids),
                 "config": GENERATION_CONFIG,
+                "provider_config": provider_config,
                 "backend": self.settings.resume_matcher_url,
             }
         )
 
-    @staticmethod
-    def _master_digest(profile: CandidateProfile) -> str:
+    def _master_digest(self, profile: CandidateProfile) -> str:
         if profile.master_resume_id:
-            return _hash({"remote_master_id": profile.master_resume_id})
+            remote = self.client.get_resume(profile.master_resume_id)
+            return _hash(
+                {
+                    "remote_master_id": profile.master_resume_id,
+                    "processed_resume": remote.get("processed_resume"),
+                    "raw_content": remote.get("raw_resume", {}).get("content"),
+                }
+            )
         path = profile.master_resume_path
         if path is None or not path.is_file():
             raise ResumeValidationError("A factual master resume PDF/DOCX or remote ID is required")
@@ -142,6 +152,19 @@ class ResumeService:
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
     def generate(
+        self,
+        job: Job,
+        match: MatchResult,
+        profile: CandidateProfile,
+        checkpoint: dict[str, object] | None = None,
+    ) -> ResumeArtifact:
+        self.client.deadline = time.monotonic() + self.settings.generation_timeout_seconds
+        try:
+            return self._generate(job, match, profile, checkpoint)
+        finally:
+            self.client.deadline = None
+
+    def _generate(
         self,
         job: Job,
         match: MatchResult,
@@ -172,7 +195,6 @@ class ResumeService:
             cached = self._cached(manifest_path, key, job.id)
             if cached is not None:
                 return cached
-            self.client.deadline = time.monotonic() + self.settings.generation_timeout_seconds
             try:
                 master_id, master = self._master(profile)
                 state["master_id"] = master_id
@@ -251,7 +273,10 @@ class ResumeService:
     def _cached(self, path: Path, key: str, job_id: str) -> ResumeArtifact | None:
         if not path.exists():
             return None
-        manifest = _load(path)
+        try:
+            manifest = _load(path)
+        except ResumeReconciliationRequired:
+            return None
         try:
             artifact = ResumeArtifact.model_validate(manifest["artifact"])
         except (KeyError, ValueError):
