@@ -36,3 +36,5 @@ services:
     envVars:
       - key: FRONTEND_BASE_URL
         value: http://localhost:3000
+      - key: PORT
+        value: "3000"
