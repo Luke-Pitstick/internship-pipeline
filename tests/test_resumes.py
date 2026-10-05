@@ -347,14 +347,48 @@ def test_factual_identity_mutations_rejected(section, field, value, master, prof
         validate_facts(master, tailored, profile)
 
 
-def test_unsupported_skills_numeric_claims_and_semantic_review(master, profile):
+@pytest.mark.parametrize("addition", ["skill", "number", "certification", "language", "award"])
+def test_unsupported_explicit_claims_rejected(addition, master, profile):
     tailored = copy.deepcopy(master)
-    tailored["additional"]["technicalSkills"].append("Kubernetes")
-    tailored["workExperience"][0]["description"].append("Increased revenue by 900%.")
+    if addition == "skill":
+        tailored["additional"]["technicalSkills"].append("Kubernetes")
+    elif addition == "number":
+        tailored["workExperience"][0]["description"].append("Increased revenue by 900%.")
+    else:
+        field = {
+            "certification": "certificationsTraining",
+            "language": "languages",
+            "award": "awards",
+        }[addition]
+        tailored["additional"][field].append("Unsupported candidate qualification")
+    with pytest.raises(ResumeValidationError, match="unsupported"):
+        validate_facts(master, tailored, profile)
+
+
+def test_semantic_rewrite_still_requires_review(master, profile):
+    tailored = copy.deepcopy(master)
+    tailored["workExperience"][0]["description"] = [
+        "Created a Python API used by 12 synthetic users."
+    ]
     report = validate_facts(master, tailored, profile)
-    assert any("Kubernetes" in warning for warning in report.warnings)
-    assert any("900%" in warning for warning in report.warnings)
     assert any("Semantic grounding" in warning for warning in report.warnings)
+
+
+@pytest.mark.parametrize("addition", ["skill", "number", "certification"])
+def test_explicit_unsupported_claim_never_produces_deliverable_artifact(
+    addition, tmp_path, master, profile, job, match
+):
+    backend = Backend(master)
+    if addition == "skill":
+        backend.tailored["additional"]["technicalSkills"].append("Invented Skill")
+    elif addition == "number":
+        backend.tailored["summary"] += " Increased revenue by 900%."
+    else:
+        backend.tailored["additional"]["certificationsTraining"].append("Invented Certification")
+    with pytest.raises(ResumeValidationError, match="unsupported"):
+        service(tmp_path, backend).generate(job, match, profile)
+    assert backend.calls["GET resumes/tailored/pdf"] == 0
+    assert not list((tmp_path / "artifacts").glob("*/manifest.json"))
 
 
 def test_master_must_agree_with_profile(master, profile):

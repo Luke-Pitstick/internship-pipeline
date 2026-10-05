@@ -155,20 +155,18 @@ def validate_facts(
     current_additional = tailored.get("additional", {})
     for skill in current_additional.get("technicalSkills", []):
         if normalized(skill) not in supported_skills:
-            report.warnings.append(f"Unsupported skill requires review: {skill}")
+            raise ResumeValidationError("Tailoring introduced a profile-unsupported skill")
     for key in ("certificationsTraining", "languages", "awards"):
         baseline = {normalized(item) for item in master.get("additional", {}).get(key, [])}
         if any(normalized(item) not in baseline for item in current_additional.get(key, [])):
-            report.warnings.append(f"New {key} claim requires review")
+            raise ResumeValidationError(f"Tailoring introduced an unsupported {key} claim")
     factual_text = resume_text(master) + "\n" + "\n".join(fact.text for fact in profile.facts)
     number_pattern = r"(?<!\w)\d[\d.,]*(?:%|\+)?(?!\w)"
     new_numbers = set(re.findall(number_pattern, resume_text(tailored))) - set(
         re.findall(number_pattern, factual_text)
     )
     if new_numbers:
-        report.warnings.append(
-            "New numerical claims require review: " + ", ".join(sorted(new_numbers))
-        )
+        raise ResumeValidationError("Tailoring introduced an unsupported numerical claim")
     if json.dumps(master, sort_keys=True) != json.dumps(tailored, sort_keys=True):
         report.changes.append("Resume content or ordering changed; compare against the master")
     for section in ("summary", "workExperience", "education", "personalProjects", "additional"):
