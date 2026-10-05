@@ -19,8 +19,8 @@ DEFAULT_ADDRESS = "srv-db228lqjnfac73ekr0q0@ssh.oregon.render.com"
 SSH_ADDRESS = re.compile(r"[a-zA-Z0-9_-]+@ssh\.[a-z0-9-]+\.render\.com")
 MAX_RESPONSE_BYTES = 1024 * 1024
 
-# Fixed trusted code. Private inputs are checked for existence, never opened.
-# SQLite opens in read-only mode; no pipeline imports or provider calls occur.
+# Fixed trusted code. Candidate data stays remote; credentials are never opened.
+# SQLite opens in read-only mode; deterministic screening makes no provider calls.
 REMOTE_SCRIPT = r"""
 import json, sqlite3, time, urllib.request
 from pathlib import Path
@@ -50,7 +50,8 @@ readiness = {name: (ROOT / path).is_file() for name, path in {
 result = {"observed_at": now, "readiness": readiness, "roles": roles,
           "database": "missing", "counts": {}, "queues": [], "sources": [],
           "source_summary": {}, "recent_jobs": [], "oldest_work_age_seconds": None,
-          "renderer": "unavailable"}
+          "renderer": "unavailable", "relevance": {
+              "status": "unavailable", "screened": 0, "limit": 1000, "accepted": 0}}
 try:
     with urllib.request.urlopen(RENDERER_URL, timeout=3) as response:
         if response.status == 200:
@@ -83,18 +84,44 @@ if db.is_file():
             result["sources"] = [dict(row) for row in connection.execute(
                 "SELECT id,kind,provider,enabled,last_attempt,last_success,next_due,failures,complete "
                 "FROM targets ORDER BY enabled DESC,failures DESC,next_due LIMIT 100")]
-            for row in connection.execute("SELECT data,status,first_seen,last_seen FROM jobs "
-                                          "ORDER BY first_seen DESC LIMIT 20"):
-                data = json.loads(row["data"])
-                posting = data.get("posting", {})
-                result["recent_jobs"].append({
-                    "company": str(posting.get("company", ""))[:200],
-                    "title": str(posting.get("title", ""))[:300],
-                    "status": row["status"], "event": str(data.get("event", "unknown"))[:30],
-                    "first_seen": row["first_seen"], "last_seen": row["last_seen"],
-                    "published_at": posting.get("published_at"),
-                })
             result["database"] = "readable"
+            if not readiness["profile"]:
+                result["relevance"]["status"] = "profile_missing"
+            else:
+                try:
+                    from internship_pipeline.config import load_profile
+                    from internship_pipeline.matching import _deterministic_match, _INTERNSHIP
+                    from internship_pipeline.models import Job
+                    profile = load_profile(ROOT / "private/profile.yaml")
+                    relevant, screened, accepted = [], 0, 0
+                    for row in connection.execute(
+                            "SELECT data,status,first_seen,last_seen FROM jobs WHERE status='open' "
+                            "ORDER BY first_seen DESC LIMIT 1000"):
+                        job = Job.model_validate_json(row["data"])
+                        screened += 1
+                        match = _deterministic_match(job, profile)
+                        confirmed_internship = bool(_INTERNSHIP.search(job.posting.title)) or bool(
+                            _INTERNSHIP.fullmatch(job.posting.employment_type or ""))
+                        if not match.accepted or not match.fact_ids or not confirmed_internship:
+                            continue
+                        accepted += 1
+                        if len(relevant) < 20:
+                            relevant.append({
+                                "company": job.posting.company[:200],
+                                "title": job.posting.title[:300],
+                                "status": row["status"], "event": job.event[:30],
+                                "first_seen": row["first_seen"], "last_seen": row["last_seen"],
+                                "published_at": (job.posting.published_at.isoformat()
+                                                 if job.posting.published_at else None),
+                                "fit": match.fit, "review_questions": len(match.unknowns),
+                                "role_family": match.role_family.value,
+                            })
+                    result["recent_jobs"] = relevant
+                    result["relevance"].update(status="ready", screened=screened, accepted=accepted)
+                except Exception:
+                    # A private profile or matcher failure must never reveal raw listings as fits.
+                    result["recent_jobs"] = []
+                    result["relevance"].update(status="unavailable", screened=0, accepted=0)
     except (sqlite3.Error, ValueError, TypeError, AttributeError):
         result.update(database="unreadable", counts={}, queues=[], sources=[],
                       source_summary={}, recent_jobs=[], oldest_work_age_seconds=None)
@@ -120,7 +147,7 @@ def fetch_snapshot(address: str) -> dict[str, Any]:
         "StrictHostKeyChecking=accept-new",
         "--",
         address,
-        "python3",
+        "/app/.venv/bin/python",
         "-",
     ]
     with tempfile.TemporaryFile() as output:
@@ -151,6 +178,7 @@ def fetch_snapshot(address: str) -> dict[str, Any]:
         "recent_jobs",
         "oldest_work_age_seconds",
         "renderer",
+        "relevance",
     }:
         raise ValueError("Unexpected snapshot shape")
     return snapshot
@@ -172,6 +200,8 @@ def operational_state(snapshot: dict[str, Any]) -> tuple[str, str]:
     failed = any(row["status"] == "failed" and row["count"] for row in snapshot["queues"])
     if snapshot["renderer"] != "healthy":
         return "degraded", "Workers are present, but the private PDF renderer health check failed."
+    if snapshot["relevance"]["status"] != "ready":
+        return "degraded", "Workers are present, but profile matching could not be verified."
     if failed or any(snapshot["source_summary"].get(key, 0) for key in ("failing", "overdue")):
         return (
             "degraded",
@@ -232,20 +262,20 @@ button:disabled{opacity:.5}.panel{margin-top:22px;padding:22px;background:#17202
 h2{font-size:17px;margin:0 0 16px}table{border-collapse:collapse;width:100%;font-size:13px}th{text-align:left;color:#99a9bb;font-weight:500}th,td{padding:12px 10px;border-bottom:1px solid #293443;vertical-align:top}td:first-child{font-weight:500}tr:last-child td{border:0}.scroll{overflow:auto}.checks{display:flex;gap:9px;flex-wrap:wrap}.check{padding:8px 11px;background:#233040;border-radius:6px;font-size:13px}.present{color:#9ae4bc}.missing{color:#ffd495}.muted{font-size:12px;color:#9eacbc}.notice{margin-bottom:0}.row{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:750px){.row{grid-template-columns:1fr}header{align-items:flex-start}main{padding:28px 16px}h1{font-size:25px}}
 </style></head><body><main><header><div><div class="eyebrow">Read-only · Render worker</div><h1>Internship pipeline</h1><p>Collection, matching, resumes, and delivery — in one view.</p></div><button id="refresh">Refresh now</button></header>
 <div class="panel"><span id="state" class="state">Connecting</span><p id="message">Reading the worker over SSH…</p><div id="updated" class="muted"></div></div>
-<div id="metrics" class="metrics"></div><div class="row"><section class="panel"><h2>Provisioning</h2><div id="readiness" class="checks"></div><p class="muted notice">File presence only. A login file does not confirm a valid subscription session. Private file contents are never read.</p></section><section class="panel"><h2>Worker processes</h2><div id="roles" class="checks"></div><p class="muted notice">Process presence shows workers are running; it does not prove a successful model call or end-to-end delivery.</p></section></div>
+<div id="metrics" class="metrics"></div><div class="row"><section class="panel"><h2>Provisioning</h2><div id="readiness" class="checks"></div><p class="muted notice">File presence only. A login file does not confirm a valid subscription session. Candidate data stays on Render; credentials are never read.</p></section><section class="panel"><h2>Worker processes</h2><div id="roles" class="checks"></div><p class="muted notice">Process presence shows workers are running; it does not prove a successful model call or end-to-end delivery.</p></section></div>
 <section class="panel"><h2>Work queues</h2><div id="queue" class="scroll"></div><p id="oldest" class="muted notice"></p></section>
 <section class="panel"><h2>Source checks</h2><p id="coverage" class="muted"></p><div id="sources" class="scroll"></div></section>
-<section class="panel"><h2>Recently observed jobs</h2><p class="muted">First seen is when this pipeline observed a job. Publication time comes from the source; initial inventory is backlog.</p><div id="jobs" class="scroll"></div></section>
+<section class="panel"><h2>Internships matching your profile</h2><p id="relevance" class="muted">Reading preliminary matches…</p><p class="muted">Only internships with supported candidate skills and no confirmed eligibility conflict appear here. These are preliminary rules-based matches, with remaining questions to review. Collected listings are not recommendations.</p><div id="jobs" class="scroll"><p>No verified profile matches to show yet.</p></div></section>
 <p class="muted">Auto-refreshes every 30 seconds while this page is open. Render state is read-only. Local Dot relay and Google Sheets delivery are outside this view.</p>
 </main><script>
 const el=id=>document.getElementById(id), text=(tag,value)=>{const n=document.createElement(tag);n.textContent=value;return n;};
 const when=value=>value===null||value===undefined?'Never':new Date(typeof value==='number'?value*1000:value).toLocaleString();
 function table(id,headers,rows){const root=el(id);root.replaceChildren();if(!rows.length){root.append(text('p','No records yet.'));return;}const t=document.createElement('table'),h=document.createElement('tr');headers.forEach(v=>h.append(text('th',v)));const head=document.createElement('thead');head.append(h);t.append(head);const body=document.createElement('tbody');rows.forEach(values=>{const r=document.createElement('tr');values.forEach(v=>r.append(text('td',v)));body.append(r);});t.append(body);root.append(t);}
 function checks(id,data,labels){el(id).replaceChildren();Object.entries(data||{}).forEach(([key,value])=>{const n=text('span',`${value?'✓':'—'} ${labels?.[key]||key}`);n.className=`check ${value?'present':'missing'}`;el(id).append(n);});}
-function render(data){el('state').textContent=data.state;el('state').className=`state ${data.state}`;el('message').textContent=data.message;el('updated').textContent=data.snapshot?`${data.connection==='offline'?'Last known data · ':''}Observed ${when(data.snapshot.observed_at)} · ${data.snapshot_age_seconds}s ago`:'No successful snapshot yet.';const s=data.snapshot;if(!s)return;
-checks('readiness',s.readiness,{activated:'Activation',settings:'Settings',companies:'Companies',profile:'Profile',master_pdf:'Master PDF',codex_auth:'Codex login'});checks('roles',s.roles);el('metrics').replaceChildren();Object.entries({...s.counts,renderer:s.renderer}).forEach(([key,value])=>{const n=document.createElement('div');n.className='metric';n.append(text('span',({artifacts:'Stored artifacts',deliveries:'Recorded deliveries',candidates:'Discovery candidates',matches:'Stored matches',jobs:'Observed jobs',renderer:'PDF renderer'})[key]||key),text('strong',value));el('metrics').append(n);});
+function render(data){el('state').textContent=data.state;el('state').className=`state ${data.state}`;el('message').textContent=data.message;el('updated').textContent=data.snapshot?`${data.connection==='offline'?'Last known data · ':''}Observed ${when(data.snapshot.observed_at)} · ${data.snapshot_age_seconds}s ago · ${data.connection==='offline'?'Stale: SSH offline':data.snapshot_age_seconds>90?'Stale: older than 90s':'Current snapshot (under 90s)'}`:'No successful snapshot yet.';const s=data.snapshot;if(!s)return;
+checks('readiness',s.readiness,{activated:'Activation',settings:'Settings',companies:'Companies',profile:'Profile',master_pdf:'Master PDF',codex_auth:'Codex login'});checks('roles',s.roles);el('metrics').replaceChildren();Object.entries({...s.counts,relevant:s.relevance.status==="ready"?s.relevance.accepted:"Unavailable",renderer:s.renderer}).forEach(([key,value])=>{const n=document.createElement('div');n.className='metric';n.append(text('span',({artifacts:'Stored artifacts',deliveries:'Recorded deliveries',candidates:'Discovery candidates',matches:'Stored matches',jobs:'Raw collected listings',relevant:'Preliminary matches in scope',renderer:'PDF renderer'})[key]||key),text('strong',value));el('metrics').append(n);});
 table('queue',['Role / task','State','Count'],s.queues.map(q=>[q.kind,q.status,q.count]));el('oldest').textContent=s.oldest_work_age_seconds===null?'No pending or running work.':`Oldest pending or running work: ${s.oldest_work_age_seconds}s.`;const sum=s.source_summary;el('coverage').textContent=s.database==='readable'?`${sum.enabled||0} enabled / ${sum.total||0} total · ${sum.failing||0} failing · ${sum.overdue||0} overdue by more than 60s · showing up to 100 sources`:`Database: ${s.database}`;
-table('sources',['Source','Provider','Last attempt','Last success','Next due','Failures','Coverage'],s.sources.map(s=>[s.id,s.provider,when(s.last_attempt),when(s.last_success),s.enabled?when(s.next_due):'Disabled',s.failures,s.complete?'Complete':'Unconfirmed / partial']));table('jobs',['Company / role','State','Event','First seen','Last seen','Source publication'],s.recent_jobs.map(j=>[`${j.company} · ${j.title}`,j.status,j.event,when(j.first_seen),when(j.last_seen),j.published_at?when(j.published_at):'Unknown']));}
+table('sources',['Source','Provider','Last attempt','Last success','Next due','Failures','Coverage'],s.sources.map(s=>[s.id,s.provider,when(s.last_attempt),when(s.last_success),s.enabled?when(s.next_due):'Disabled',s.failures,s.complete?'Complete':'Unconfirmed / partial']));el('relevance').textContent=s.relevance.status==='ready'?`${s.relevance.accepted} preliminary matches among ${s.relevance.screened} screened open listings (newest ${s.relevance.limit} maximum); showing up to 20. First seen is observation time; publication time comes from the source. Backlog is initial inventory.`:s.relevance.status==='profile_missing'?'Matching is unavailable until your profile is provisioned.':'Matching could not be verified. No listings are presented as recommendations.';table('jobs',['Company / role','Preliminary fit','Review questions','Event','First seen','Last observed','Source publication'],s.recent_jobs.map(j=>[`${j.company} · ${j.title}`,`${j.role_family} · ${j.fit}`,j.review_questions?`${j.review_questions} to confirm`:'None flagged by rules',j.event,when(j.first_seen),when(j.last_seen),j.published_at?when(j.published_at):'Unknown']));if(!s.recent_jobs.length)el('jobs').replaceChildren(text('p','No verified profile matches to show yet.'));}
 let busy=false;async function refresh(manual=false){if(busy)return;busy=true;el('refresh').disabled=true;try{const r=await fetch(`/api/status${manual?'?refresh=1':''}`,{cache:'no-store'});if(!r.ok)throw new Error('Unavailable');render(await r.json());}catch(_){el('state').textContent='Offline';el('state').className='state offline';el('message').textContent='The local dashboard server is unavailable. Previously displayed data is stale.';}finally{busy=false;el('refresh').disabled=false;}}
 el('refresh').addEventListener('click',()=>refresh(true));refresh();setInterval(()=>refresh(),30000);
 </script></body></html>"""

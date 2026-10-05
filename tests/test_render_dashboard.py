@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from internship_pipeline.models import Job, SourceJob, utcnow
 from internship_pipeline.storage import SCHEMA
 
 MODULE_PATH = Path(__file__).parents[1] / "scripts" / "render_dashboard.py"
@@ -34,6 +35,7 @@ def snapshot() -> dict:
         "source_summary": {"enabled": 1, "failing": 0, "overdue": 0},
         "recent_jobs": [],
         "oldest_work_age_seconds": None,
+        "relevance": {"status": "ready", "screened": 1, "limit": 1000, "accepted": 1},
     }
 
 
@@ -92,7 +94,7 @@ def test_old_snapshots_are_stale(monkeypatch: pytest.MonkeyPatch) -> None:
     assert dashboard.SnapshotCache(dashboard.DEFAULT_ADDRESS).get()["state"] == "stale"
 
 
-def run_remote(root: Path) -> dict:
+def run_remote(root: Path, *, fail_matcher: bool = False) -> dict:
     script = dashboard.REMOTE_SCRIPT.replace(
         'ROOT = Path("/var/data")', f"ROOT = Path({str(root)!r})"
     )
@@ -101,6 +103,11 @@ def run_remote(root: Path) -> dict:
         'RENDERER_URL = "http://internship-resume-matcher:3000/api/v1/health"',
         'RENDERER_URL = "http://127.0.0.1:1/api/v1/health"',
     )
+    if fail_matcher:
+        script = script.replace(
+            "match = _deterministic_match(job, profile)",
+            "raise RuntimeError('PRIVATE_SENTINEL matcher error')",
+        )
     result = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True, check=True, timeout=5
     )
@@ -126,16 +133,16 @@ def test_remote_snapshot_omits_private_payloads_and_preserves_source_times(tmp_p
         b"python\0-m\0internship_pipeline.cli\0worker\0collector\0" + secret.encode()
     )
     now = time.time()
-    job = {
-        "posting": {
-            "title": "Software intern",
-            "company": "Synthetic Corp",
-            "published_at": "2026-10-01T00:00:00Z",
-            "description": secret,
-        },
-        "event": "backlog",
-        "candidate": secret,
-    }
+    (tmp_path / "private/profile.yaml").write_text(
+        json.dumps(
+            {
+                "name": secret,
+                "email": secret,
+                "facts": [{"id": secret, "text": secret, "skills": ["Python"]}],
+            }
+        )
+    )
+    job = synthetic_job("job", "Software intern", description="Python skills. " + secret)
     db = tmp_path / "pipeline.sqlite3"
     with sqlite3.connect(db) as connection:
         connection.executescript(SCHEMA)
@@ -149,7 +156,7 @@ def test_remote_snapshot_omits_private_payloads_and_preserves_source_times(tmp_p
             "INSERT INTO jobs(id,data,canonical_url,company_key,content_hash,status,"
             "first_seen,last_seen) VALUES('job',?,'https://example.test/job',"
             "'synthetic','hash','open',?,?)",
-            (json.dumps(job), now - 15, now - 5),
+            (job.model_dump_json(), now - 15, now - 5),
         )
         connection.execute(
             "INSERT INTO tasks(kind,key,payload,status,available_at,created,updated,"
@@ -168,8 +175,88 @@ def test_remote_snapshot_omits_private_payloads_and_preserves_source_times(tmp_p
     assert result["sources"][0]["last_success"] == now - 20
     assert result["sources"][0]["failures"] == 2
     assert result["recent_jobs"][0]["event"] == "backlog"
-    assert result["recent_jobs"][0]["published_at"] == "2026-10-01T00:00:00Z"
+    assert result["recent_jobs"][0]["published_at"] == "2026-10-01T00:00:00+00:00"
     assert result["recent_jobs"][0]["first_seen"] == now - 15
+    assert result["recent_jobs"][0]["fit"] == "possible"
+    assert result["relevance"]["accepted"] == 1
+
+
+def synthetic_job(job_id: str, title: str, *, description: str = "Requires Python.") -> Job:
+    return Job(
+        id=job_id,
+        content_hash=job_id,
+        posting=SourceJob(
+            source="synthetic",
+            source_id=job_id,
+            board_id="board",
+            company="Synthetic Corp",
+            title=title,
+            apply_url="https://example.test/jobs/" + job_id,
+            description=description,
+            published_at="2026-10-01T00:00:00Z",
+        ),
+        first_seen_at=utcnow(),
+        last_seen_at=utcnow(),
+        last_verified_at=utcnow(),
+        event="backlog",
+    )
+
+
+def create_jobs(root: Path) -> None:
+    profile = root / "private/profile.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        json.dumps({"facts": [{"id": "python", "text": "Python project", "skills": ["Python"]}]})
+    )
+    jobs = [
+        synthetic_job("intern", "Software Engineering Intern"),
+        synthetic_job("fulltime", "Software Engineer"),
+        synthetic_job("unrelated", "Finance Intern"),
+        synthetic_job("unsupported", "Software Intern", description="Requires Rust."),
+    ]
+    with sqlite3.connect(root / "pipeline.sqlite3") as connection:
+        connection.executescript(SCHEMA)
+        for job in jobs:
+            connection.execute(
+                "INSERT INTO jobs(id,data,canonical_url,company_key,content_hash,status,"
+                "first_seen,last_seen) VALUES(?,?,?,?,?,'open',?,?)",
+                (
+                    job.id,
+                    job.model_dump_json(),
+                    job.posting.apply_url,
+                    "synthetic",
+                    job.content_hash,
+                    time.time(),
+                    time.time(),
+                ),
+            )
+
+
+def test_relevant_view_excludes_fulltime_unrelated_and_unsupported_jobs(tmp_path: Path) -> None:
+    create_jobs(tmp_path)
+    data = run_remote(tmp_path)
+    assert data["counts"]["jobs"] == 4
+    assert data["relevance"] == {"status": "ready", "screened": 4, "limit": 1000, "accepted": 1}
+    assert [job["title"] for job in data["recent_jobs"]] == ["Software Engineering Intern"]
+
+
+@pytest.mark.parametrize("failure", ["missing_profile", "invalid_profile", "matcher"])
+def test_relevant_view_fails_closed_without_returning_raw_jobs(
+    tmp_path: Path, failure: str
+) -> None:
+    create_jobs(tmp_path)
+    if failure == "missing_profile":
+        (tmp_path / "private/profile.yaml").unlink()
+    elif failure == "invalid_profile":
+        (tmp_path / "private/profile.yaml").write_text("PRIVATE_SENTINEL invalid profile")
+    data = run_remote(tmp_path, fail_matcher=failure == "matcher")
+    assert data["database"] == "readable"
+    assert data["counts"]["jobs"] == 4
+    assert data["recent_jobs"] == []
+    assert data["relevance"]["status"] == (
+        "profile_missing" if failure == "missing_profile" else "unavailable"
+    )
+    assert "PRIVATE_SENTINEL" not in json.dumps(data)
 
 
 def test_remote_missing_database_does_not_create_it(tmp_path: Path) -> None:
