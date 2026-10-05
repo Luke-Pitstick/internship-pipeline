@@ -561,5 +561,15 @@ def match_job(job: Job, profile: CandidateProfile, settings: Settings) -> MatchR
     if bool(settings.llm_model) != bool(settings.llm_base_url):
         raise MatchAssessmentError("Both llm_model and llm_base_url are required.", preliminary)
     if settings.llm_model and settings.llm_base_url:
-        return _llm_assessment(job, profile, settings, preliminary)
+        preliminary = _llm_assessment(job, profile, settings, preliminary)
+    if preliminary.accepted and not preliminary.fact_ids:
+        return preliminary.model_copy(
+            update={
+                "fit": "weak",
+                "reasons": [
+                    *preliminary.reasons,
+                    "No candidate resume facts support this posting's requirements.",
+                ],
+            }
+        )
     return preliminary

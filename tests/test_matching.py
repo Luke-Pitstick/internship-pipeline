@@ -19,6 +19,28 @@ from internship_pipeline.models import (
 )
 
 
+def candidate_profile(**kwargs: object) -> CandidateProfile:
+    # Role/eligibility tests use a candidate with relevant evidence by default.
+    kwargs.setdefault(
+        "facts",
+        [
+            ExperienceFact(
+                id="project-1",
+                text="Built Python and SQL services and researched product features.",
+                skills=[
+                    "Python",
+                    "SQL",
+                    "services",
+                    "product strategy",
+                    "product features",
+                    "artificial intelligence",
+                ],
+            )
+        ],
+    )
+    return CandidateProfile(**kwargs)
+
+
 def job(
     title: str = "Software Engineer Intern",
     description: str = "Build Python services.",
@@ -46,12 +68,17 @@ def job(
 
 @pytest.fixture
 def profile() -> CandidateProfile:
-    return CandidateProfile(
+    return candidate_profile(
         facts=[
             ExperienceFact(
                 id="project-1",
                 text="Built a synthetic Python service.",
-                skills=["Python"],
+                skills=[
+                    "Python",
+                    "product strategy",
+                    "product features",
+                    "artificial intelligence",
+                ],
             )
         ]
     )
@@ -145,7 +172,7 @@ def test_only_explicit_hard_conflicts_reject(
 ) -> None:
     result = match_job(
         job(description=description, **fields),
-        CandidateProfile(constraints=constraints),
+        candidate_profile(constraints=constraints),
         Settings(),
     )
     assert (result.eligible is False) is rejected
@@ -259,7 +286,7 @@ def test_rejected_jobs_do_not_call_model(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(matching.httpx, "Client", forbidden)
     result = match_job(
         job(description="PhD required."),
-        CandidateProfile(constraints=Constraints(degree_level="bachelor")),
+        candidate_profile(constraints=Constraints(degree_level="bachelor")),
         llm_settings(),
     )
     assert result.eligible is False
@@ -298,7 +325,7 @@ def test_role_and_employment_ambiguity(
     title: str, description: str, fields: dict[str, object], accepted: bool
 ) -> None:
     assert (
-        match_job(job(title, description, **fields), CandidateProfile(), Settings()).accepted
+        match_job(job(title, description, **fields), candidate_profile(), Settings()).accepted
         is accepted
     )
 
@@ -325,7 +352,7 @@ def test_title_only_term_and_year(
 ) -> None:
     result = match_job(
         job(title, description),
-        CandidateProfile(constraints=Constraints(term_keywords=terms)),
+        candidate_profile(constraints=Constraints(term_keywords=terms)),
         Settings(),
     )
     assert (result.eligible is False) is rejected
@@ -349,7 +376,7 @@ def test_title_only_term_and_year(
 def test_degree_negation_preferences_and_alternatives(description: str, rejected: bool) -> None:
     result = match_job(
         job(description=description),
-        CandidateProfile(constraints=Constraints(degree_level="bachelor")),
+        candidate_profile(constraints=Constraints(degree_level="bachelor")),
         Settings(),
     )
     assert (result.eligible is False) is rejected
@@ -359,7 +386,7 @@ def test_degree_negation_preferences_and_alternatives(description: str, rejected
 def test_remote_or_partly_unknown_country_does_not_hard_reject(locations: list[str]) -> None:
     result = match_job(
         job(locations=locations),
-        CandidateProfile(constraints=Constraints(countries=["USA"])),
+        candidate_profile(constraints=Constraints(countries=["USA"])),
         Settings(),
     )
     assert result.accepted
@@ -415,7 +442,7 @@ def test_domain_engineering_does_not_qualify_through_description(
         pytest.fail("Unsupported engineering roles must not reach model inference")
 
     monkeypatch.setattr(matching.httpx, "Client", forbidden)
-    profile = CandidateProfile(
+    profile = candidate_profile(
         constraints=Constraints(degree_level="bachelor"),
         facts=[
             ExperienceFact(
@@ -452,7 +479,7 @@ def test_domain_engineering_does_not_qualify_through_description(
 def test_target_roles_at_engineering_companies_remain_supported(title: str, family: str) -> None:
     posting = job(title, "Develop software products with Python.")
     posting.posting.company = "Example Electrical and Structural Engineering"
-    result = match_job(posting, CandidateProfile(), Settings())
+    result = match_job(posting, candidate_profile(), Settings())
     assert result.accepted
     assert result.role_family == family
 
@@ -486,7 +513,7 @@ def test_regular_jobs_with_internship_boilerplate_are_not_accepted(title: str) -
             "Our software engineering teams use Python and machine learning. "
             "We offer internship programs and co-op benefits for students.",
         ),
-        CandidateProfile(),
+        candidate_profile(),
         Settings(),
     )
     assert not result.accepted
@@ -504,14 +531,14 @@ def test_regular_jobs_with_internship_boilerplate_are_not_accepted(title: str) -
     ],
 )
 def test_generic_software_title_requires_clear_internship_hiring_context(description: str) -> None:
-    result = match_job(job("Software Engineer", description), CandidateProfile(), Settings())
+    result = match_job(job("Software Engineer", description), candidate_profile(), Settings())
     assert result.accepted
 
 
 def test_structured_internship_type_is_direct_evidence() -> None:
     result = match_job(
         job("Software Engineer", "Build Python services.", employment_type="Internship / Co-op"),
-        CandidateProfile(),
+        candidate_profile(),
         Settings(),
     )
     assert result.accepted
@@ -530,7 +557,7 @@ def test_structured_internship_type_is_direct_evidence() -> None:
 def test_explicit_graduate_title_cohort_rejects_bachelor(title: str) -> None:
     result = match_job(
         job(title, "Build machine learning models using Python."),
-        CandidateProfile(constraints=Constraints(degree_level="bachelor")),
+        candidate_profile(constraints=Constraints(degree_level="bachelor")),
         Settings(),
     )
     assert not result.accepted
@@ -551,14 +578,14 @@ def test_explicit_graduate_title_cohort_rejects_bachelor(title: str) -> None:
 def test_title_degree_cohort_keeps_eligible_and_nonmandatory_roles(title: str, degree: str) -> None:
     result = match_job(
         job(title),
-        CandidateProfile(constraints=Constraints(degree_level=degree)),
+        candidate_profile(constraints=Constraints(degree_level=degree)),
         Settings(),
     )
     assert result.accepted
 
 
 def test_title_degree_cohort_preserves_unknown_candidate_degree() -> None:
-    result = match_job(job("Machine Learning Intern (Master’s)"), CandidateProfile(), Settings())
+    result = match_job(job("Machine Learning Intern (Master’s)"), candidate_profile(), Settings())
     assert result.accepted
     assert result.eligible is None
     assert any("Degree eligibility is unverified: Master’s" in value for value in result.unknowns)
@@ -588,7 +615,7 @@ def test_specific_unsupported_job_function_cannot_be_reclassified_by_description
             title,
             "Use software development, Python, machine learning and data science for testing.",
         ),
-        CandidateProfile(),
+        candidate_profile(),
         Settings(),
     )
     assert not result.accepted
@@ -610,7 +637,7 @@ def test_specific_unsupported_job_function_cannot_be_reclassified_by_description
 )
 def test_positive_software_function_titles_remain_supported(title: str) -> None:
     result = match_job(
-        job(title, "Develop and test Python services."), CandidateProfile(), Settings()
+        job(title, "Develop and test Python services."), candidate_profile(), Settings()
     )
     assert result.accepted
     assert result.role_family == "swe"
@@ -622,7 +649,20 @@ def test_positive_software_function_titles_remain_supported(title: str) -> None:
 )
 def test_generic_internship_title_can_use_description_to_identify_role(title: str) -> None:
     result = match_job(
-        job(title, "Research machine learning models using Python."), CandidateProfile(), Settings()
+        job(title, "Research machine learning models using Python."),
+        candidate_profile(),
+        Settings(),
     )
     assert result.accepted
     assert result.role_family == "ml_ai"
+
+
+@pytest.mark.parametrize(
+    "facts", [[], [ExperienceFact(id="unrelated", text="Accounting work.", skills=["Accounting"])]]
+)
+def test_no_resume_evidence_cannot_trigger_a_recommendation(facts: list[ExperienceFact]) -> None:
+    result = match_job(job(), CandidateProfile(facts=facts), Settings())
+    assert not result.accepted
+    assert result.fit == "weak"
+    assert not result.fact_ids
+    assert any("No candidate resume facts" in reason for reason in result.reasons)
