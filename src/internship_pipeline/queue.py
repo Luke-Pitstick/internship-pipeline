@@ -75,6 +75,16 @@ class Queue:
             )
             return result.rowcount == 1
 
+    def defer(self, task: Task, seconds: float = 5) -> None:
+        """Wait for a dependency without consuming a transport retry attempt."""
+        now = utcnow().timestamp()
+        with self.store.transaction() as connection:
+            connection.execute(
+                "UPDATE tasks SET status='pending',attempts=attempts-1,available_at=?,"
+                "lease_until=NULL,updated=? WHERE id=? AND token=? AND status='running'",
+                (now + seconds, now, task.id, task.token),
+            )
+
     @contextmanager
     def heartbeat(self, task: Task) -> Iterator[None]:
         stop = threading.Event()

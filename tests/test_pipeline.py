@@ -112,3 +112,53 @@ def test_demo_is_explicitly_synthetic(tmp_path: Path) -> None:
     assert report["recorded_messages"] == 2
     assert report["generation_calls"] == 1
     assert report["repeat_scan_added_messages"] == 0
+
+
+def test_failed_opening_holds_generation_without_consuming_retries(tmp_path: Path) -> None:
+    pipeline, generator = configured_pipeline(tmp_path)
+    pipeline.destinations = {"test": "test://synthetic"}
+    pipeline.notifier = lambda *_: False
+    pipeline.drain()
+    assert generator.calls == 0
+    with pipeline.store.connection() as connection:
+        resume = connection.execute(
+            "SELECT attempts,status FROM tasks WHERE kind='resume'"
+        ).fetchone()
+        assert dict(resume) == {"attempts": 0, "status": "pending"}
+    pipeline.notifier = lambda *_: True
+    with pipeline.store.transaction() as connection:
+        connection.execute("UPDATE tasks SET available_at=0 WHERE status='pending'")
+    pipeline.drain()
+    assert generator.calls == 1
+    assert pipeline.store.health()["tasks"] == {"done": 4}
+
+
+def test_terminal_generation_failure_sends_actionable_notice(tmp_path: Path) -> None:
+    pipeline, generator = configured_pipeline(tmp_path)
+    pipeline.settings.max_attempts = 1
+    pipeline.queue.max_attempts = 1
+
+    def fail(*_):
+        raise TimeoutError()
+
+    generator.generate = fail
+    pipeline.drain()
+    messages = [json.loads(line) for line in (tmp_path / "messages.jsonl").read_text().splitlines()]
+    assert len(messages) == 2
+    assert "needs attention" in messages[1]["title"]
+    assert "apply manually" in messages[1]["body"]
+    assert messages[1]["attachment"] is None
+    assert pipeline.store.health()["failed_tasks"][0]["error"] == "TimeoutError"
+
+
+def test_verified_reopening_gets_new_alert_and_pdf(tmp_path: Path) -> None:
+    pipeline, _ = configured_pipeline(tmp_path)
+    pipeline.drain()
+    job = pipeline.store.list_jobs()[0]
+    pipeline.store.ingest("acme", FetchResult(), pipeline.profile.revision)
+    pipeline.store.ingest("acme", FetchResult(), pipeline.profile.revision)
+    pipeline.store.ingest("acme", FetchResult(jobs=[job.posting]), pipeline.profile.revision)
+    pipeline.drain()
+    messages = [json.loads(line) for line in (tmp_path / "messages.jsonl").read_text().splitlines()]
+    assert len(messages) == 4
+    assert "reopen" in messages[2]["title"].lower()

@@ -93,7 +93,29 @@ def test_description_edit_is_not_a_new_opening(tmp_path: Path) -> None:
     job = store.ingest("acme", FetchResult(jobs=[posting()]), "p1", NOW)[0]
     store.ingest("acme", FetchResult(jobs=[posting(description="New detail")]), "p1", NOW)
     assert store.get_job(job.id).posting.description == "New detail"
-    assert store.health()["tasks"] == {"pending": 1}
+    assert store.get_job(job.id).opening_revision == 0
+    assert store.health()["tasks"] == {"pending": 2}  # Reassess the changed description.
+
+
+def test_stale_aggregator_cannot_reopen_authoritatively_closed_job(tmp_path: Path) -> None:
+    store = setup_store(tmp_path / "db.sqlite")
+    job = store.ingest("acme", FetchResult(jobs=[posting()]), "p1", NOW)[0]
+    store.ingest("acme", FetchResult(), "p1", NOW)
+    store.ingest("acme", FetchResult(), "p1", NOW)
+    store.register_target("search", "search", "{}", "indeed")
+    store.ingest(
+        "search",
+        FetchResult(jobs=[posting(source="jobspy:indeed")]),
+        "p1",
+        NOW + timedelta(hours=1),
+    )
+    current = store.get_job(job.id)
+    assert current.status == "closed"
+    assert current.last_verified_at == NOW
+    assert current.posting.source == "ashby"
+    store.ingest("acme", FetchResult(jobs=[posting()]), "p1", NOW + timedelta(hours=2))
+    assert store.get_job(job.id).opening_revision == 1
+    assert store.get_job(job.id).event == "reopened"
 
 
 def test_match_and_downstream_tasks_are_idempotent(tmp_path: Path) -> None:

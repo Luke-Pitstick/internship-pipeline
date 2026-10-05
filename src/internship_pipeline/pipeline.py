@@ -33,6 +33,10 @@ class DeliveryFailed(RuntimeError):
     pass
 
 
+class OpeningPending(RuntimeError):
+    pass
+
+
 class Pipeline:
     def __init__(
         self,
@@ -75,6 +79,8 @@ class Pipeline:
                 else:
                     raise ValueError("Unknown task kind")
             self.queue.complete(task)
+        except OpeningPending:
+            self.queue.defer(task)
         except Exception as exc:
             # Error bodies from providers can include candidate data, tokens or prompts.
             error = type(exc).__name__
@@ -82,13 +88,35 @@ class Pipeline:
                 self.queue.needs_attention(task, error)
             else:
                 self.queue.fail(task, error)
+            if task.kind == "resume" and (
+                error in {"ResumeReconciliationRequired", "ResumeValidationError"}
+                or task.attempts >= self.settings.max_attempts
+            ):
+                with self.store.transaction() as connection:
+                    for destination in self.destinations:
+                        enqueue(
+                            connection,
+                            "delivery",
+                            f"failure:{task.id}:{destination}",
+                            {
+                                "job_id": task.payload["job_id"],
+                                "kind": "failure",
+                                "destination_id": destination,
+                                "task_id": task.id,
+                                "error": error,
+                                "opening_revision": task.payload.get("opening_revision", 0),
+                            },
+                            utcnow().timestamp(),
+                        )
         return True
 
     def _match(self, task: Task) -> None:
         job = self.store.get_job(task.payload["job_id"])
         if job.status != "open" or job.applied_at is not None:
             return
-        result = self.matcher(job, self.profile, self.settings)
+        result = self.store.get_match(job, self.profile.revision)
+        if result is None:
+            result = self.matcher(job, self.profile, self.settings)
         self.store.save_match(job, result, self.profile.revision, list(self.destinations))
 
     def _resume(self, task: Task) -> None:
@@ -108,6 +136,13 @@ class Pipeline:
                     utcnow().timestamp(),
                 )
             return
+        if task.payload.get("opening_revision", 0) != job.opening_revision:
+            return
+        if not any(
+            self.store.delivered(f"opening:{job.id}:{job.opening_revision}:{destination}")
+            for destination in self.destinations
+        ):
+            raise OpeningPending()
         match = MatchResult.model_validate(task.payload["match"])
         artifact = self.resume_service.generate(job, match, self.profile)
         self.store.save_artifact(artifact, list(self.destinations))
@@ -124,6 +159,8 @@ class Pipeline:
         job = self.store.get_job(task.payload["job_id"])
         if job.status != "open" or job.applied_at is not None:
             return
+        if task.payload.get("opening_revision", 0) != job.opening_revision:
+            return
         destination_id = task.payload["destination_id"]
         destination = self.destinations.get(destination_id)
         if destination is None:
@@ -131,7 +168,19 @@ class Pipeline:
         attachment = None
         if task.payload["kind"] == "opening":
             title, body = opening_message(job, MatchResult.model_validate(task.payload["match"]))
+        elif task.payload["kind"] == "failure":
+            title = f"Resume needs attention: {job.posting.company} — {job.posting.title}"
+            body = (
+                f"Job {job.id}: tailored resume could not be completed. "
+                f"Reason: {task.payload['error']}. Inspect task {task.payload['task_id']} "
+                "with the status command before retrying. You can still apply manually.\n"
+                f"Apply: {job.posting.apply_url}"
+            )
         else:
+            if not self.store.delivered(
+                f"opening:{job.id}:{job.opening_revision}:{destination_id}"
+            ):
+                raise OpeningPending()
             artifact = self.store.get_artifact(task.payload["artifact_key"])
             title, body = resume_message(job, artifact)
             attachment = artifact.pdf_path

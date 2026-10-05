@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from internship_pipeline.models import (
+    Company,
     FetchResult,
     Job,
     MatchResult,
@@ -65,6 +66,9 @@ CREATE TABLE IF NOT EXISTS providers (
 CREATE TABLE IF NOT EXISTS candidates (
     url TEXT PRIMARY KEY, company TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
     error TEXT, created REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS maintenance (
+    name TEXT PRIMARY KEY, next_due REAL NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY, kind TEXT NOT NULL, job_id TEXT,
@@ -195,7 +199,7 @@ class Store:
     def finish_target(
         self, target_id: str, next_due: float, result: FetchResult, now: float
     ) -> None:
-        healthy = result.error is None and result.complete
+        healthy = (result.error is None and result.complete) or result.coverage_limited
         with self.transaction() as connection:
             connection.execute(
                 "UPDATE targets SET next_due=?,lease_until=0,complete=?,error=?, "
@@ -247,8 +251,9 @@ class Store:
                     ).fetchone()
                 if row is None:
                     row = connection.execute(
-                        "SELECT * FROM jobs WHERE canonical_url=? AND company_key=?",
-                        (url, company_key),
+                        "SELECT * FROM jobs WHERE canonical_url=? AND company_key=? "
+                        "AND (requisition_id IS NULL OR ? IS NULL OR requisition_id=?)",
+                        (url, company_key, posting.requisition_id, posting.requisition_id),
                     ).fetchone()
                 if row is None and posting.requisition_id:
                     row = connection.execute(
@@ -292,25 +297,33 @@ class Store:
                         )
                 else:
                     job = row_job(row)
-                    reopened = job.status == "closed"
                     # Preserve a direct company's richer evidence when an aggregator rediscovers it.
-                    replace_posting = posting.source != "jobspy" or job.posting.source == "jobspy"
+                    replace_posting = not posting.source.startswith("jobspy") or (
+                        job.posting.source.startswith("jobspy")
+                    )
+                    reopened = job.status == "closed" and replace_posting
+                    changed = replace_posting and digest != job.content_hash
                     updates: dict[str, Any] = {
                         "last_seen_at": now,
-                        "last_verified_at": now,
-                        "status": "open",
                     }
                     if replace_posting:
-                        updates.update(posting=posting, content_hash=digest)
+                        updates.update(
+                            posting=posting,
+                            content_hash=digest,
+                            last_verified_at=now,
+                            status="open",
+                        )
                     if reopened:
                         updates["event"] = "reopened"
+                        updates["opening_revision"] = job.opening_revision + 1
                     job = job.model_copy(update=updates)
                     connection.execute(
-                        "UPDATE jobs SET data=?,status='open',last_seen=?,content_hash=?, "
+                        "UPDATE jobs SET data=?,status=?,last_seen=?,content_hash=?, "
                         "canonical_url=?,requisition_id=? "
                         "WHERE id=?",
                         (
                             job.model_dump_json(),
+                            job.status,
                             timestamp,
                             job.content_hash,
                             canonical_url(job.posting.apply_url),
@@ -323,6 +336,14 @@ class Store:
                             connection,
                             "match",
                             f"reopen:{job.id}:{timestamp}:{profile_revision}",
+                            {"job_id": job.id, "profile_revision": profile_revision},
+                            timestamp,
+                        )
+                    elif changed and target["baselined"] and job.event != "backlog":
+                        enqueue(
+                            connection,
+                            "match",
+                            f"match:{job.id}:{job.content_hash}:{profile_revision}",
                             {"job_id": job.id, "profile_revision": profile_revision},
                             timestamp,
                         )
@@ -401,17 +422,18 @@ class Store:
                 (job.id, job.content_hash, profile_revision, match.model_dump_json(), now),
             )
             if match.accepted and job.status == "open":
-                revision = f"{job.content_hash}:{profile_revision}"
+                revision = f"{job.content_hash}:{profile_revision}:{job.opening_revision}"
                 for destination in destination_ids:
                     enqueue(
                         connection,
                         "delivery",
-                        f"opening:{job.id}:{destination}",
+                        f"opening:{job.id}:{job.opening_revision}:{destination}",
                         {
                             "job_id": job.id,
                             "kind": "opening",
                             "destination_id": destination,
                             "match": match.model_dump(mode="json"),
+                            "opening_revision": job.opening_revision,
                         },
                         now,
                     )
@@ -424,6 +446,7 @@ class Store:
                         "match": match.model_dump(mode="json"),
                         "profile_revision": profile_revision,
                         "content_hash": job.content_hash,
+                        "opening_revision": job.opening_revision,
                     },
                     now,
                 )
@@ -432,8 +455,18 @@ class Store:
                 (job.id, now, json.dumps({"fit": match.fit})),
             )
 
+    def get_match(self, job: Job, profile_revision: str) -> MatchResult | None:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT result FROM matches WHERE job_id=? AND content_hash=? "
+                "AND profile_revision=?",
+                (job.id, job.content_hash, profile_revision),
+            ).fetchone()
+            return MatchResult.model_validate_json(row[0]) if row else None
+
     def save_artifact(self, artifact: ResumeArtifact, destination_ids: list[str]) -> None:
         now = utcnow().timestamp()
+        job = self.get_job(artifact.job_id)
         with self.transaction() as connection:
             connection.execute(
                 "INSERT OR REPLACE INTO artifacts VALUES(?,?,?)",
@@ -443,12 +476,13 @@ class Store:
                 enqueue(
                     connection,
                     "delivery",
-                    f"resume:{artifact.key}:{destination}",
+                    f"resume:{artifact.key}:{job.opening_revision}:{destination}",
                     {
                         "job_id": artifact.job_id,
                         "kind": "resume",
                         "destination_id": destination,
                         "artifact_key": artifact.key,
+                        "opening_revision": job.opening_revision,
                     },
                     now,
                 )
@@ -501,10 +535,34 @@ class Store:
                 "SELECT MIN(created) AS oldest FROM tasks WHERE status IN ('pending','running')"
             ).fetchone()["oldest"]
             job_count = connection.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+            failed = [
+                dict(row)
+                for row in connection.execute(
+                    "SELECT id,kind,error,attempts,updated FROM tasks WHERE status='failed' "
+                    "ORDER BY updated DESC LIMIT 50"
+                )
+            ]
+            candidates = {
+                row["status"]: row["n"]
+                for row in connection.execute(
+                    "SELECT status,COUNT(*) n FROM candidates GROUP BY status"
+                )
+            }
+            latencies = [
+                float(row[0])
+                for row in connection.execute(
+                    "SELECT delivered_at-first_seen FROM deliveries JOIN jobs "
+                    "ON deliveries.job_id=jobs.id WHERE deliveries.kind='opening' "
+                    "ORDER BY delivered_at DESC LIMIT 100"
+                )
+            ]
         targets = self.targets()
         return {
             "jobs": job_count,
             "tasks": counts,
+            "failed_tasks": failed,
+            "discovery_candidates": candidates,
+            "opening_latency_seconds_last_100": latencies,
             "oldest_work_age_seconds": None if oldest is None else round(now - oldest),
             "targets": [
                 {
@@ -518,6 +576,7 @@ class Store:
                         "last_success",
                         "failures",
                         "error",
+                        "complete",
                     )
                 }
                 for row in targets
@@ -526,6 +585,49 @@ class Store:
                 row["enabled"] and row["next_due"] < now - 60 for row in targets
             ),
         }
+
+    def add_candidates(self, companies: list[Company]) -> int:
+        with self.transaction() as connection:
+            added = 0
+            for company in companies:
+                added += connection.execute(
+                    "INSERT OR IGNORE INTO candidates(url,company,created) VALUES(?,?,?)",
+                    (company.careers_url, company.model_dump_json(), utcnow().timestamp()),
+                ).rowcount
+            return added
+
+    def candidate_companies(self, limit: int = 200) -> list[Company]:
+        with self.connection() as connection:
+            return [
+                Company.model_validate_json(row[0])
+                for row in connection.execute(
+                    "SELECT company FROM candidates WHERE status IN ('pending','failed') "
+                    "ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END,created LIMIT ?",
+                    (limit,),
+                )
+            ]
+
+    def finish_candidate(self, company: Company, status: str, error: str | None = None) -> None:
+        with self.transaction() as connection:
+            connection.execute(
+                "UPDATE candidates SET status=?,error=?,created=? WHERE url=?",
+                (status, error, utcnow().timestamp(), company.careers_url),
+            )
+
+    def claim_discovery(self, now: float, force: bool = False) -> bool:
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT next_due FROM maintenance WHERE name='discovery'"
+            ).fetchone()
+            if row and row[0] > now and not force:
+                return False
+            # A crash retries on the next day; already validated candidates retain their state.
+            connection.execute(
+                "INSERT INTO maintenance VALUES('discovery',?) ON CONFLICT(name) "
+                "DO UPDATE SET next_due=excluded.next_due",
+                (now + 86400,),
+            )
+            return True
 
     def backup(self, destination: Path) -> None:
         if destination.resolve() == self.path.resolve():

@@ -44,7 +44,9 @@ def parser() -> argparse.ArgumentParser:
         "--force", action="store_true", help="Ignore due times, but preserve rate limits"
     )
     worker = commands.add_parser("worker", help="Run an independent continuous process")
-    worker.add_argument("role", choices=["collector", "matcher", "resumes", "delivery"])
+    worker.add_argument(
+        "role", choices=["collector", "matcher", "resumes", "delivery", "discovery"]
+    )
     worker.add_argument(
         "--once", action="store_true", help="Process at most one available work item"
     )
@@ -68,8 +70,12 @@ def parser() -> argparse.ArgumentParser:
     add.add_argument("careers_url")
     add.add_argument("--priority", action="store_true")
     discovery = commands.add_parser("discover", help="Find candidate boards; review before adding")
-    discovery.add_argument("query")
-    discovery.add_argument("--limit", type=int, default=20)
+    discovery.add_argument("query", nargs="?")
+    discovery.add_argument("--limit", type=int, default=200)
+    discovery.add_argument(
+        "--seed", action="store_true", help="Persist candidates for daily validation"
+    )
+    commands.add_parser("refresh-discovery", help="Validate pending candidate boards now")
     backup = commands.add_parser("backup", help="Create a consistent SQLite backup")
     backup.add_argument("destination", type=Path)
     demo = commands.add_parser(
@@ -105,7 +111,12 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
         register_targets(store, companies, queries)
     kinds = {"matcher": ["match"], "resumes": ["resume"], "delivery": ["delivery"]}
     while not stop.is_set():
-        if role == "collector":
+        if role == "discovery":
+            from internship_pipeline.maintenance import refresh_discovery
+
+            asyncio.run(refresh_discovery(store, settings))
+            worked = False
+        elif role == "collector":
             asyncio.run(collect_due(store, pipeline.profile, settings))
             worked = False
         else:
@@ -184,7 +195,15 @@ def main(argv: list[str] | None = None) -> int:
             from internship_pipeline.discovery import discover_companies
 
             companies = discover_companies(args.query, args.limit)
-            print(yaml.safe_dump([company.model_dump(mode="json") for company in companies]))
+            if args.seed:
+                print(f"Stored {store.add_candidates(companies)} candidates for validation")
+            else:
+                print(yaml.safe_dump([company.model_dump(mode="json") for company in companies]))
+        elif args.command == "refresh-discovery":
+            from internship_pipeline.maintenance import refresh_discovery
+
+            count = asyncio.run(refresh_discovery(store, settings, force=True))
+            print(f"Enabled {count} verified boards; their first scan establishes a backlog")
         elif args.command == "scan":
             _require_destination(settings)
             pipeline = _pipeline(settings, store)

@@ -49,7 +49,7 @@ async def collect_due(
     async def collect(target: dict[str, Any]) -> int:
         target_id, provider = str(target["id"]), str(target["provider"])
         provider_lock = provider_locks.setdefault(provider, asyncio.Lock())
-        async with semaphore, provider_lock:
+        async with provider_lock, semaphore:
             now = utcnow()
             if not force and float(target["next_due"]) > now.timestamp():
                 return 0
@@ -82,7 +82,12 @@ async def collect_due(
                     spec = SearchQuery.model_validate_json(str(target["config"]))
             finished = utcnow()
             jobs = store.ingest(target_id, result, profile.revision, finished)
-            failures = int(target["failures"]) + 1 if result.error or not result.complete else 0
+            if target["kind"] == "search" and result.jobs:
+                from internship_pipeline.discovery import candidates_from_jobs
+
+                store.add_candidates(candidates_from_jobs(result.jobs))
+            healthy = (result.error is None and result.complete) or result.coverage_limited
+            failures = 0 if healthy else int(target["failures"]) + 1
             due = next_due(
                 finished,
                 interval_for(spec, settings),

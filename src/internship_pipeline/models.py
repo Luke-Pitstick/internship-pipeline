@@ -87,6 +87,7 @@ class SourceJob(Record):
 class FetchResult(Record):
     jobs: list[SourceJob] = Field(default_factory=list)
     complete: bool = True
+    coverage_limited: bool = False
     error: str | None = None
     retry_after_seconds: float | None = None
 
@@ -100,6 +101,7 @@ class Job(Record):
     last_verified_at: datetime
     status: str = "open"
     event: str = "new"
+    opening_revision: int = 0
     applied_at: datetime | None = None
 
 
