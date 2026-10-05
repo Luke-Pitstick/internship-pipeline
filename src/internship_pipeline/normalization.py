@@ -12,10 +12,12 @@ _TRACKING_KEYS = {"gclid", "fbclid", "msclkid", "gh_src", "lever-source", "lever
 
 
 def canonical_url(url: str) -> str:
-    """Remove known tracking parameters without changing job routing semantics.
+    """Return opportunity identity, preserving generic job routing semantics.
 
     Keep query order, repeated parameters, blank values, escaping, path case,
     trailing slashes and fragments: any of these can identify a requisition.
+    Only known Lever/Ashby application endpoints normalize to their listing.
+    Keep the original application URL on SourceJob for delivery.
     """
     parts = urlsplit(url.strip())
     if parts.scheme.lower() not in {"http", "https"} or not parts.hostname:
@@ -34,7 +36,16 @@ def canonical_url(url: str) -> str:
         for component in parts.query.split("&")
         if not _is_tracking(component.partition("=")[0])
     )
-    return urlunsplit((scheme, host, parts.path, query, parts.fragment))
+    path = parts.path
+    segments = path.split("/")
+    endpoint = {
+        "jobs.lever.co": "apply",
+        "jobs.eu.lever.co": "apply",
+        "jobs.ashbyhq.com": "application",
+    }.get(parts.hostname.lower())
+    if endpoint and len(segments) == 4 and all(segments[1:]) and segments[-1] == endpoint:
+        path = "/".join(segments[:-1])
+    return urlunsplit((scheme, host, path, query, parts.fragment))
 
 
 def _is_tracking(key: str) -> bool:

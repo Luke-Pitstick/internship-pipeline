@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import UTC
 from typing import Any
 
@@ -17,18 +18,18 @@ COMPLETE_PROVIDERS = frozenset({"ashby", "greenhouse", "lever"})
 class _ValidatedFetcher:
     """Delegate transport to the library while validating full-board payloads."""
 
-    def __init__(self, fetcher: Any, provider: str):
+    def __init__(self, fetcher: Any, provider: str) -> None:
         self.fetcher = fetcher
         self.provider = provider
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> _ValidatedFetcher:
         await self.fetcher.__aenter__()
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> Any:
         return await self.fetcher.__aexit__(*args)
 
-    async def get_json(self, url: str, **kwargs):
+    async def get_json(self, url: str, **kwargs: Any) -> Any:
         response = await self.fetcher.request("GET", url, handled={429, *range(500, 600)}, **kwargs)
         if response.status_code == 429 or response.status_code >= 500:
             raise ProviderError(
@@ -46,10 +47,12 @@ class _ValidatedFetcher:
         return payload
 
 
-def _build_scraper(company: Company, timeout: float):
+def _build_scraper(company: Company, timeout: float) -> Any:
     from ats_scrapers import get_scraper_for_url
 
-    scraper = get_scraper_for_url(company.careers_url, timeout=timeout, include_descriptions=True)
+    scraper: Any = get_scraper_for_url(
+        company.careers_url, timeout=timeout, include_descriptions=True
+    )
     provider = scraper.ats.value
     if company.provider != "auto" and company.provider != provider:
         raise ValueError(f"Configured provider {company.provider!r} resolves to {provider!r}")
@@ -63,6 +66,8 @@ def _build_scraper(company: Company, timeout: float):
 
 def normalize_job(row: Any, company: Company, provider: str) -> SourceJob:
     source_url = canonical_url(str(row.url))
+    apply_url = str(row.apply_url or row.url).strip()
+    canonical_url(apply_url)
     source_id = str(row.ats_id).strip() if row.ats_id else source_url
     if not row.title.strip():
         raise ValueError("Posting is missing a title")
@@ -95,7 +100,7 @@ def normalize_job(row: Any, company: Company, provider: str) -> SourceJob:
         board_id=company.id,
         company=company.name,
         title=row.title.strip(),
-        apply_url=canonical_url(str(row.apply_url or row.url)),
+        apply_url=apply_url,
         source_url=source_url,
         description=row.description or "",
         locations=list(dict.fromkeys(str(location) for location in locations if location)),
@@ -133,18 +138,26 @@ async def fetch_company(company: Company, timeout: float = 30) -> FetchResult:
             jobs.append(job)
         except Exception as exc:
             errors.append(f"Invalid posting: {type(exc).__name__}: {exc}")
+    coverage_limited = provider not in COMPLETE_PROVIDERS and not errors
     if provider not in COMPLETE_PROVIDERS:
         errors.append(f"{provider}: library exposes no verified snapshot completeness metadata")
-    return FetchResult(jobs=jobs, complete=not errors, error="; ".join(errors) or None)
+    return FetchResult(
+        jobs=jobs,
+        complete=not errors,
+        error="; ".join(errors) or None,
+        coverage_limited=coverage_limited,
+    )
 
 
-async def fetch_companies(companies: list[Company], timeout: float = 30, concurrency: int = 4):
+async def fetch_companies(
+    companies: list[Company], timeout: float = 30, concurrency: int = 4
+) -> AsyncIterator[tuple[Company, FetchResult]]:
     """Yield completed boards immediately, bounding concurrent logical fetches."""
     if concurrency < 1:
         raise ValueError("concurrency must be positive")
     semaphore = asyncio.Semaphore(concurrency)
 
-    async def fetch(company):
+    async def fetch(company: Company) -> tuple[Company, FetchResult]:
         async with semaphore:
             return company, await fetch_company(company, timeout)
 

@@ -56,3 +56,43 @@ def test_aggregator_candidate_requires_a_real_supported_employer_url():
     assert (
         discovery.candidates_from_jobs([job.model_copy(update={"apply_url": job.source_url})]) == []
     )
+
+
+@pytest.mark.parametrize("name", [None, "Example"])
+def test_directory_api_candidates_remain_disabled_until_validation(monkeypatch, name):
+    module = pytest.importorskip("ats_scrapers")
+    import pandas as pd
+
+    class Client:
+        def __init__(self, *, http_client, prefer_parquet):
+            assert prefer_parquet is False
+
+        def companies(self):
+            return pd.DataFrame(
+                [
+                    dict(
+                        ats="ashby",
+                        name="Example",
+                        slug="example",
+                        url="https://jobs.ashbyhq.com/example",
+                    ),
+                    dict(
+                        ats="unknown",
+                        name="Unsupported",
+                        slug="unknown",
+                        url="https://example.com/careers",
+                    ),
+                ]
+            )
+
+        def find_company(self, name, *, limit):
+            assert name == "Example"
+            return self.companies().head(limit)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "Client", Client)
+    candidates = discovery.discover_companies(name=name, limit=2)
+    assert len(candidates) == 1 and not candidates[0].enabled
+    assert candidates[0].id == "ashby:example"

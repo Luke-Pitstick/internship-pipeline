@@ -55,12 +55,14 @@ def test_cap_marks_search_incomplete_and_preserves_rows(monkeypatch):
     install_fake(monkeypatch, [row("1"), row("2")])
     result = jobspy_worker.collect(query())
     assert len(result.jobs) == 2 and not result.complete and "partition" in result.error
+    assert result.coverage_limited
 
 
 def test_silent_library_rate_limit_logging_is_collected(monkeypatch):
     install_fake(monkeypatch, [row()], "Indeed response status code 429")
     result = jobspy_worker.collect(query())
     assert len(result.jobs) == 1 and not result.complete and result.retry_after_seconds == 60
+    assert not result.coverage_limited
 
 
 def test_uncapped_success_and_empty_coverage(monkeypatch):

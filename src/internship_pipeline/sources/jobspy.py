@@ -32,6 +32,8 @@ def normalize_row(row: dict[str, Any], query: SearchQuery) -> SourceJob:
     site = _text(row.get("site"))
     url = canonical_url(_text(row.get("job_url")))
     direct = _text(row.get("job_url_direct"))
+    apply_url = direct or _text(row.get("job_url"))
+    canonical_url(apply_url)
     title = _text(row.get("title"))
     company = _text(row.get("company"))
     if not title or not company or site not in query.sites:
@@ -68,7 +70,7 @@ def normalize_row(row: dict[str, Any], query: SearchQuery) -> SourceJob:
         company=company,
         title=title,
         # JobSpy's direct URL is source-provided, not independently employer-verified.
-        apply_url=canonical_url(direct) if direct else url,
+        apply_url=apply_url,
         source_url=url,
         description=_text(row.get("description")),
         locations=[_text(row.get("location"))] if _text(row.get("location")) else [],

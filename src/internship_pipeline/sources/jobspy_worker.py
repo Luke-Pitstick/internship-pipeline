@@ -13,11 +13,11 @@ from internship_pipeline.sources.jobspy import normalize_row
 
 
 class _Errors(logging.Handler):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(logging.ERROR)
         self.messages: list[str] = []
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         self.messages.append(record.getMessage())
 
 
@@ -57,6 +57,7 @@ def collect(query: SearchQuery) -> FetchResult:
                 counts[job.source.removeprefix("jobspy:")] += 1
             except Exception as exc:
                 errors.messages.append(f"Invalid search posting: {exc}")
+        actual_failure = bool(errors.messages)
         capped = [site for site, count in counts.items() if count >= query.results_wanted]
         if capped:
             errors.messages.append(
@@ -71,6 +72,7 @@ def collect(query: SearchQuery) -> FetchResult:
             complete=text is None,
             error=text,
             retry_after_seconds=60 if text and "429" in text else None,
+            coverage_limited=text is not None and not actual_failure,
         )
     except Exception as exc:
         result = failure_result(exc)

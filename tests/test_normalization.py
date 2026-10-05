@@ -52,3 +52,32 @@ def test_content_hash_ignores_source_clocks_and_tracking():
     assert content_hash(base) == content_hash(duplicate)
     assert content_hash(base) != content_hash(posting(description="Build databases"))
     assert content_hash(base) != content_hash(posting(apply_url="https://example.com/jobs?job=2"))
+
+
+@pytest.mark.parametrize(
+    "host,suffix",
+    [
+        ("jobs.lever.co", "apply"),
+        ("jobs.eu.lever.co", "apply"),
+        ("jobs.ashbyhq.com", "application"),
+    ],
+)
+def test_known_application_endpoints_share_opportunity_identity(host, suffix):
+    assert canonical_url(f"https://{host}/company/req/{suffix}?id=1") == (
+        f"https://{host}/company/req?id=1"
+    )
+    assert canonical_url(f"https://{host}/company/other/{suffix}") != canonical_url(
+        f"https://{host}/company/req/{suffix}"
+    )
+
+
+def test_application_suffixes_remain_distinct_on_generic_or_nested_routes():
+    assert canonical_url("https://example.com/company/req/apply") == (
+        "https://example.com/company/req/apply"
+    )
+    assert canonical_url("https://jobs.lever.co/company/req/nested/apply") == (
+        "https://jobs.lever.co/company/req/nested/apply"
+    )
+    assert canonical_url("https://jobs.ashbyhq.com/company/application") == (
+        "https://jobs.ashbyhq.com/company/application"
+    )

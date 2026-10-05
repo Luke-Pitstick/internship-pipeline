@@ -143,3 +143,21 @@ def test_retry_after_http_date():
     assert retry_delay("Thu, 01 Jan 2026 00:02:00 GMT", datetime(2026, 1, 1, tzinfo=UTC)) == 120
     assert retry_delay("nonsense") is None
     assert str(ProviderError(429)) == "Provider returned HTTP 429"
+
+
+def test_apply_endpoint_is_retained_for_delivery():
+    posting = row()
+    posting.apply_url = "https://jobs.ashbyhq.com/example/1/application?utm_source=x"
+    assert ats.normalize_job(posting, company(), "ashby").apply_url == posting.apply_url
+
+
+def test_unaudited_healthy_provider_reports_coverage_without_transport_failure(monkeypatch):
+    class Scraper:
+        ats = SimpleNamespace(value="workday")
+
+        async def afetch(self):
+            return [row()]
+
+    monkeypatch.setattr(ats, "_build_scraper", lambda *args: Scraper())
+    result = asyncio.run(ats.fetch_company(company()))
+    assert not result.complete and result.coverage_limited and len(result.jobs) == 1
