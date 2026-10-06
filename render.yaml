@@ -18,7 +18,7 @@ services:
   - key: DASHBOARD_API_TOKEN
     sync: false
   - key: RESUME_GENERATION_PAUSED
-    value: '1'
+    value: '0'
   - key: CODEX_HOME
     value: /var/data/codex
   - key: RESUME_MODEL
