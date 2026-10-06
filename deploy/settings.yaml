@@ -3,7 +3,8 @@ artifact_dir: /var/data/artifacts
 profile_path: /var/data/private/profile.yaml
 companies_path: /var/data/config/companies.yaml
 searches_path: /var/data/config/searches.yaml
-resume_model: gpt-6-luna
+resume_model: gpt-5.6-sol
+resume_reasoning_effort: low
 notification_urls: []
 recording_notifications_path: null
 dot_outbox_path: /var/data/dot-outbox

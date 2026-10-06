@@ -8,7 +8,7 @@ The service is srv-db23e6rtqb8s73btl8d0 in Luke's Workspace, Oregon. Its public 
 
 Place settings and company/search configuration in /var/data/config. Put the verified factual profile in /var/data/private/profile.yaml and the original source in /var/data/private/master-resume.tex. Set master_resume_path to that absolute .tex path. Preserve CODEX_HOME=/var/data/codex and complete codex login --device-auth with the user's subscription; never put login files in Git or image layers.
 
-Set RESUME_MODEL=gpt-6-luna. Set RESUME_GENERATION_PAUSED=1 during source verification and 0 only after an end-to-end generation check. This pause leaves collection, matching and delivery running. Create /var/data/activated after provisioning to start the workers. pdflatex is installed in the pipeline image; it compiles the original and tailored source with shell escape disabled and checks page count, content and overflow.
+Set RESUME_MODEL=gpt-5.6-sol. Set RESUME_GENERATION_PAUSED=1 during source verification and 0 only after an end-to-end generation check. This pause leaves collection, matching and delivery running. Create /var/data/activated after provisioning to start the workers. pdflatex is installed in the pipeline image; it compiles the original and tailored source with shell escape disabled and checks page count, content and overflow.
 
 ## Dashboard and relay
 

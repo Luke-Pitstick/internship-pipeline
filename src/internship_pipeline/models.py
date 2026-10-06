@@ -145,7 +145,7 @@ class Settings(Record):
     database_path: Path = Path("data/pipeline.sqlite3")
     artifact_dir: Path = Path("artifacts")
     profile_path: Path = Path("config/profile.local.yaml")
-    resume_model: str = Field(default="gpt-6.1-sol", min_length=1)
+    resume_model: str = Field(default="gpt-5.6-sol", min_length=1)
     resume_reasoning_effort: Literal["low", "high"] = "low"
     companies_path: Path = Path("config/companies.local.yaml")
     searches_path: Path | None = None

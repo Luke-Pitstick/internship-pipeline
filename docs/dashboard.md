@@ -6,7 +6,7 @@ The dashboard displays bounded, preliminary internship matches, descriptions, of
 
 Use Mark as applied only after submitting an application yourself. The action records the first timestamp idempotently and stops further resume/delivery work for that job. Opening an application or downloading a resume never marks it applied.
 
-Resume generation edits supported text spans in the original .tex and compiles PDFs with pdflatex. It uses gpt-6-luna through the saved Codex subscription. The master source and credentials are private Render files, not Git assets.
+Resume generation edits supported text spans in the original .tex and compiles PDFs with pdflatex. It uses gpt-5.6-sol through the saved Codex subscription. The master source and credentials are private Render files, not Git assets.
 
 The results service is srv-db23e6rtqb8s73btl8d0. Its /healthz is public and contains no job or candidate data; all other API endpoints require DASHBOARD_API_TOKEN. The Site stores the same value as secret RENDER_API_TOKEN and uses RENDER_API_ORIGIN=https://internship-pipeline-api.onrender.com. Local previews use ignored .env values.
 

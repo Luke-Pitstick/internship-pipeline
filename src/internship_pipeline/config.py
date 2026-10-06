@@ -37,6 +37,7 @@ def load_settings(path: Path | None = None) -> Settings:
         "PIPELINE_COMPANIES_PATH": "companies_path",
         "PIPELINE_SEARCHES_PATH": "searches_path",
         "RESUME_MODEL": "resume_model",
+        "RESUME_REASONING_EFFORT": "resume_reasoning_effort",
         "LLM_BASE_URL": "llm_base_url",
         "LLM_MODEL": "llm_model",
         "LLM_API_KEY": "llm_api_key",

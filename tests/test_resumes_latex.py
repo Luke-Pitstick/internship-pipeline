@@ -227,7 +227,7 @@ def test_missing_compiler_is_actionable(source, tmp_path):
 
 
 def test_resume_service_uses_configured_sol_model_and_low_effort():
-    assert ResumeService(Settings()).generator.model == "gpt-6.1-sol"
+    assert ResumeService(Settings()).generator.model == "gpt-5.6-sol"
     assert ResumeService(Settings()).generator.reasoning_effort == "low"
     assert (
         ResumeService(Settings(resume_model="explicit-test-model")).generator.model

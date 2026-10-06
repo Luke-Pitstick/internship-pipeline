@@ -22,4 +22,6 @@ services:
   - key: CODEX_HOME
     value: /var/data/codex
   - key: RESUME_MODEL
-    value: gpt-6-luna
+    value: gpt-5.6-sol
+  - key: RESUME_REASONING_EFFORT
+    value: low

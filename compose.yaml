@@ -15,7 +15,7 @@ x-worker: &worker
     - path: .env
       required: false
   environment:
-    RESUME_MODEL: gpt-6-luna
+    RESUME_MODEL: gpt-5.6-sol
     CODEX_HOME: /app/private/codex
   volumes:
     - ./config:/app/config:ro

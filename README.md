@@ -35,7 +35,7 @@ Fill the profile with supported facts and put your current resume at `private/ma
 
 For Apprise, put notification URLs in the ignored settings file or `PIPELINE_NOTIFICATION_URLS` as a JSON array. Use a service supporting PDF attachments. For Dot, set `dot_outbox_path: data/dot-outbox` and configure the [local relay](docs/deployment.md#dot-relay). Set `recording_notifications_path: null` for either live transport. A recording transport is only an offline test sink.
 
-Resume generation edits the original `.tex` through `gpt-6-luna` using your saved Codex subscription, then compiles with `pdflatex`. The pipeline preserves template commands, layout and supported formatting, checks factual grounding and PDF output, and records an edit report. Configure `master_resume_path` to the original `.tex`; PDF-only input is rejected. See [Render deployment](docs/render-deployment.md) and the [private dashboard](https://luke-internship-desk.lukepitstick06.chatgpt.site).
+Resume generation edits the original `.tex` through `gpt-5.6-sol` using your saved Codex subscription, then compiles with `pdflatex`. The pipeline preserves template commands, layout and supported formatting, checks factual grounding and PDF output, and records an edit report. Configure `master_resume_path` to the original `.tex`; PDF-only input is rejected. See [Render deployment](docs/render-deployment.md) and the [private dashboard](https://luke-internship-desk.lukepitstick06.chatgpt.site).
 
 ```sh
 uv run internship-pipeline --config config/settings.local.yaml scan --once --collect-only
