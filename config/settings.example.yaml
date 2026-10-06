@@ -4,7 +4,7 @@ artifact_dir: artifacts
 profile_path: config/profile.local.yaml
 companies_path: config/companies.local.yaml
 searches_path: null
-resume_matcher_url: http://localhost:3000
+resume_model: gpt-6-luna
 # Set real URLs in this ignored local file or PIPELINE_NOTIFICATION_URLS (JSON list).
 notification_urls: []
 # Explicit offline transport; set null when live notifications are configured.

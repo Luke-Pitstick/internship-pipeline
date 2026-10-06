@@ -15,6 +15,5 @@ facts:
     skills: [Python]
     role_families: [swe, ml_ai, ds]
 protected_values: []
-master_resume_path: private/master-resume.pdf
-master_resume_id: null
+master_resume_path: private/master-resume.tex
 max_resume_pages: 1

@@ -15,7 +15,8 @@ x-worker: &worker
     - path: .env
       required: false
   environment:
-    RESUME_MATCHER_URL: http://resume-matcher:3000
+    RESUME_MODEL: gpt-6-luna
+    CODEX_HOME: /app/private/codex
   volumes:
     - ./config:/app/config:ro
     - ./private:/app/private:ro
@@ -33,27 +34,9 @@ services:
   resumes:
     <<: *worker
     command: [worker, resumes]
-    depends_on:
-      - resume-matcher
   delivery:
     <<: *worker
     command: [worker, delivery]
   discovery:
     <<: *worker
     command: [worker, discovery]
-  resume-matcher:
-    image: internship-resume-matcher:local
-    build:
-      context: .
-      dockerfile: deploy/resume-matcher/Dockerfile
-    restart: unless-stopped
-    init: true
-    environment:
-      FRONTEND_BASE_URL: http://localhost:3000
-    ports:
-      - "127.0.0.1:3000:3000"
-    volumes:
-      - resume-data:/app/backend/data
-
-volumes:
-  resume-data:

@@ -7,7 +7,7 @@ The package, independent workers, persistence, integrations and offline workflow
 ```text
 ats-scrapers ─┐                  ┌─ opening notification ─────────────────────┐
              ├─ SQLite → match ─┤                                           ├─ user applies
-JobSpy ──────┘                  └─ Resume Matcher → factual/PDF checks → PDF ┘
+JobSpy ──────┘                  └─ Codex LaTeX edits → pdflatex/PDF checks → PDF ┘
    └─ candidate boards → daily validation → direct polling
 ```
 
@@ -20,7 +20,7 @@ uv sync --python 3.12 --frozen
 uv run internship-pipeline demo
 ```
 
-The demo uses synthetic data, writes one opening event and one synthetic PDF event, then repeats ingestion to verify no duplicates. It sends no external messages and does not call Resume Matcher. Its PDF is labeled as a demonstration.
+The demo uses synthetic data, writes one opening event and one synthetic PDF event, then repeats ingestion to verify no duplicates. It sends no external messages and does not call Codex or compile personal resumes. Its PDF is labeled as a demonstration.
 
 ## Personal setup
 
@@ -35,7 +35,7 @@ Fill the profile with supported facts and put your current resume at `private/ma
 
 For Apprise, put notification URLs in the ignored settings file or `PIPELINE_NOTIFICATION_URLS` as a JSON array. Use a service supporting PDF attachments. For Dot, set `dot_outbox_path: data/dot-outbox` and configure the [local relay](docs/deployment.md#dot-relay). Set `recording_notifications_path: null` for either live transport. A recording transport is only an offline test sink.
 
-Run the pinned Resume Matcher wrapper service for structured resume storage and PDF rendering. The resume worker uses the installed Codex CLI with your saved ChatGPT subscription login; sign in with `codex login --device-auth` inside its environment and persist `CODEX_HOME`. Resume Matcher needs no model credentials. Optional pipeline matching assessment has separate `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` settings; without these, matching uses deterministic evidence and unknown-eligibility checks. See [Render deployment](docs/render-deployment.md) for server provisioning and Dot delivery.
+Resume generation edits the original `.tex` through `gpt-6-luna` using your saved Codex subscription, then compiles with `pdflatex`. The pipeline preserves template commands, layout and supported formatting, checks factual grounding and PDF output, and records an edit report. Configure `master_resume_path` to the original `.tex`; PDF-only input is rejected. See [Render deployment](docs/render-deployment.md) and the [private dashboard](https://luke-internship-desk.lukepitstick06.chatgpt.site).
 
 ```sh
 uv run internship-pipeline --config config/settings.local.yaml scan --once --collect-only
