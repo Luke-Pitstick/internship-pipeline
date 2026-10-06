@@ -54,6 +54,7 @@ def test_cli_flags_default_model_and_subscription_environment(tmp_path, monkeypa
     assert args[args.index("--sandbox") + 1] == "read-only"
     assert 'web_search="disabled"' in args
     assert 'forced_login_method="chatgpt"' in args
+    assert 'model_reasoning_effort="low"' in args
     for feature in DISABLED_FEATURES:
         assert args[args.index(feature) - 1] == "--disable"
     assert record["api_key_present"] is False
@@ -69,6 +70,16 @@ def test_explicit_tested_model_is_passed(tmp_path):
     )
     args = json.loads(recording.read_text())["args"]
     assert args[args.index("--model") + 1] == "account-tested-model"
+
+
+def test_high_effort_is_explicit_and_part_of_generation_identity(tmp_path):
+    binary, recording = executable(tmp_path, {"edits": [], "keywords": []})
+    generator = CodexResumeGenerator(executable=str(binary), reasoning_effort="high")
+    generator._run("Synthetic", time.monotonic() + 5)
+    args = json.loads(recording.read_text())["args"]
+    assert 'model_reasoning_effort="high"' in args
+    assert generator.identity["reasoning_effort"] == "high"
+    assert CodexResumeGenerator().identity["reasoning_effort"] == "low"
 
 
 @pytest.mark.parametrize(

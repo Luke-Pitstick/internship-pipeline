@@ -6,6 +6,7 @@ import hashlib
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -144,7 +145,8 @@ class Settings(Record):
     database_path: Path = Path("data/pipeline.sqlite3")
     artifact_dir: Path = Path("artifacts")
     profile_path: Path = Path("config/profile.local.yaml")
-    resume_model: str = Field(default="gpt-6-luna", min_length=1)
+    resume_model: str = Field(default="gpt-6.1-sol", min_length=1)
+    resume_reasoning_effort: Literal["low", "high"] = "low"
     companies_path: Path = Path("config/companies.local.yaml")
     searches_path: Path | None = None
     notification_urls: list[str] = Field(default_factory=list, repr=False)

@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -60,15 +60,23 @@ DISABLED_FEATURES = (
 
 
 class CodexResumeGenerator:
-    def __init__(self, *, executable: str = "codex", model: str | None = None):
+    def __init__(
+        self,
+        *,
+        executable: str = "codex",
+        model: str | None = None,
+        reasoning_effort: Literal["low", "high"] = "low",
+    ):
         self.executable = executable
         self.model = model
+        self.reasoning_effort = reasoning_effort
 
     @property
     def identity(self) -> dict[str, Any]:
         return {
             "engine": "codex-cli-chatgpt-latex",
             "model": self.model or "cli-default",
+            "reasoning_effort": self.reasoning_effort,
             "schema_revision": 2,
             "prompt_revision": 2,
         }
@@ -142,7 +150,7 @@ class CodexResumeGenerator:
                 "-c",
                 'web_search="disabled"',
                 "-c",
-                'model_reasoning_effort="high"',
+                f'model_reasoning_effort="{self.reasoning_effort}"',
                 "-c",
                 'forced_login_method="chatgpt"',
             ]

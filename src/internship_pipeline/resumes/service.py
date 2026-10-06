@@ -153,7 +153,9 @@ class ResumeService:
         compiler: LatexCompiler | None = None,
     ):
         self.settings = settings
-        self.generator = generator or CodexResumeGenerator(model=settings.resume_model)
+        self.generator = generator or CodexResumeGenerator(
+            model=settings.resume_model, reasoning_effort=settings.resume_reasoning_effort
+        )
         self.compiler = compiler or LatexCompiler()
         self.root = settings.artifact_dir.resolve()
         self.checkpoints = self.root / ".checkpoints"

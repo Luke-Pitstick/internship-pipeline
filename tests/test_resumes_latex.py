@@ -226,11 +226,15 @@ def test_missing_compiler_is_actionable(source, tmp_path):
         LatexCompiler(str(tmp_path / "missing-tex")).compile(source, time.monotonic() + 2)
 
 
-def test_resume_service_uses_configured_luna_model():
-    assert ResumeService(Settings()).generator.model == "gpt-6-luna"
+def test_resume_service_uses_configured_sol_model_and_low_effort():
+    assert ResumeService(Settings()).generator.model == "gpt-6.1-sol"
+    assert ResumeService(Settings()).generator.reasoning_effort == "low"
     assert (
         ResumeService(Settings(resume_model="explicit-test-model")).generator.model
         == "explicit-test-model"
+    )
+    assert (
+        ResumeService(Settings(resume_reasoning_effort="high")).generator.reasoning_effort == "high"
     )
 
 
