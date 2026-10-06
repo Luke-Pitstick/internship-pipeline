@@ -31,7 +31,7 @@ cp config/companies.example.yaml config/companies.local.yaml
 cp config/settings.example.yaml config/settings.local.yaml
 ```
 
-Fill the profile with supported facts and put your current resume at `private/master-resume.pdf`. Do not overwrite an existing personal profile. Set term/location/eligibility constraints only where known. Set companies to real board URLs and `enabled: true`; optional broad searches go in `config/searches.local.yaml` and are enabled by `searches_path` in settings. Example queries need their locations/country adjusted explicitly.
+Fill the profile with supported facts and put your current resume at `private/master-resume.tex`. Do not overwrite an existing personal profile. Set term/location/eligibility constraints only where known. Set companies to real board URLs and `enabled: true`; optional broad searches go in `config/searches.local.yaml` and are enabled by `searches_path` in settings. Example queries need their locations/country adjusted explicitly.
 
 For Apprise, put notification URLs in the ignored settings file or `PIPELINE_NOTIFICATION_URLS` as a JSON array. Use a service supporting PDF attachments. For Dot, set `dot_outbox_path: data/dot-outbox` and configure the [local relay](docs/deployment.md#dot-relay). Set `recording_notifications_path: null` for either live transport. A recording transport is only an offline test sink.
 

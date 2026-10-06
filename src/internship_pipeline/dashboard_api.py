@@ -276,6 +276,12 @@ class DashboardAPI:
                 "queues": queues,
                 "oldest_work_age_seconds": None if oldest is None else max(0, int(now - oldest)),
                 "resume_generation_paused": os.getenv("RESUME_GENERATION_PAUSED") == "1",
+                "resume_model": self.settings.resume_model,
+                "resume_source_connected": bool(
+                    profile.master_resume_path
+                    and profile.master_resume_path.suffix.lower() == ".tex"
+                    and profile.master_resume_path.is_file()
+                ),
                 "note": "SQLite state does not verify inference or local relay delivery.",
             },
         }
