@@ -1,15 +1,25 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import time
 from pathlib import Path
 
 import pytest
+from test_resumes import job as job_fixture
+from test_resumes import master as master_fixture
+from test_resumes import match as match_fixture
+from test_resumes import profile as profile_fixture
 
 from internship_pipeline.resumes.client import ResumeMatcherError
 from internship_pipeline.resumes.codex import DISABLED_FEATURES, CodexResumeGenerator
 from internship_pipeline.resumes.validation import ResumeValidationError
+
+job = job_fixture
+master = master_fixture
+match = match_fixture
+profile = profile_fixture
 
 
 def executable(tmp_path: Path, payload: dict, behavior: str = "ok") -> tuple[Path, Path]:
@@ -111,3 +121,133 @@ def test_missing_cli_and_invalid_schema_are_rejected(tmp_path):
     binary, _ = executable(tmp_path, {"invented_schema": True})
     with pytest.raises(ResumeValidationError, match="invalid structured"):
         CodexResumeGenerator(executable=str(binary))._run("Synthetic", time.monotonic() + 5)
+
+
+@pytest.fixture
+def tailoring_input(job, match, profile):
+    from internship_pipeline.resumes.latex import editable_spans
+
+    source = (Path(__file__).parent / "fixtures/resume_original.tex").read_text()
+    return source, [span.prompt_record() for span in editable_spans(source)], job, match, profile
+
+
+@pytest.fixture
+def valid_plan():
+    return {
+        "edits": [
+            {
+                "span_id": 0,
+                "old": "serving",
+                "new": "helping",
+                "fact_ids": ["python"],
+                "reason": "Existing API users",
+            }
+        ],
+        "keywords": [{"phrase": "Python", "fact_ids": ["python"], "reason": "Requirement"}],
+    }
+
+
+def test_invalid_plan_is_corrected_with_feedback_and_same_deadline(
+    tailoring_input, valid_plan, monkeypatch
+):
+    invalid = copy.deepcopy(valid_plan)
+    invalid["keywords"][0]["phrase"] = "not verbatim JD"
+    outputs = iter([invalid, valid_plan])
+    prompts = []
+    deadlines = []
+    generator = CodexResumeGenerator()
+
+    def run(prompt, deadline):
+        prompts.append(prompt)
+        deadlines.append(deadline)
+        return next(outputs)
+
+    monkeypatch.setattr(generator, "_run", run)
+    deadline = time.monotonic() + 5
+    assert generator.tailor(*tailoring_input, deadline) == valid_plan
+    assert deadlines == [deadline, deadline]
+    feedback = json.loads(prompts[1].split("CORRECTION DATA:\n")[1])
+    assert feedback["prior_plan"] == invalid
+    assert feedback["validation_error"] == "Ranked keyword is not verbatim job-description data"
+    assert "untrusted DATA" in prompts[1]
+    assert "allowed_prose_vocabulary" in prompts[0]
+    assert "EXACT case-sensitive contiguous phrases" in prompts[0]
+
+
+@pytest.mark.parametrize("failure", ["keyword", "length", "skill", "provenance", "syntax"])
+def test_three_invalid_plans_exhaust_without_weakening_checks(
+    failure, tailoring_input, valid_plan, monkeypatch
+):
+    invalid = copy.deepcopy(valid_plan)
+    edit = invalid["edits"][0]
+    if failure == "keyword":
+        invalid["keywords"][0]["phrase"] = "not verbatim JD"
+    elif failure == "length":
+        edit["new"] = "supporting"
+    elif failure == "skill":
+        edit.update(old="Python", new="Cobolx")
+    elif failure == "provenance":
+        edit["fact_ids"] = ["invented"]
+    else:
+        edit["new"] = r"\inputx"
+    calls = []
+    generator = CodexResumeGenerator()
+
+    def run(prompt, deadline):
+        calls.append(prompt)
+        return invalid
+
+    monkeypatch.setattr(generator, "_run", run)
+    with pytest.raises(ResumeValidationError):
+        generator.tailor(*tailoring_input, time.monotonic() + 5)
+    assert len(calls) == 3
+
+
+def test_correction_attempts_stop_at_original_deadline(tailoring_input, monkeypatch):
+    import internship_pipeline.resumes.codex as module
+
+    clock = [10.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: clock[0])
+    generator = CodexResumeGenerator()
+    calls = []
+
+    def run(prompt, deadline):
+        calls.append(deadline)
+        clock[0] = deadline
+        return {"edits": [], "keywords": [{"phrase": "absent", "fact_ids": [], "reason": ""}]}
+
+    monkeypatch.setattr(generator, "_run", run)
+    with pytest.raises(ResumeMatcherError, match="deadline exceeded"):
+        generator.tailor(*tailoring_input, 11.0)
+    assert calls == [11.0]
+
+
+def test_invalid_structured_output_can_be_corrected(tailoring_input, monkeypatch):
+    generator = CodexResumeGenerator()
+    prompts = []
+
+    def run(prompt, deadline):
+        prompts.append(prompt)
+        if len(prompts) == 1:
+            raise ResumeValidationError("Codex returned invalid structured resume data")
+        return {"edits": [], "keywords": []}
+
+    monkeypatch.setattr(generator, "_run", run)
+    assert generator.tailor(*tailoring_input, time.monotonic() + 5) == {"edits": [], "keywords": []}
+    assert len(prompts) == 2
+    feedback = json.loads(prompts[1].split("CORRECTION DATA:\n")[1])
+    assert feedback["prior_plan"] is None
+
+
+def test_provider_failure_is_not_retried_as_plan_correction(tailoring_input, monkeypatch):
+    generator = CodexResumeGenerator()
+    calls = []
+
+    def run(prompt, deadline):
+        calls.append(prompt)
+        raise ResumeMatcherError("Provider unavailable", retryable=True)
+
+    monkeypatch.setattr(generator, "_run", run)
+    with pytest.raises(ResumeMatcherError, match="Provider unavailable"):
+        generator.tailor(*tailoring_input, time.monotonic() + 5)
+    assert len(calls) == 1
