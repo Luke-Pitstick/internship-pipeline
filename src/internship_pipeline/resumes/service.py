@@ -113,7 +113,7 @@ def _contains_latex_bullet(text: str, source: str) -> bool:
     boundary = "\x01"
     # pypdf can omit spaces only where a TeX formatting command changes glyph runs.
     marked = re.sub(r"\\(?:textbf|textit|emph|underline)\s*\{", boundary, source)
-    marked = re.sub(r"\\([%&#_$])", r"\1", marked)
+    marked = re.sub(r"\\([%&#_$])", lambda match: match.group(1) + boundary, marked)
     marked = marked.replace("{", boundary).replace("}", boundary).replace("--", "-")
     pattern = r"\s*".join(re.escape(_pdf_typography(part)) for part in marked.split(boundary))
     return bool(re.search(r"(?<!\w)" + pattern + r"(?!\w)", _pdf_typography(text)))

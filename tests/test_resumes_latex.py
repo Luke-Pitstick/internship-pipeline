@@ -275,3 +275,12 @@ def test_compiler_rejects_tex_reported_overflow_without_exposing_source(tmp_path
     executable.chmod(0o700)
     with pytest.raises(ResumeValidationError, match="text overflow"):
         LatexCompiler(str(executable)).compile(source, time.monotonic() + 5)
+
+
+def test_pdf_currency_glyph_spacing_is_not_missing_content():
+    from internship_pipeline.resumes.service import _contains_latex_bullet
+
+    source = r"Reviewed a \textbf{\$36M} student budget."
+    assert _contains_latex_bullet("Reviewed a $ 36M student budget.", source)
+    assert not _contains_latex_bullet("Reviewed a $ 37M student budget.", source)
+    assert not _contains_latex_bullet("Reviewed a $ 36M stu dent budget.", source)
