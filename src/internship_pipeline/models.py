@@ -49,7 +49,6 @@ class CandidateProfile(Record):
     facts: list[ExperienceFact] = Field(default_factory=list)
     protected_values: list[str] = Field(default_factory=list)
     master_resume_path: Path | None = None
-    master_resume_id: str | None = None
     max_resume_pages: int = Field(default=1, ge=1, le=10)
 
     @property
@@ -148,7 +147,6 @@ class Settings(Record):
     resume_model: str = Field(default="gpt-6-luna", min_length=1)
     companies_path: Path = Path("config/companies.local.yaml")
     searches_path: Path | None = None
-    resume_matcher_url: str = "http://localhost:3000"
     notification_urls: list[str] = Field(default_factory=list, repr=False)
     recording_notifications_path: Path | None = None
     dot_outbox_path: Path | None = None

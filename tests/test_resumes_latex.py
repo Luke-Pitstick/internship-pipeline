@@ -213,7 +213,6 @@ def test_missing_tex_fails_before_generator_and_does_not_reuse_legacy(
 ):
     generator = Generator(plan)
     service = ResumeService(Settings(artifact_dir=tmp_path / "artifacts"), generator=generator)
-    profile.master_resume_id = "legacy-resume"
     with pytest.raises(ResumeValidationError, match="Original .tex source is required"):
         service.generate(job, match, profile)
     assert generator.calls == 0

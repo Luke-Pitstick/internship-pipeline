@@ -1,1 +1,1 @@
-"""Resume Matcher integration and conservative artifact validation."""
+"""Original LaTeX resume generation and conservative artifact validation."""

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import copy
-import gzip
 import io
 import json
 from pathlib import Path
 from typing import Any
 
-import httpx
 import pytest
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
@@ -20,10 +18,6 @@ from internship_pipeline.models import (
     RoleFamily,
     SourceJob,
     utcnow,
-)
-from internship_pipeline.resumes.client import (
-    ResumeMatcherClient,
-    ResumeMatcherError,
 )
 from internship_pipeline.resumes.validation import (
     ResumeValidationError,
@@ -284,62 +278,5 @@ def test_invalid_structured_schema_rejected(invalid, master, profile):
         validate_master(master, profile)
 
 
-def test_client_malformed_write_and_content_type_are_rejected():
-    client = ResumeMatcherClient(
-        "http://example.test",
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(
-                200, content=b"not JSON", headers={"content-type": "text/html"}
-            )
-        ),
-    )
-    with pytest.raises(ResumeMatcherError) as error:
-        client.upload_job("synthetic job", "master")
-    assert error.value.ambiguous is True
-    with pytest.raises(ResumeMatcherError, match="non-PDF"):
-        client.download_pdf("tailored", "swiss-single")
 
 
-@pytest.mark.parametrize("content_type", ["application/json", "application/pdf"])
-def test_streamed_gzip_response_is_decoded_once_and_has_decoded_length(content_type):
-    data = {"data": {"resume_id": "master", "content": "Synthetic resume content " * 500}}
-    decoded = (
-        json.dumps(data).encode()
-        if content_type == "application/json"
-        else textual_pdf("Synthetic PDF content")
-    )
-    compressed = gzip.compress(decoded)
-
-    class CompressedStream(httpx.SyncByteStream):
-        def __iter__(self):
-            # The transport delivers compressed bytes in chunks, as the Next proxy does.
-            for start in range(0, len(compressed), 11):
-                yield compressed[start : start + 11]
-
-    client = ResumeMatcherClient(
-        "http://example.test",
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(
-                200,
-                stream=CompressedStream(),
-                headers={
-                    "Content-Type": content_type,
-                    "Content-Encoding": "gzip",
-                    "Content-Length": str(len(compressed)),
-                    "X-Synthetic": "preserved",
-                },
-            )
-        ),
-    )
-    try:
-        response = client._request("GET", "resumes")
-        assert response.content == decoded
-        assert "content-encoding" not in response.headers
-        assert response.headers["content-length"] == str(len(decoded))
-        assert response.headers["x-synthetic"] == "preserved"
-        if content_type == "application/json":
-            assert client.get_resume("master") == data["data"]
-        else:
-            assert client.download_pdf("tailored", "swiss-single") == decoded
-    finally:
-        client.close()
