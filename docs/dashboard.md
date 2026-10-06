@@ -1,13 +1,11 @@
 # Internship dashboard
 
-Open https://luke-internship-desk.lukepitstick06.chatgpt.site and sign in with the owner ChatGPT account. The Sites frontend loads the Render API through authenticated server routes; the browser never receives its bearer credential.
+The Svelte application and FastAPI API share one origin and port. Open the origin configured by `PIPELINE_ORIGIN` (locally, `http://localhost:8080`). On first boot, use the one-time operator token from container logs to create the single owner account. Later visits use its username and password. Settings is a separate page at `/settings/`.
 
-The dashboard displays bounded, preliminary internship matches, descriptions, official application links, fit evidence, eligibility questions, first-observed and source timestamps, and available PDF downloads. PDFs stay on Render's persistent disk and stream through the authenticated Site. Earlier non-LaTeX drafts are labeled explicitly.
+A fresh account starts with an empty jobs workspace. Profile/model editing and browser search controls are later tasks; this version does not save fictional profiles or make model calls. Existing stored opportunities can be viewed, filtered, sorted, and marked applied. The current bounded view reads at most 1,000 recent open or previously applied jobs; full server pagination and authoritative Jev assessments are later tasks. Jobs are labeled unscored and needing review instead of running a second semantic filter during a GET.
 
-Use Mark as applied only after submitting an application yourself. The action records the first timestamp idempotently and stops further resume/delivery work for that job. Opening an application or downloading a resume never marks it applied.
+Use **Mark as applied** only after submitting an application yourself. Repeated confirmation preserves the first application date. **Undo applied** clears that date; it does not rewind notification history or automatically enqueue work. Opening an application or downloading a résumé never marks a job applied. Source posting time, first observation, and application date remain separate.
 
-Resume generation edits supported text spans in the original .tex and compiles PDFs with pdflatex. It uses gpt-5.6-sol through the saved Codex subscription. The master source and credentials are private Render files, not Git assets.
+All job, status, résumé, and mutation APIs require an owner session. Mutations also require the session's CSRF token. Sessions are stored in SQLite and carried in HttpOnly, SameSite=Strict cookies; HTTPS uses a Secure `__Host-` cookie. PDFs remain inside the configured artifact directory and are validated before download. Logout revokes the current session; local account recovery revokes every session.
 
-The results service is srv-db23e6rtqb8s73btl8d0. Its /healthz is public and contains no job or candidate data; all other API endpoints require DASHBOARD_API_TOKEN. The Site stores the same value as secret RENDER_API_TOKEN and uses RENDER_API_ORIGIN=https://internship-pipeline-api.onrender.com. Local previews use ignored .env values.
-
-The existing Codex relay still requires the Mac to be available for Google Sheets updates. It is not ChatGPT Dot. Dashboard reads and Render collection continue independently of the Mac.
+See [deployment and account recovery](deployment.md). The external Sites proxy and shared dashboard bearer token are no longer application access paths.

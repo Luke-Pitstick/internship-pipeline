@@ -1,0 +1,13 @@
+{
+  "status": "Historical summary; original per-asset report was overwritten during T03 measurement.",
+  "provenance": "Totals verified in docs/t01-dashboard-prototype.md and the T01 agent handoff. Per-asset numbers are unavailable and have not been reconstructed.",
+  "method": "Sum independently compressed static JavaScript assets across both T01 prototype routes and its worker.",
+  "budgetBytes": 200000,
+  "total": {
+    "rawBytes": 119786,
+    "gzipBytes": 47114,
+    "brotliBytes": 41800
+  },
+  "underBudget": true,
+  "assetCount": 15
+}

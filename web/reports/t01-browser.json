@@ -1,0 +1,160 @@
+{
+  "environment": {
+    "hardware": "MacBook Pro18,1; Apple M1 Pro; 10 cores; 16 GB RAM",
+    "os": "macOS 26.6.2 arm64",
+    "browser": "153.0.8010.12",
+    "viewport": "1440×1000",
+    "network": "localhost; fixed 35 ms worker response delay; no CPU/network throttling"
+  },
+  "method": "10 samples each during active synthetic progress updates; browser-native event capture to matching DOM mutation and two requestAnimationFrame callbacks. Warm interactions; Chromium headless; background system load uncontrolled. Initial assets are JS observed during root route load/interaction, including worker, before visiting settings.",
+  "interactions": {
+    "pagination": {
+      "samplesMs": [
+        61.099999994039536,
+        64.30000001192093,
+        64.09999999403954,
+        63.900000005960464,
+        64.40000000596046,
+        63.400000005960464,
+        63.900000005960464,
+        64,
+        63.400000005960464,
+        63
+      ],
+      "medianMs": 63.900000005960464,
+      "p95Ms": 64.40000000596046
+    },
+    "sorting": {
+      "samplesMs": [
+        62.79999998211861,
+        48.39999997615814,
+        63.19999998807907,
+        48,
+        64.59999999403954,
+        48,
+        63.099999994039536,
+        47.70000001788139,
+        65,
+        48.10000002384186
+      ],
+      "medianMs": 62.79999998211861,
+      "p95Ms": 65
+    },
+    "selection": {
+      "samplesMs": [
+        29.099999994039536,
+        29.700000017881393,
+        29.599999994039536,
+        30.400000005960464,
+        29.700000017881393,
+        30.30000001192093,
+        30.299999982118607,
+        29.5,
+        30,
+        30.400000005960464
+      ],
+      "medianMs": 30,
+      "p95Ms": 30.400000005960464
+    },
+    "filtering": {
+      "samplesMs": [
+        61.599999994039536,
+        46.900000005960464,
+        64.09999999403954,
+        47.29999998211861,
+        63.5,
+        48.400000005960464,
+        64.2999999821186,
+        47.400000005960464,
+        63.900000005960464,
+        47.599999994039536
+      ],
+      "medianMs": 61.599999994039536,
+      "p95Ms": 64.2999999821186
+    }
+  },
+  "initialAssets": [
+    {
+      "path": "/_app/immutable/entry/start.B4zerw1W.js",
+      "rawBytes": 522,
+      "gzipBytes": 308,
+      "brotliBytes": 306
+    },
+    {
+      "path": "/_app/immutable/entry/payload.DSmR2FwN.js",
+      "rawBytes": 65,
+      "gzipBytes": 77,
+      "brotliBytes": 60
+    },
+    {
+      "path": "/_app/immutable/chunks/BaNbYf_w.js",
+      "rawBytes": 1398,
+      "gzipBytes": 754,
+      "brotliBytes": 630
+    },
+    {
+      "path": "/_app/immutable/chunks/CMu9MN2n.js",
+      "rawBytes": 39666,
+      "gzipBytes": 14509,
+      "brotliBytes": 13164
+    },
+    {
+      "path": "/_app/immutable/chunks/CbgbrR8u.js",
+      "rawBytes": 42904,
+      "gzipBytes": 16310,
+      "brotliBytes": 14881
+    },
+    {
+      "path": "/_app/immutable/chunks/C9MiE16L.js",
+      "rawBytes": 4291,
+      "gzipBytes": 1933,
+      "brotliBytes": 1725
+    },
+    {
+      "path": "/_app/immutable/entry/app.CylfvoCQ.js",
+      "rawBytes": 1276,
+      "gzipBytes": 609,
+      "brotliBytes": 583
+    },
+    {
+      "path": "/_app/immutable/nodes/0.DcOcE6_Q.js",
+      "rawBytes": 1558,
+      "gzipBytes": 888,
+      "brotliBytes": 734
+    },
+    {
+      "path": "/_app/immutable/chunks/DDpyw5_C.js",
+      "rawBytes": 22,
+      "gzipBytes": 42,
+      "brotliBytes": 26
+    },
+    {
+      "path": "/_app/immutable/nodes/2.D51vZEFg.js",
+      "rawBytes": 11853,
+      "gzipBytes": 4962,
+      "brotliBytes": 4223
+    },
+    {
+      "path": "/_app/immutable/chunks/Dvsiqds2.js",
+      "rawBytes": 2376,
+      "gzipBytes": 1044,
+      "brotliBytes": 885
+    },
+    {
+      "path": "/_app/immutable/nodes/1.mRAenqfv.js",
+      "rawBytes": 352,
+      "gzipBytes": 260,
+      "brotliBytes": 218
+    },
+    {
+      "path": "/_app/immutable/workers/jobs.worker-twhbP_49.js",
+      "rawBytes": 2041,
+      "gzipBytes": 1175,
+      "brotliBytes": 970
+    }
+  ],
+  "initialGzipBytes": 42871,
+  "initialBrotliBytes": 38405,
+  "longTasksMs": [],
+  "pageErrors": []
+}

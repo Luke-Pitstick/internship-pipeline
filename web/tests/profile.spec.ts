@@ -1,0 +1,88 @@
+import { test, expect, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+
+async function login(page: Page) {
+  await page.goto('/settings/');
+  await expect(page.getByLabel('Username', {exact: true})).toBeVisible();
+  if (await page.getByLabel('Operator setup token').count()) {
+    await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results/setup.json', 'utf8')).token);
+  }
+  await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
+  await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
+  await page.getByRole('button', {name: /Create owner account|^Sign in$/}).click();
+  await expect(page.getByLabel('Name', {exact: true})).toBeVisible();
+}
+
+test('profile and filters save revisions, preserve drafts and stable facts, and reject stale tabs', async ({page}) => {
+  await login(page);
+  await page.getByLabel('Name', {exact: true}).fill('Synthetic Candidate');
+  await page.getByLabel('Email', {exact: true}).fill('not-an-email');
+  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(page.getByLabel('Email', {exact: true})).toBeFocused();
+  await expect(page.getByText('Enter a valid email or leave it unknown.', {exact: true})).toBeVisible();
+  await page.getByLabel('Email', {exact: true}).fill('synthetic@example.test');
+  await page.getByRole('button', {name: 'Add fact or skill'}).click();
+  await page.getByLabel('Supporting fact').fill('Built a synthetic Python project.');
+  await page.getByLabel('Confirmation', {exact: true}).selectOption('confirmed');
+  const factId = await page.locator('.fact-id').first().textContent();
+  await page.getByRole('button', {name: 'Add education'}).click();
+  await page.getByLabel('Institution', {exact: true}).fill('Example University');
+  await page.getByLabel('Degree', {exact: true}).fill('Bachelor');
+  await page.getByLabel('Education confirmation', {exact: true}).selectOption('confirmed');
+  await page.getByLabel('Available from', {exact: true}).fill('2027-05-01');
+  await page.getByLabel('Available until', {exact: true}).fill('2027-08-31');
+  await page.getByLabel('Will you need employer sponsorship?').selectOption('unknown');
+  await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
+  await expect(page.getByRole('heading', {name: 'Job Filters', exact: true})).toBeFocused();
+  await page.getByLabel('Required countries').fill('Canada, United States');
+  await page.getByLabel('Preferred skills to use').fill('Rust, Python');
+  await page.getByLabel('Software engineering', {exact: true}).check();
+  await page.getByRole('button', {name: 'Profile', exact: true}).click();
+  await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
+  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(page.getByText('Active revision 1', {exact: true})).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Save changes', exact: true})).toBeDisabled();
+  await page.reload();
+  await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
+  await expect(page.locator('.fact-id').first()).toHaveText(factId!);
+  await expect(page.getByLabel('Will you need employer sponsorship?')).toHaveValue('unknown');
+  await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
+  await expect(page.getByLabel('Required countries')).toHaveValue('Canada, United States');
+  await expect(page.getByLabel('Preferred skills to use')).toHaveValue('Rust, Python');
+  await page.getByRole('button', {name: 'Profile', exact: true}).click();
+  const second = await page.context().newPage();
+  await second.goto('/settings/');
+  await expect(second.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
+  await page.getByLabel('Name', {exact: true}).fill('New synthetic name');
+  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(page.getByText('Active revision 2', {exact: true})).toBeVisible();
+  await second.getByLabel('Name', {exact: true}).fill('Stale tab name');
+  await second.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(second.getByText('Settings changed in another tab.', {exact: false})).toBeVisible();
+  await expect(second.getByLabel('Name', {exact: true})).toHaveValue('Stale tab name');
+  second.on('dialog', dialog => dialog.accept());
+  await second.getByRole('button', {name: 'Reload saved settings'}).click();
+  await expect(second.getByLabel('Name', {exact: true})).toHaveValue('New synthetic name');
+  await second.close();
+  await page.setViewportSize({width: 390, height: 844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: 'test-results/t04-profile-mobile.png', fullPage: true});
+  await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path: 'test-results/t04-filters-mobile.png', fullPage: true});
+  await page.getByRole('button', {name: 'Profile', exact: true}).click();
+  await page.getByLabel('Name', {exact: true}).fill('Discard me');
+  await page.getByRole('button', {name: 'Discard changes'}).click();
+  await expect(page.getByLabel('Name', {exact: true})).toHaveValue('New synthetic name');
+  await page.getByLabel('Available until', {exact: true}).fill('2027-01-01');
+  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(page.getByLabel('Available until', {exact: true})).toBeFocused();
+  await expect(page.getByText('End date must be on or after the start date.', {exact: true})).toBeVisible();
+  await page.getByRole('button', {name: 'Discard changes'}).click();
+  await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
+  await page.getByLabel('Preferred skills to use').fill('x'.repeat(201));
+  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(page.getByLabel('Preferred skills to use')).toBeFocused();
+  await expect(page.getByText('Each entry must contain 1–200 characters.', {exact: true})).toBeVisible();
+  await page.getByRole('button', {name: 'Discard changes'}).click();
+});

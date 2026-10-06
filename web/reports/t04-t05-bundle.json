@@ -1,0 +1,102 @@
+{
+  "method": "Sum each independently compressed static JavaScript asset, including both routes. Conservative upper bound on initial JS; excludes maps, CSS, HTML, design assets.",
+  "budgetBytes": 200000,
+  "total": {
+    "rawBytes": 136183,
+    "gzipBytes": 52724,
+    "brotliBytes": 46565
+  },
+  "underBudget": true,
+  "assets": [
+    {
+      "path": "build/_app/immutable/chunks/2HOToYd6.js",
+      "rawBytes": 39694,
+      "gzipBytes": 14512,
+      "brotliBytes": 13163
+    },
+    {
+      "path": "build/_app/immutable/chunks/BaNbYf_w.js",
+      "rawBytes": 1398,
+      "gzipBytes": 754,
+      "brotliBytes": 630
+    },
+    {
+      "path": "build/_app/immutable/chunks/BcI4T9aP.js",
+      "rawBytes": 74,
+      "gzipBytes": 84,
+      "brotliBytes": 76
+    },
+    {
+      "path": "build/_app/immutable/chunks/Bjy-W4x2.js",
+      "rawBytes": 1365,
+      "gzipBytes": 654,
+      "brotliBytes": 499
+    },
+    {
+      "path": "build/_app/immutable/chunks/D71i4QwX.js",
+      "rawBytes": 43925,
+      "gzipBytes": 16710,
+      "brotliBytes": 15228
+    },
+    {
+      "path": "build/_app/immutable/chunks/DLvI_Kq8.js",
+      "rawBytes": 687,
+      "gzipBytes": 440,
+      "brotliBytes": 373
+    },
+    {
+      "path": "build/_app/immutable/chunks/DNQtHPsV.js",
+      "rawBytes": 4291,
+      "gzipBytes": 1931,
+      "brotliBytes": 1715
+    },
+    {
+      "path": "build/_app/immutable/chunks/aYUAhi2m.js",
+      "rawBytes": 22,
+      "gzipBytes": 42,
+      "brotliBytes": 26
+    },
+    {
+      "path": "build/_app/immutable/entry/app.GvlE8ZQq.js",
+      "rawBytes": 1337,
+      "gzipBytes": 641,
+      "brotliBytes": 620
+    },
+    {
+      "path": "build/_app/immutable/entry/payload.DSmR2FwN.js",
+      "rawBytes": 65,
+      "gzipBytes": 77,
+      "brotliBytes": 60
+    },
+    {
+      "path": "build/_app/immutable/entry/start.BMCS57tj.js",
+      "rawBytes": 548,
+      "gzipBytes": 320,
+      "brotliBytes": 296
+    },
+    {
+      "path": "build/_app/immutable/nodes/0.BmV7sRPH.js",
+      "rawBytes": 4749,
+      "gzipBytes": 2296,
+      "brotliBytes": 1869
+    },
+    {
+      "path": "build/_app/immutable/nodes/1.BHenj8jP.js",
+      "rawBytes": 352,
+      "gzipBytes": 261,
+      "brotliBytes": 214
+    },
+    {
+      "path": "build/_app/immutable/nodes/2.Cb_EnS95.js",
+      "rawBytes": 11455,
+      "gzipBytes": 4862,
+      "brotliBytes": 4105
+    },
+    {
+      "path": "build/_app/immutable/nodes/3.BdagO6pK.js",
+      "rawBytes": 26221,
+      "gzipBytes": 9140,
+      "brotliBytes": 7691
+    }
+  ]
+}
