@@ -1,0 +1,61 @@
+{
+  "measured_on": "2026-10-06",
+  "runtime": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.12.7",
+  "model": "jev-1.13.0",
+  "full_frozen_heldout_metrics": {
+    "n": 34,
+    "eligible_n": 15,
+    "rejected_n": 4,
+    "false_rejection_count": 0,
+    "false_rejection_rate": 0.0,
+    "zero_failure_one_sided_95_upper": 0.18103627252208465,
+    "rejection_precision": 1.0,
+    "review_rate": 0.6764705882352942,
+    "expected_review_n": 7,
+    "expected_review_recall": 1.0,
+    "criterion_accuracy": 0.888235294117647,
+    "ranking_pair_n": 6,
+    "ranking_pair_accuracy": 1,
+    "latency_ms_median": 132.85,
+    "latency_ms_max": 261.04,
+    "input_tokens": 100156,
+    "output_tokens": 19158
+  },
+  "unseen_model_input_metrics": {
+    "n": 28,
+    "eligible_n": 13,
+    "rejected_n": 2,
+    "false_rejection_count": 0,
+    "false_rejection_rate": 0.0,
+    "zero_failure_one_sided_95_upper": 0.20581666518655073,
+    "rejection_precision": 1.0,
+    "review_rate": 0.75,
+    "expected_review_n": 5,
+    "expected_review_recall": 1.0,
+    "criterion_accuracy": 0.8642857142857143,
+    "ranking_pair_n": 3,
+    "ranking_pair_accuracy": 1,
+    "latency_ms_median": 128.32,
+    "latency_ms_max": 261.04,
+    "input_tokens": 82384,
+    "output_tokens": 15780
+  },
+  "excluded_shared_input_ids": [
+    "h-date-boundary",
+    "h-date-conflict",
+    "h-date-outside",
+    "h-rank-strong",
+    "h-required-rust-unknown",
+    "h-years-exact"
+  ],
+  "release_gate_failures": [
+    "Representative independent human adjudication is required",
+    "eligible_n below 300",
+    "rejected_n below 30",
+    "ranking_pair_n below 20"
+  ],
+  "rubric_sha256": "b19ef5ea146cc0879820e9813f1fbe1f70e1a841fcdd4d9d5f9e13406d6a3a8e",
+  "cases_sha256": "bdeac12aa2d62dc3502e97ea147aec7d5941b4b6a70bf1cccdfe4bc3cd32f375",
+  "note": "Offline overlap audit only; no rubric tuning or additional held-out requests."
+}

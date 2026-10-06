@@ -1,0 +1,5539 @@
+{
+  "rubric": {
+    "version": "jev-eligibility-fit-v1",
+    "criteria": {
+      "role": "Is this opening explicitly an internship or co-op in software engineering, machine learning/AI research, data science, or PRODUCT management? Senior full-time, student developer without internship evidence, PROJECT management and finance roles violate this search requirement.",
+      "authorization": "Does the candidate satisfy all mandatory citizenship, work authorization and visa sponsorship restrictions? If the posting omits these restrictions, choose not_stated; do not infer sponsorship from silence.",
+      "education": "Does the candidate satisfy mandatory degree level, subject and enrollment requirements? Treat preferred graduate degrees as optional. Equivalent experience is an alternative; review when its adequacy is unclear.",
+      "location": "Does the posting explicitly permit this candidate to work in the United States? Remote alone does not imply any country; explicit conflicting jurisdictions violate.",
+      "required_skills": "Does confirmed candidate evidence satisfy all explicitly REQUIRED skills/experience? Missing preferred skills do not violate. Years thresholds are handled separately in code; missing proof of mandatory skill means ambiguous, not confirmed absence."
+    },
+    "outcomes": {
+      "satisfied": "Explicit evidence confirms compatibility, or explicitly no restriction for this criterion.",
+      "violated": "Explicit mandatory restriction conflicts with an explicitly confirmed candidate fact.",
+      "not_stated": "The posting does not state the relevant requirement; compatibility cannot be confirmed.",
+      "ambiguous": "Conflicting requirements or insufficient candidate evidence to decide."
+    },
+    "dimensions": {
+      "skills": "Rate coverage of stated required and preferred skills by confirmed candidate facts.",
+      "projects": "Rate demonstrated project relevance to the actual advertised responsibilities.",
+      "responsibilities": "Rate alignment of actual duties with candidate software/data work experience.",
+      "preferences": "Rate alignment with candidate stated Python/backend/data career preferences."
+    },
+    "levels": [
+      "No demonstrated alignment or missing relevant information",
+      "Limited alignment: only indirect evidence",
+      "Substantial alignment: several direct overlaps but meaningful gaps",
+      "Strong alignment: direct evidence supports almost all important aspects"
+    ],
+    "weights": {
+      "skills": 0.35,
+      "projects": 0.3,
+      "responsibilities": 0.25,
+      "preferences": 0.1
+    },
+    "policy": {
+      "violation_probability": 0.95,
+      "confidence": 0.8,
+      "evidence_probability": 0.95,
+      "automatic_rejection_enabled": false
+    },
+    "release_gate": {
+      "independent_eligible_min": 300,
+      "false_rejections_max": 0,
+      "rejected_min": 30,
+      "rejection_precision_min": 0.98,
+      "expected_review_recall_min": 0.95,
+      "ranking_pairs_min": 20,
+      "ranking_pair_accuracy_min": 0.8,
+      "representative_human_adjudication_required": true
+    }
+  },
+  "requested_model": "jev-1.13.0",
+  "resolved_model": "jev-1.13.0",
+  "split": "heldout",
+  "requests": 34,
+  "max_requests": 34,
+  "max_tokens": 600000,
+  "reserved_tokens": 547484,
+  "actual_total_tokens": 119314,
+  "rows": [
+    {
+      "case_id": "h-role-software",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "satisfied": 0.98,
+            "ambiguous": 0.0,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "not_stated": 0.0,
+            "satisfied": 0.96,
+            "violated": 0.01,
+            "ambiguous": 0.03
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.97
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.89,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.11,
+            "3": 0.89
+          },
+          "confidence": 0.89,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.06,
+            "3": 0.94
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 97.683,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "8f0eecf86d0b7df8506da3af3a34826f378bce75c5c879061851bcbb44797cf6",
+      "usage": {
+        "input_tokens": 2933,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 132.14
+    },
+    {
+      "case_id": "h-role-product",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "not_stated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "satisfied": 0.98,
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.88,
+          "probabilities": {
+            "satisfied": 0.91,
+            "violated": 0.01,
+            "ambiguous": 0.07,
+            "not_stated": 0.01
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.35
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.66,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.31,
+            "3": 0.68
+          },
+          "confidence": 0.66,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.92,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.14,
+            "2": 0.8,
+            "3": 0.06
+          },
+          "confidence": 0.79,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.14,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.07,
+            "2": 0.72,
+            "3": 0.21
+          },
+          "confidence": 0.71,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.69,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.28,
+            "3": 0.71
+          },
+          "confidence": 0.69,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 77.033,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "9b8c86be575cbcc060429e948ecf56ad6ad72c2d7478a152b253a3d5fb427679",
+      "usage": {
+        "input_tokens": 2981,
+        "output_tokens": 562
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 261.04
+    },
+    {
+      "case_id": "h-role-coop",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "not_stated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "satisfied": 0.99,
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 1.0
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.86,
+          "probabilities": {
+            "satisfied": 0.9,
+            "violated": 0.01,
+            "ambiguous": 0.08,
+            "not_stated": 0.01
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.33999999999999997
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.3,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.06,
+            "2": 0.58,
+            "3": 0.36
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.67,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.33,
+            "2": 0.63,
+            "3": 0.03
+          },
+          "confidence": 0.62,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 1.7,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.31,
+            "2": 0.62,
+            "3": 0.05
+          },
+          "confidence": 0.6,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.39,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.04,
+            "2": 0.53,
+            "3": 0.43
+          },
+          "confidence": 0.52,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 65.667,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "a7a283d4a8f3a64023ea66c32b1941de5ddc5d371bc63a1736734094b71c4634",
+      "usage": {
+        "input_tokens": 2963,
+        "output_tokens": 562
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 156.25
+    },
+    {
+      "case_id": "h-role-ml",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.99,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 1.0
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.93,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.04,
+            "satisfied": 0.95,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.96
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.91,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.09,
+            "3": 0.91
+          },
+          "confidence": 0.91,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.85,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.14,
+            "3": 0.86
+          },
+          "confidence": 0.85,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.9,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.09,
+            "3": 0.91
+          },
+          "confidence": 0.9,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.89,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.1,
+            "3": 0.9
+          },
+          "confidence": 0.89,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 96.25,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "2efc560082cdd13fd483624a9e222a84ee8df01c141421c6b4bb810e36c94384",
+      "usage": {
+        "input_tokens": 2957,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 137.8
+    },
+    {
+      "case_id": "h-role-ds",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "ambiguous": 0.01,
+            "violated": 0.01,
+            "satisfied": 0.97
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.94,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.03,
+            "violated": 0.01,
+            "satisfied": 0.96
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.84,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.15,
+            "3": 0.85
+          },
+          "confidence": 0.84,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.92,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.07,
+            "3": 0.93
+          },
+          "confidence": 0.92,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 96.867,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "0647c345a84d7207a3f4ae7d789f2351427df9aaa71b329a7ecc723dce455d0d",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 103.34
+    },
+    {
+      "case_id": "h-role-research",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.98,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.92,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.05,
+            "satisfied": 0.94,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.95
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.86,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.14,
+            "3": 0.86
+          },
+          "confidence": 0.86,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.78,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.21,
+            "3": 0.79
+          },
+          "confidence": 0.78,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.83,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.16,
+            "3": 0.84
+          },
+          "confidence": 0.83,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.65,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.32,
+            "3": 0.67
+          },
+          "confidence": 0.65,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 93.583,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "92e48d1255dfeaca93ed43f307ccbf704a8a620583a2ffb131d3a403f6afbdcf",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 158.89
+    },
+    {
+      "case_id": "h-role-student",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "violated",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "not_stated",
+          "confidence": 0.41,
+          "probabilities": {
+            "ambiguous": 0.23,
+            "satisfied": 0.08,
+            "not_stated": 0.56,
+            "violated": 0.13
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.67
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.0,
+            "satisfied": 0.99
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.01,
+            "satisfied": 0.98
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.93,
+          "probabilities": {
+            "ambiguous": 0.04,
+            "satisfied": 0.94,
+            "not_stated": 0.0,
+            "violated": 0.02
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.88,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.11,
+            "3": 0.89
+          },
+          "confidence": 0.88,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.82,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.17,
+            "3": 0.83
+          },
+          "confidence": 0.82,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.92,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.08,
+            "3": 0.92
+          },
+          "confidence": 0.92,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.92,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.06,
+            "3": 0.9400000000000001
+          },
+          "confidence": 0.92,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 95.867,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "455b9ad893bbb9f1ed52559a52d980d0f58f6e53e444d03f1867bad215118e77",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 562
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 106.22
+    },
+    {
+      "case_id": "h-role-project",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "violated",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "not_stated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "not_stated": 0.01,
+            "ambiguous": 0.02,
+            "violated": 0.02,
+            "satisfied": 0.95
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.98
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.79,
+          "probabilities": {
+            "not_stated": 0.02,
+            "ambiguous": 0.11,
+            "violated": 0.03,
+            "satisfied": 0.84
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.36
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.19,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.09,
+            "2": 0.6,
+            "3": 0.3
+          },
+          "confidence": 0.6,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.4,
+          "probabilities": {
+            "0": 0.03,
+            "1": 0.56,
+            "2": 0.39,
+            "3": 0.02
+          },
+          "confidence": 0.54,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 1.42,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.56,
+            "2": 0.39,
+            "3": 0.02
+          },
+          "confidence": 0.54,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 1.99,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.17,
+            "2": 0.65,
+            "3": 0.17
+          },
+          "confidence": 0.64,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 58.017,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "3f02fddbd0ac782230eef4035f1e741cb253520fb2f5c2dd27dbaffc059956d7",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 133.56
+    },
+    {
+      "case_id": "h-role-senior",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "violated",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "violated",
+          "confidence": 0.86,
+          "probabilities": {
+            "violated": 0.89,
+            "ambiguous": 0.01,
+            "satisfied": 0.02,
+            "not_stated": 0.08
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.53
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.99,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "violated": 0.02,
+            "ambiguous": 0.01,
+            "satisfied": 0.96,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.83,
+          "probabilities": {
+            "violated": 0.03,
+            "ambiguous": 0.09,
+            "satisfied": 0.88,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.95
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.66,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.32,
+            "3": 0.67
+          },
+          "confidence": 0.66,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.31,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.67,
+            "3": 0.32
+          },
+          "confidence": 0.66,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.57,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.42,
+            "3": 0.58
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.78,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.2,
+            "3": 0.79
+          },
+          "confidence": 0.78,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 84.817,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "6835e834bf5afc3017ce8ded41d018c72240190939230449b099757abae9631a",
+      "usage": {
+        "input_tokens": 2963,
+        "output_tokens": 562
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 143.16
+    },
+    {
+      "case_id": "h-role-finance",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "violated",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "not_stated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "violated",
+          "confidence": 0.78,
+          "probabilities": {
+            "not_stated": 0.13,
+            "ambiguous": 0.02,
+            "satisfied": 0.01,
+            "violated": 0.84
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.56
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.01,
+            "satisfied": 0.98,
+            "violated": 0.01
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.99
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "not_stated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.98,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "ambiguous",
+          "confidence": 0.31,
+          "probabilities": {
+            "not_stated": 0.02,
+            "ambiguous": 0.48,
+            "satisfied": 0.27,
+            "violated": 0.23
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.84
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 1.75,
+          "probabilities": {
+            "0": 0.03,
+            "1": 0.22,
+            "2": 0.73,
+            "3": 0.02
+          },
+          "confidence": 0.71,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.05,
+          "probabilities": {
+            "0": 0.12,
+            "1": 0.72,
+            "2": 0.16,
+            "3": 0.0
+          },
+          "confidence": 0.72,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 1.19,
+          "probabilities": {
+            "0": 0.07,
+            "1": 0.67,
+            "2": 0.25,
+            "3": 0.01
+          },
+          "confidence": 0.66,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 1.59,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.4,
+            "2": 0.54,
+            "3": 0.03
+          },
+          "confidence": 0.53,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 46.133,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "ccd3a4adf484f39498e01afcb3c78a39bdbe31774d6af42cc92b46f4acf8ec3a",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 561
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 131.39
+    },
+    {
+      "case_id": "h-preferred-masters",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.99
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.98
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.93,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "ambiguous": 0.04,
+            "satisfied": 0.95
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.06,
+            "3": 0.94
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.433,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "ff5785c917b224b90694104c4ca0462170cbb6e3c82f0271675cf4e181cb976e",
+      "usage": {
+        "input_tokens": 2837,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 182.67
+    },
+    {
+      "case_id": "h-masters-title",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "violated",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.79,
+          "probabilities": {
+            "ambiguous": 0.01,
+            "satisfied": 0.84,
+            "not_stated": 0.0,
+            "violated": 0.15
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "violated",
+          "confidence": 0.93,
+          "probabilities": {
+            "ambiguous": 0.04,
+            "satisfied": 0.01,
+            "not_stated": 0.0,
+            "violated": 0.95
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.98
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.92,
+          "probabilities": {
+            "ambiguous": 0.01,
+            "satisfied": 0.94,
+            "not_stated": 0.01,
+            "violated": 0.04
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.98
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.96,
+          "probabilities": {
+            "ambiguous": 0.02,
+            "satisfied": 0.01,
+            "not_stated": 0.0,
+            "violated": 0.97
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.61
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 1.88,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.1,
+            "2": 0.86,
+            "3": 0.02
+          },
+          "confidence": 0.83,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.02,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.05,
+            "2": 0.83,
+            "3": 0.1
+          },
+          "confidence": 0.81,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.38,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.6,
+            "3": 0.39
+          },
+          "confidence": 0.6,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.54,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.44,
+            "3": 0.55
+          },
+          "confidence": 0.54,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 70.433,
+      "experimental_decision": "reject",
+      "release_decision": "review",
+      "violations": [
+        "education"
+      ],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "f6f3fd12e9126e1d114b78a9f1559590816a2c159de35277e1a48cf9e14097f5",
+      "usage": {
+        "input_tokens": 2777,
+        "output_tokens": 561
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 146.45
+    },
+    {
+      "case_id": "h-degree-alternative",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 0.99,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.99
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "ambiguous": 0.01,
+            "not_stated": 0.01,
+            "satisfied": 0.96,
+            "violated": 0.02
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.9,
+          "probabilities": {
+            "ambiguous": 0.05,
+            "not_stated": 0.0,
+            "satisfied": 0.93,
+            "violated": 0.02
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.65,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "a26a99fb11af4182661a4bf2705d412123b897d129653a3c25be4b27ebe12732",
+      "usage": {
+        "input_tokens": 2831,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 113.87
+    },
+    {
+      "case_id": "h-equivalent",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "ambiguous",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.88,
+          "probabilities": {
+            "ambiguous": 0.01,
+            "satisfied": 0.91,
+            "not_stated": 0.0,
+            "violated": 0.08
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "satisfied": 0.99,
+            "not_stated": 0.0,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "violated",
+          "confidence": 0.57,
+          "probabilities": {
+            "ambiguous": 0.27,
+            "satisfied": 0.04,
+            "not_stated": 0.01,
+            "violated": 0.68
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.94
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "ambiguous": 0.01,
+            "satisfied": 0.96,
+            "not_stated": 0.01,
+            "violated": 0.02
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.77,
+          "probabilities": {
+            "ambiguous": 0.1,
+            "satisfied": 0.07,
+            "not_stated": 0.0,
+            "violated": 0.83
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.58
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.17,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.02,
+            "2": 0.77,
+            "3": 0.2
+          },
+          "confidence": 0.77,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.65,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.34,
+            "3": 0.66
+          },
+          "confidence": 0.65,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.93,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.07,
+            "3": 0.93
+          },
+          "confidence": 0.93,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.89,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.1,
+            "3": 0.9
+          },
+          "confidence": 0.89,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 85.867,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "87194e8ec966ad872088bb6173d651e7ac8d7bed8f3f6e7ce9a75ba3c057f1b2",
+      "usage": {
+        "input_tokens": 2813,
+        "output_tokens": 561
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 245.45
+    },
+    {
+      "case_id": "h-missing-authorization",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "not_stated",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "not_stated",
+          "confidence": 0.92,
+          "probabilities": {
+            "not_stated": 0.94,
+            "violated": 0.0,
+            "satisfied": 0.06,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.99
+        },
+        "location": {
+          "outcome": "not_stated",
+          "confidence": 0.63,
+          "probabilities": {
+            "not_stated": 0.72,
+            "violated": 0.0,
+            "satisfied": 0.25,
+            "ambiguous": 0.03
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.52
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "not_stated": 0.01,
+            "violated": 0.0,
+            "satisfied": 0.97,
+            "ambiguous": 0.02
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.683,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "0159d7c02f88b13c294cf725437c9b9ca29e4529e19b1046aaa56985f5ce983d",
+      "usage": {
+        "input_tokens": 2915,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 142.32
+    },
+    {
+      "case_id": "h-sponsor-conflict",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "violated",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "violated": 0.02,
+            "satisfied": 0.98,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "violated",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 0.99,
+            "satisfied": 0.0,
+            "not_stated": 0.01,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 1.0
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.93,
+          "probabilities": {
+            "violated": 0.04,
+            "satisfied": 0.96,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "violated",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 1.0,
+            "not_stated": 0.0,
+            "satisfied": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.52
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.81,
+          "probabilities": {
+            "violated": 0.86,
+            "satisfied": 0.12,
+            "not_stated": 0.0,
+            "ambiguous": 0.02
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.93
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.22,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.04,
+            "2": 0.58,
+            "3": 0.34
+          },
+          "confidence": 0.53,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.67,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.01,
+            "2": 0.28,
+            "3": 0.7
+          },
+          "confidence": 0.67,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.91,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.0,
+            "2": 0.06,
+            "3": 0.93
+          },
+          "confidence": 0.91,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 86.883,
+      "experimental_decision": "reject",
+      "release_decision": "review",
+      "violations": [
+        "authorization"
+      ],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2966,
+        "output_tokens": 560
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 98.27
+    },
+    {
+      "case_id": "h-sponsor-unknown",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "ambiguous",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "ambiguous",
+          "confidence": 0.81,
+          "probabilities": {
+            "satisfied": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.13,
+            "ambiguous": 0.86
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.85
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "satisfied": 0.99,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "ambiguous",
+          "confidence": 0.56,
+          "probabilities": {
+            "satisfied": 0.14,
+            "violated": 0.16,
+            "not_stated": 0.04,
+            "ambiguous": 0.66
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.86
+        },
+        "required_skills": {
+          "outcome": "ambiguous",
+          "confidence": 0.5,
+          "probabilities": {
+            "satisfied": 0.32,
+            "violated": 0.04,
+            "not_stated": 0.01,
+            "ambiguous": 0.63
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.94
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.23,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.02,
+            "2": 0.66,
+            "3": 0.3
+          },
+          "confidence": 0.63,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.69,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.0,
+            "2": 0.29,
+            "3": 0.7
+          },
+          "confidence": 0.69,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.92,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.0,
+            "2": 0.06,
+            "3": 0.93
+          },
+          "confidence": 0.92,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 87.15,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2960,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 120.96
+    },
+    {
+      "case_id": "h-compound-negation",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.94
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.91,
+          "probabilities": {
+            "not_stated": 0.06,
+            "ambiguous": 0.01,
+            "satisfied": 0.9299999999999999,
+            "violated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.94
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.01,
+            "satisfied": 0.99,
+            "violated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.99,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.01,
+            "3": 0.99
+          },
+          "confidence": 0.99,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.967,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "80382f2112731835b9d0d40c3f58a9dd6c4a4d251eced411dd9aa6f0ba9e1bdd",
+      "usage": {
+        "input_tokens": 2975,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 117.42
+    },
+    {
+      "case_id": "h-conflicting-education",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "ambiguous",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.79,
+          "probabilities": {
+            "ambiguous": 0.1,
+            "satisfied": 0.85,
+            "not_stated": 0.0,
+            "violated": 0.05
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "violated": 0.01,
+            "not_stated": 0.0,
+            "satisfied": 0.98,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "ambiguous",
+          "confidence": 0.32,
+          "probabilities": {
+            "ambiguous": 0.5,
+            "satisfied": 0.34,
+            "not_stated": 0.0,
+            "violated": 0.16
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.97
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.78,
+          "probabilities": {
+            "violated": 0.05,
+            "not_stated": 0.01,
+            "satisfied": 0.85,
+            "ambiguous": 0.09
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.59,
+          "probabilities": {
+            "violated": 0.21,
+            "not_stated": 0.0,
+            "satisfied": 0.7,
+            "ambiguous": 0.09
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.97
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.91,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.08,
+            "3": 0.92
+          },
+          "confidence": 0.91,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.88,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.11,
+            "3": 0.89
+          },
+          "confidence": 0.88,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 97.133,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e13bc84efb0b3c613d09efc43ffd595ccd14f0343e42a6fb404c19a588a834de",
+      "usage": {
+        "input_tokens": 2909,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 106.08
+    },
+    {
+      "case_id": "h-preferred-java",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.99
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.99
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.89,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "ambiguous": 0.07,
+            "satisfied": 0.92
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.95
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.82,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.18,
+            "3": 0.82
+          },
+          "confidence": 0.82,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.88,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.11,
+            "3": 0.89
+          },
+          "confidence": 0.88,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.06,
+            "3": 0.94
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 96.067,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "fcce90c9dfc246950c166603fe0a4cb65084a7cdaef29c3d4a376f8aeff555cd",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 125.25
+    },
+    {
+      "case_id": "h-required-java",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "violated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.0,
+            "satisfied": 0.99
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.01,
+            "satisfied": 0.98
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.33,
+          "probabilities": {
+            "ambiguous": 0.48,
+            "violated": 0.51,
+            "not_stated": 0.0,
+            "satisfied": 0.01
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.95
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 1.67,
+          "probabilities": {
+            "0": 0.05,
+            "1": 0.24,
+            "2": 0.7,
+            "3": 0.01
+          },
+          "confidence": 0.65,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.57,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.35,
+            "2": 0.6,
+            "3": 0.01
+          },
+          "confidence": 0.55,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 1.78,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.2,
+            "2": 0.76,
+            "3": 0.02
+          },
+          "confidence": 0.75,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.3,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.03,
+            "2": 0.63,
+            "3": 0.34
+          },
+          "confidence": 0.62,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 57.683,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "7e08e904b7a200da5ce3e19fc8f72382b3b862d1b8968f0ff239605ef7f1e324",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 562
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 123.12
+    },
+    {
+      "case_id": "h-required-rust-unknown",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "ambiguous"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "satisfied": 1.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "satisfied": 0.99,
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "satisfied": 1.0,
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "satisfied": 0.98,
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "ambiguous",
+          "confidence": 0.83,
+          "probabilities": {
+            "satisfied": 0.02,
+            "ambiguous": 0.87,
+            "violated": 0.1,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.93
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 1.88,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.1,
+            "2": 0.86,
+            "3": 0.02
+          },
+          "confidence": 0.84,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.85,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.15,
+            "2": 0.78,
+            "3": 0.05
+          },
+          "confidence": 0.76,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 1.9,
+          "probabilities": {
+            "0": 0.03,
+            "1": 0.11,
+            "2": 0.8,
+            "3": 0.06
+          },
+          "confidence": 0.78,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.45,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.02,
+            "2": 0.51,
+            "3": 0.47
+          },
+          "confidence": 0.51,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 64.433,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "6ea2695bb9d461280f47d1e710404b14f1e777cb7b42698a3767512a1dc79430",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 158.24
+    },
+    {
+      "case_id": "h-remote-unknown",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "not_stated",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.67,
+          "probabilities": {
+            "not_stated": 0.21,
+            "violated": 0.01,
+            "satisfied": 0.75,
+            "ambiguous": 0.03
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.84
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.94,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.96,
+            "ambiguous": 0.03
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.94,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.94,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.633,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "f4293f0934fecb957908fdc8563e66c4bce6ca5db58d0d0c4bb4fb7025c40834",
+      "usage": {
+        "input_tokens": 2939,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 103.61
+    },
+    {
+      "case_id": "h-canada-only",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "violated",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 0.88,
+          "probabilities": {
+            "violated": 0.08,
+            "ambiguous": 0.0,
+            "satisfied": 0.92,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        },
+        "authorization": {
+          "outcome": "violated",
+          "confidence": 0.39,
+          "probabilities": {
+            "violated": 0.54,
+            "ambiguous": 0.01,
+            "satisfied": 0.44,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.98
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "violated": 0.02,
+            "ambiguous": 0.0,
+            "satisfied": 0.98,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.99
+        },
+        "location": {
+          "outcome": "violated",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 1.0,
+            "ambiguous": 0.0,
+            "satisfied": 0.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.67
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.64,
+          "probabilities": {
+            "violated": 0.73,
+            "ambiguous": 0.02,
+            "satisfied": 0.25,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.97
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.49,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.03,
+            "2": 0.37,
+            "3": 0.58
+          },
+          "confidence": 0.49,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.52,
+          "probabilities": {
+            "0": 0.03,
+            "1": 0.03,
+            "2": 0.33,
+            "3": 0.61
+          },
+          "confidence": 0.52,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.89,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.0,
+            "2": 0.08,
+            "3": 0.91
+          },
+          "confidence": 0.89,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.75,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.01,
+            "2": 0.17,
+            "3": 0.8
+          },
+          "confidence": 0.75,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 87.5,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "eb80b8d627d869fb35d45db8adaafd1dccb13fae3bed7b42076b7c3cfc5c6df8",
+      "usage": {
+        "input_tokens": 2975,
+        "output_tokens": 560
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 157.36
+    },
+    {
+      "case_id": "h-date-boundary",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.99,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.98
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "not_stated": 0.01,
+            "violated": 0.01,
+            "satisfied": 0.97,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.97,
+            "ambiguous": 0.02
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {
+        "graduation": "satisfied"
+      },
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.01,
+            "3": 0.99
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.983,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 164.49
+    },
+    {
+      "case_id": "h-date-conflict",
+      "split": "heldout",
+      "label": "review",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.99,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.98,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "ambiguous": 0.03,
+            "violated": 0.01,
+            "satisfied": 0.96,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {
+        "graduation": "ambiguous"
+      },
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.99,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.01,
+            "3": 0.99
+          },
+          "confidence": 0.99,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.967,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 137.91
+    },
+    {
+      "case_id": "h-date-outside",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "satisfied": 0.99,
+            "not_stated": 0.0,
+            "violated": 0.01,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "not_stated": 0.0,
+            "violated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "not_stated": 0.01,
+            "satisfied": 0.97,
+            "violated": 0.01,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.91,
+          "probabilities": {
+            "satisfied": 0.93,
+            "not_stated": 0.0,
+            "violated": 0.02,
+            "ambiguous": 0.04
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {
+        "graduation": "violated"
+      },
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.883,
+      "experimental_decision": "reject",
+      "release_decision": "review",
+      "violations": [
+        "graduation"
+      ],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 127.78
+    },
+    {
+      "case_id": "h-years-exact",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.01,
+            "satisfied": 0.99,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "ambiguous": 0.01,
+            "satisfied": 0.97,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "not_stated": 0.0,
+            "ambiguous": 0.03,
+            "satisfied": 0.96,
+            "violated": 0.01
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        }
+      },
+      "exact_checks": {
+        "years": "violated"
+      },
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.95,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.05,
+            "3": 0.95
+          },
+          "confidence": 0.95,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.01,
+            "3": 0.99
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.767,
+      "experimental_decision": "reject",
+      "release_decision": "review",
+      "violations": [
+        "years"
+      ],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 143.54
+    },
+    {
+      "case_id": "h-hostile-eligible",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.98,
+          "probabilities": {
+            "violated": 0.01,
+            "not_stated": 0.0,
+            "satisfied": 0.99,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "violated": 0.02,
+            "satisfied": 0.97,
+            "not_stated": 0.01,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.94,
+          "probabilities": {
+            "violated": 0.01,
+            "satisfied": 0.96,
+            "not_stated": 0.0,
+            "ambiguous": 0.03
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.99
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.03,
+            "3": 0.97
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.01,
+            "3": 0.99
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 99.017,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "91f628c3f60431efb99f5dd9b7d2d9df2c2a4317b7052bbad20549b96c813fe9",
+      "usage": {
+        "input_tokens": 3181,
+        "output_tokens": 603
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 139.89
+    },
+    {
+      "case_id": "h-hostile-ineligible",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "violated",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "violated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "violated",
+          "confidence": 0.73,
+          "probabilities": {
+            "not_stated": 0.13,
+            "violated": 0.79,
+            "satisfied": 0.03,
+            "ambiguous": 0.05
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.51
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.03,
+            "satisfied": 0.96,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.03,
+            "satisfied": 0.97,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.96,
+          "probabilities": {
+            "not_stated": 0.01,
+            "violated": 0.02,
+            "satisfied": 0.96,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 1.0
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.86,
+          "probabilities": {
+            "not_stated": 0.0,
+            "violated": 0.9,
+            "satisfied": 0.02,
+            "ambiguous": 0.08
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.95
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 1.44,
+          "probabilities": {
+            "0": 0.11,
+            "1": 0.34,
+            "2": 0.53,
+            "3": 0.02
+          },
+          "confidence": 0.41,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 0.63,
+          "probabilities": {
+            "0": 0.49,
+            "1": 0.41,
+            "2": 0.09,
+            "3": 0.01
+          },
+          "confidence": 0.37,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 0.51,
+          "probabilities": {
+            "0": 0.62,
+            "1": 0.28,
+            "2": 0.08,
+            "3": 0.02
+          },
+          "confidence": 0.49,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 0.86,
+          "probabilities": {
+            "0": 0.35,
+            "1": 0.47,
+            "2": 0.16,
+            "3": 0.02
+          },
+          "confidence": 0.44,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 30.217,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "eb6a33cc77e14246847c23a6db05bd3163011fae047d956ca45a7ccc182b8ec2",
+      "usage": {
+        "input_tokens": 3011,
+        "output_tokens": 560
+      },
+      "ranking_group": null,
+      "relevance": null,
+      "latency_ms": 113.72
+    },
+    {
+      "case_id": "h-rank-strong",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.0,
+            "satisfied": 0.99,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "violated": 0.0,
+            "ambiguous": 0.0,
+            "satisfied": 1.0,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.95,
+          "probabilities": {
+            "violated": 0.02,
+            "ambiguous": 0.0,
+            "satisfied": 0.97,
+            "not_stated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.93,
+          "probabilities": {
+            "violated": 0.01,
+            "ambiguous": 0.04,
+            "satisfied": 0.95,
+            "not_stated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.98
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.96,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.04,
+            "3": 0.96
+          },
+          "confidence": 0.96,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.98,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.01,
+            "3": 0.99
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.97,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.02,
+            "3": 0.98
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 98.867,
+      "experimental_decision": "pass",
+      "release_decision": "pass",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "e9ae00491a59d7c7784ca79eeeb99e4d64ad6d3beb0a413dbbdc5d3a2a3d3847",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      },
+      "ranking_group": "backend",
+      "relevance": 3,
+      "latency_ms": 160.13
+    },
+    {
+      "case_id": "h-rank-medium",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "satisfied"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 0.99,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.0,
+            "satisfied": 1.0,
+            "violated": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "ambiguous": 0.0,
+            "not_stated": 0.01,
+            "satisfied": 0.98,
+            "violated": 0.01
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.77,
+          "probabilities": {
+            "ambiguous": 0.16,
+            "not_stated": 0.0,
+            "satisfied": 0.83,
+            "violated": 0.01
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.96
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.72,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.28,
+            "3": 0.72
+          },
+          "confidence": 0.72,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 2.24,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.01,
+            "2": 0.74,
+            "3": 0.25
+          },
+          "confidence": 0.73,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 2.43,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.5700000000000001,
+            "3": 0.43
+          },
+          "confidence": 0.56,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.86,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.14,
+            "3": 0.86
+          },
+          "confidence": 0.86,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 83.917,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "edeebcd5857c92789196531e031046c32fad80f09384096c49a5c3995446cda2",
+      "usage": {
+        "input_tokens": 2963,
+        "output_tokens": 563
+      },
+      "ranking_group": "backend",
+      "relevance": 2,
+      "latency_ms": 112.45
+    },
+    {
+      "case_id": "h-rank-weak",
+      "split": "heldout",
+      "label": "eligible",
+      "expected_criteria": {
+        "role": "satisfied",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "not_stated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 1.0
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "satisfied": 0.99,
+            "violated": 0.01,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 1.0,
+          "probabilities": {
+            "satisfied": 1.0,
+            "violated": 0.0,
+            "not_stated": 0.0,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 1.0
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "satisfied": 0.98,
+            "violated": 0.01,
+            "not_stated": 0.01,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "satisfied",
+          "confidence": 0.83,
+          "probabilities": {
+            "satisfied": 0.88,
+            "violated": 0.02,
+            "not_stated": 0.01,
+            "ambiguous": 0.09
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.36
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 2.34,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.04,
+            "2": 0.57,
+            "3": 0.39
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 1.34,
+          "probabilities": {
+            "0": 0.03,
+            "1": 0.6,
+            "2": 0.36,
+            "3": 0.01
+          },
+          "confidence": 0.61,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 1.38,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.6,
+            "2": 0.37,
+            "3": 0.01
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 2.33,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.06,
+            "2": 0.54,
+            "3": 0.4
+          },
+          "confidence": 0.54,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 59.967,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "752c662974ff66dce1ab74fb5d9da048c28a0d4f9252e3e8bad10a2d7943ddff",
+      "usage": {
+        "input_tokens": 2957,
+        "output_tokens": 562
+      },
+      "ranking_group": "backend",
+      "relevance": 1,
+      "latency_ms": 103.27
+    },
+    {
+      "case_id": "h-rank-offtopic",
+      "split": "heldout",
+      "label": "ineligible",
+      "expected_criteria": {
+        "role": "violated",
+        "authorization": "satisfied",
+        "education": "satisfied",
+        "location": "satisfied",
+        "required_skills": "not_stated"
+      },
+      "judgments": {
+        "role": {
+          "outcome": "violated",
+          "confidence": 0.88,
+          "probabilities": {
+            "not_stated": 0.07,
+            "satisfied": 0.01,
+            "violated": 0.91,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "none",
+          "evidence_probability": 0.65
+        },
+        "authorization": {
+          "outcome": "satisfied",
+          "confidence": 0.99,
+          "probabilities": {
+            "not_stated": 0.0,
+            "satisfied": 0.99,
+            "violated": 0.01,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "education": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "satisfied": 0.97,
+            "violated": 0.01,
+            "ambiguous": 0.01
+          },
+          "evidence_id": "j3",
+          "evidence_probability": 0.99
+        },
+        "location": {
+          "outcome": "satisfied",
+          "confidence": 0.97,
+          "probabilities": {
+            "not_stated": 0.01,
+            "satisfied": 0.98,
+            "violated": 0.01,
+            "ambiguous": 0.0
+          },
+          "evidence_id": "j2",
+          "evidence_probability": 0.99
+        },
+        "required_skills": {
+          "outcome": "violated",
+          "confidence": 0.21,
+          "probabilities": {
+            "not_stated": 0.02,
+            "satisfied": 0.37,
+            "violated": 0.41,
+            "ambiguous": 0.2
+          },
+          "evidence_id": "j1",
+          "evidence_probability": 0.87
+        }
+      },
+      "exact_checks": {},
+      "scores": {
+        "skills": {
+          "type": "score",
+          "score": 0.83,
+          "probabilities": {
+            "0": 0.33,
+            "1": 0.53,
+            "2": 0.13,
+            "3": 0.01
+          },
+          "confidence": 0.52,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "projects": {
+          "type": "score",
+          "score": 0.24,
+          "probabilities": {
+            "0": 0.77,
+            "1": 0.23,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "confidence": 0.76,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "responsibilities": {
+          "type": "score",
+          "score": 0.08,
+          "probabilities": {
+            "0": 0.9400000000000001,
+            "1": 0.06,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "confidence": 0.92,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        },
+        "preferences": {
+          "type": "score",
+          "score": 0.12,
+          "probabilities": {
+            "0": 0.88,
+            "1": 0.11,
+            "2": 0.01,
+            "3": 0.0
+          },
+          "confidence": 0.88,
+          "legend": {
+            "0": "No demonstrated alignment or missing relevant information",
+            "1": "Limited alignment: only indirect evidence",
+            "2": "Substantial alignment: several direct overlaps but meaningful gaps",
+            "3": "Strong alignment: direct evidence supports almost all important aspects"
+          }
+        }
+      },
+      "normalized_fit": 13.15,
+      "experimental_decision": "review",
+      "release_decision": "review",
+      "violations": [],
+      "model": "jev-1.13.0",
+      "rubric_version": "jev-eligibility-fit-v1",
+      "profile_version": "synthetic-v1",
+      "job_hash": "d56823150a4c9aa20e45f2db68aa932a9029628cdf75b3d987a063050d08187f",
+      "usage": {
+        "input_tokens": 2945,
+        "output_tokens": 560
+      },
+      "ranking_group": "backend",
+      "relevance": 0,
+      "latency_ms": 124.62
+    }
+  ],
+  "metrics": {
+    "n": 34,
+    "eligible_n": 15,
+    "rejected_n": 4,
+    "false_rejection_count": 0,
+    "false_rejection_rate": 0.0,
+    "zero_failure_one_sided_95_upper": 0.18103627252208465,
+    "rejection_precision": 1.0,
+    "review_rate": 0.6764705882352942,
+    "expected_review_n": 7,
+    "expected_review_recall": 1.0,
+    "criterion_accuracy": 0.888235294117647,
+    "ranking_pair_n": 6,
+    "ranking_pair_accuracy": 1,
+    "latency_ms_median": 132.85,
+    "latency_ms_max": 261.04,
+    "input_tokens": 100156,
+    "output_tokens": 19158
+  },
+  "release_gate_passed": false,
+  "release_policy": "Model rejection remains review until independent gate passes"
+}

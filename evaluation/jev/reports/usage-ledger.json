@@ -1,0 +1,450 @@
+{
+  "attempts": [
+    {
+      "case_id": "smoke-invalid",
+      "reserved_tokens": 20000,
+      "status": "validation_failed",
+      "usage": null
+    },
+    {
+      "case_id": "t01-baseline",
+      "reserved_tokens": 20000,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "t01-baseline",
+      "reserved_tokens": 20000,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "t02-preferred-phd",
+      "reserved_tokens": 20000,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2825,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "t03-required-phd",
+      "reserved_tokens": 20000,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2831,
+        "output_tokens": 561
+      }
+    },
+    {
+      "case_id": "t04-unknown-sponsorship",
+      "reserved_tokens": 20000,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2891,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "t05-invalid",
+      "reserved_tokens": 20000,
+      "status": "validation_failed",
+      "usage": null
+    },
+    {
+      "case_id": "t05-diagnostic",
+      "reserved_tokens": 20000,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 560
+      }
+    },
+    {
+      "case_id": "t01-baseline",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "t02-preferred-phd",
+      "reserved_tokens": 15901,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2825,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "t03-required-phd",
+      "reserved_tokens": 15907,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2831,
+        "output_tokens": 561
+      }
+    },
+    {
+      "case_id": "t04-unknown-sponsorship",
+      "reserved_tokens": 15631,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2891,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "t05-finance",
+      "reserved_tokens": 15973,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 560
+      }
+    },
+    {
+      "case_id": "t06-hostile",
+      "reserved_tokens": 16471,
+      "status": "received",
+      "usage": {
+        "input_tokens": 3023,
+        "output_tokens": 561
+      }
+    },
+    {
+      "case_id": "t07-conflicting-dates",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "t08-required-missing",
+      "reserved_tokens": 15931,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-role-software",
+      "reserved_tokens": 15973,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2933,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-role-product",
+      "reserved_tokens": 16255,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2981,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "h-role-coop",
+      "reserved_tokens": 16057,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2963,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "h-role-ml",
+      "reserved_tokens": 16051,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2957,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-role-ds",
+      "reserved_tokens": 15973,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-role-research",
+      "reserved_tokens": 16117,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-role-student",
+      "reserved_tokens": 16111,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "h-role-project",
+      "reserved_tokens": 16189,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-role-senior",
+      "reserved_tokens": 16129,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2963,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "h-role-finance",
+      "reserved_tokens": 15949,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 561
+      }
+    },
+    {
+      "case_id": "h-preferred-masters",
+      "reserved_tokens": 15997,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2837,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-masters-title",
+      "reserved_tokens": 15661,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2777,
+        "output_tokens": 561
+      }
+    },
+    {
+      "case_id": "h-degree-alternative",
+      "reserved_tokens": 15991,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2831,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-equivalent",
+      "reserved_tokens": 15925,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2813,
+        "output_tokens": 561
+      }
+    },
+    {
+      "case_id": "h-missing-authorization",
+      "reserved_tokens": 15835,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2915,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-sponsor-conflict",
+      "reserved_tokens": 16133,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2966,
+        "output_tokens": 560
+      }
+    },
+    {
+      "case_id": "h-sponsor-unknown",
+      "reserved_tokens": 16117,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2960,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-compound-negation",
+      "reserved_tokens": 16093,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2975,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-conflicting-education",
+      "reserved_tokens": 16243,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2909,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-preferred-java",
+      "reserved_tokens": 16045,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-required-java",
+      "reserved_tokens": 16057,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2951,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "h-required-rust-unknown",
+      "reserved_tokens": 15931,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2927,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-remote-unknown",
+      "reserved_tokens": 15997,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2939,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-canada-only",
+      "reserved_tokens": 16099,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2975,
+        "output_tokens": 560
+      }
+    },
+    {
+      "case_id": "h-date-boundary",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-date-conflict",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-date-outside",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-years-exact",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-hostile-eligible",
+      "reserved_tokens": 16963,
+      "status": "received",
+      "usage": {
+        "input_tokens": 3181,
+        "output_tokens": 603
+      }
+    },
+    {
+      "case_id": "h-hostile-ineligible",
+      "reserved_tokens": 16441,
+      "status": "received",
+      "usage": {
+        "input_tokens": 3011,
+        "output_tokens": 560
+      }
+    },
+    {
+      "case_id": "h-rank-strong",
+      "reserved_tokens": 16153,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2969,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-rank-medium",
+      "reserved_tokens": 16159,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2963,
+        "output_tokens": 563
+      }
+    },
+    {
+      "case_id": "h-rank-weak",
+      "reserved_tokens": 16213,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2957,
+        "output_tokens": 562
+      }
+    },
+    {
+      "case_id": "h-rank-offtopic",
+      "reserved_tokens": 16015,
+      "status": "received",
+      "usage": {
+        "input_tokens": 2945,
+        "output_tokens": 560
+      }
+    }
+  ],
+  "max_requests": 60,
+  "max_reserved_tokens": 1000000
+}
