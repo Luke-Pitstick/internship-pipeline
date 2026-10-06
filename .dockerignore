@@ -3,7 +3,14 @@
 !uv.lock
 !src/
 !src/**
-!deploy/
-!deploy/**
+!web/
+!web/**
+web/node_modules/
+web/.svelte-kit/
+web/build/
+web/reports/
+web/design/
+web/test-results/
+web/playwright-report/
 **/__pycache__/
 **/*.pyc

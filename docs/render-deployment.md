@@ -1,21 +1,11 @@
 # Render deployment
 
-The pipeline runs in one Standard Render web service with a 5 GB persistent disk at /var/data. A supervisor runs the protected results API alongside independent collector, matcher, resume, delivery and discovery processes. SQLite and PDFs stay on this one disk. The obsolete background worker and separate Resume Matcher renderer are suspended.
+`render.yaml` builds the same single application image used by Compose. It serves Svelte assets and FastAPI on port 8080 while the existing supervisor manages configured worker roles. Mount the persistent disk at `/var/data` and set `PIPELINE_ORIGIN` to the exact public HTTPS origin, for example `https://your-service.onrender.com`. This enables Secure session cookies and same-origin mutation checks. The blueprint checks `/readyz`; `/healthz` only reports process liveness.
 
-The service is srv-db23e6rtqb8s73btl8d0 in Luke's Workspace, Oregon. Its public /healthz returns no private information. All data and mutation routes require DASHBOARD_API_TOKEN. The private Sites dashboard stores this credential server-side and proxies job reads, PDF downloads and explicit Mark as applied requests.
+A fresh deployment serves owner setup immediately. Read the generated one-time setup token from startup logs and claim the instance in its browser UI. No profile, model credential, or activation file is needed for account setup. If the token was lost, run `internship-pipeline setup-token` from the operator shell; after claim use `internship-pipeline recover-owner` for interactive password recovery. Recovery revokes all browser sessions.
 
-## Private provisioning
+Preserve existing data. The application creates `/var/data/identity.sqlite3` for accounts and sessions. By default job storage is `/var/data/state.sqlite3` and artifacts are `/var/data/artifacts`. Existing `/var/data/config/settings.yaml` can select its existing job database and artifact paths; keep these absolute and within persistent storage. This task does not move or reset an existing job database. Browser profile/model editing is not available yet.
 
-Place settings and company/search configuration in /var/data/config. Put the verified factual profile in /var/data/private/profile.yaml and the original source in /var/data/private/master-resume.tex. Set master_resume_path to that absolute .tex path. Preserve CODEX_HOME=/var/data/codex and complete codex login --device-auth with the user's subscription; never put login files in Git or image layers.
+Configured worker capabilities are checked on startup, after an owner exists. A supported profile and company/search configuration activate collection/discovery; configured model connection fields activate matching; notification destinations activate delivery. The retained original-LaTeX résumé worker additionally needs its source, existing Codex login, and an unpaused generation setting. Missing capabilities stay inactive. Restart after operator configuration changes or after claiming an already-configured instance. No live provider capability test is implied by these presence checks.
 
-Set RESUME_MODEL=gpt-5.6-sol. Set RESUME_GENERATION_PAUSED=1 during source verification and 0 only after an end-to-end generation check. This pause leaves collection, matching and delivery running. Create /var/data/activated after provisioning to start the workers. pdflatex is installed in the pipeline image; it compiles the original and tailored source with shell escape disabled and checks page count, content and overflow.
-
-## Dashboard and relay
-
-See dashboard.md for the private Sites URL and controls. The dashboard and Render collection work without the Mac. The existing Codex relay still depends on the Mac and is not ChatGPT Dot. Its remote source is srv-db23e6rtqb8s73btl8d0@ssh.oregon.render.com; scripts/sync_render_outbox.py downloads complete events and existing PDFs before independent Google Sheets and notification checkpointing. PDFs are not uploaded to Drive.
-
-## Recovery and verification
-
-Stop writers before copying SQLite data, or use the existing database-native backup command. Preserve the original source, factual profile, artifact PDFs and edit plans, and subscription login separately in private storage. Never merge a live database with stale WAL files.
-
-Verify /healthz, unauthorized data rejection, authenticated jobs, PDF download bytes and attachment headers, and worker activity. Applied-state tests use isolated databases and must not mark real applications during QA. Existing non-LaTeX drafts remain labeled as earlier drafts until superseded by verified original-template PDFs.
+See [deployment](deployment.md) for recovery and private-volume handling and [dashboard](dashboard.md) for current UI behavior. This change was not deployed to a live Render service. Existing SSH outbox tooling remains separate until the integration tasks replace it; it is not needed for owner setup or dashboard access.

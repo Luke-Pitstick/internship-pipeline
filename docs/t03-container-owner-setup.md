@@ -1,0 +1,43 @@
+# T03 — Single-container owner setup
+
+Implemented October 6, 2026. A fresh application boots into usable owner setup without profile, model, or notification configuration. The Svelte application and FastAPI share one origin and public port, with a persistent data directory and the existing process supervisor. Container execution remains unverified because this host's Docker engine did not respond; the same bootstrap/API process tree was exercised directly against a temporary persistent directory.
+
+The October 6 follow-up repeated bounded host-runtime diagnosis and added an isolated real-engine acceptance runner. Docker Desktop was already running, but host-access engine requests still timed out. See [t03-followup.md](t03-followup.md) for exact evidence, limits and the retry command. Actual container acceptance remains blocked; native checks above do not close it.
+
+## Delivered behavior
+
+- First startup issues a random 256-bit operator setup token to logs; SQLite stores its SHA-256 digest. A `BEGIN IMMEDIATE` claim transaction, singleton owner constraint, and consumed setup row allow exactly one initial owner, including concurrent claims. A restart cannot reopen claim. The operator can rotate an unclaimed token locally.
+- Passwords use pwdlib's recommended Argon2id hasher. Opaque 256-bit session tokens are stored as digests server-side; CSRF tokens belong to those sessions. Anonymous CSRF sessions last 20 minutes; authenticated sessions have a 12-hour absolute lifetime. Claim/login rotate the cookie, and authentication/session issuance is atomic with credential verification. Logout revokes the session; recovery revokes all sessions and changes the existing owner.
+- Mutations require the session's CSRF header, reject a mismatched Origin/cross-site Fetch Metadata, and accept only bounded request bodies and validated fields. Authentication attempts are reserved transactionally before password verification: at most 10 per peer address and 100 globally per five minutes, surviving restarts. Proxy headers are not trusted for authentication throttling. Password validation errors never echo request inputs.
+- Cookies are HttpOnly and SameSite=Strict. An HTTPS `PIPELINE_ORIGIN` enables Secure `__Host-` cookies; HTTP is accepted only for a loopback origin. Trusted Host validation, no-store private API responses, nosniff, frame denial, and no-referrer headers protect the browser boundary. The documented remote deployment requires HTTPS termination with a private upstream port.
+- Every private jobs/status/document/mutation API requires an owner session. The old standard-library HTTP/bearer service, Sites proxy instructions, and manual activation-file entrypoints were removed. Useful PDF path/size/magic/symlink validation, description sanitization, safe link checks, applied-date idempotency, and private-response redaction remain. Explicit undo clears only application state; opening application/PDF links does not mark applied.
+- `/healthz` is liveness. `/readyz` also checks job and identity database access, built frontend presence, and a recent healthy supervisor heartbeat. Setup mode is ready with no active workers. Configured roles reuse the original CLI/queue; collector/discovery no longer require notification delivery. Missing profile, model, destination, or résumé capabilities remain inactive. A worker crash stops the process tree for host restart, and process-group shutdown remains bounded.
+- One-service Compose builds one image, publishes one loopback port, and mounts one named volume at `/var/data`. Owner identity is `/var/data/identity.sqlite3`; default jobs are `/var/data/state.sqlite3`. Existing YAML can select an existing database/artifact location until T04 replaces it. No data is reset or automatically imported. The same image is referenced by the updated Render blueprint.
+- Production Svelte keeps the job-board layout, separate Settings page, keyboard detail behavior, Applied view, and explicit Mark as applied/Undo/date. It now uses an instance-local API client through Svelte context, displays actual stored records, and starts empty. Prototype workers, invented jobs/profile defaults, timer-driven progress, and fake settings saves were removed. Existing jobs are shown unscored/unevaluated rather than being filtered by a GET-time semantic match. The temporary 1,000-record inventory limit is disclosed; server pagination and authoritative Jev evaluation remain T09/T06.
+
+## Verification
+
+- Python focused owner/API/domain/supervisor suite: 35 passed before adding the dedicated bootstrap smoke tests.
+- Real supervisor smoke: two process starts against one temporary directory; usable static/API setup, owner claim, authenticated cookie persistence, empty job persistence, no token reissue after restart, and graceful shutdown all passed. Configured-role tests show collection/discovery independent of model and notification prerequisites.
+- Full Python suite: 396 passed. This includes the independent T02 evaluation tests and replaces obsolete bearer-transport/screening expectations with session/API regressions. Starlette emits one upstream TestClient deprecation warning about its current httpx adapter; tests pass.
+- Ruff: passed for `src` and `tests`. Mypy: passed for all 32 Python source files. `git diff --check`: passed.
+- Svelte check: zero errors/warnings. Static production build: passed, including directly servable `/` and `/settings/`.
+- Chromium integration: passed against real FastAPI and built static files using synthetic credentials and a temporary database. It covers public private-API denial, claim, honest empty jobs, reload persistence, separate Settings navigation, category focus, logout, incorrect/correct login, and 390px mobile overflow checks. Desktop/mobile screenshots are in ignored `web/test-results/`; the mobile result was visually inspected.
+- All-route JavaScript upper bound: 43,816 gzip bytes / 38,949 Brotli bytes, 109,847 raw bytes across 13 assets, below the provisional 200,000-byte budget. `web/reports/t03-bundle.json` records assets; this is compressed content size, not a claim about HTTP transfer compression.
+- `docker compose config --quiet`: passed. A bounded `docker info` timed out after 15 seconds, so image build, container run, volume ownership in a real engine, Render deployment, and platform portability are explicitly unverified. No live model calls, real candidate inputs, external notifications, commits, or deployments were performed.
+
+## Reproduction
+
+From the project root, run `uv sync --frozen`, `ruff check src tests`, `mypy src/internship_pipeline`, and `pytest -q`. This checkout has a space-containing path; verification used `PYTHONPATH=src /tmp/internship-pipeline-audit-venv/bin/python -m pytest -q`, where the existing space-free symlink points to `.venv`, avoiding generated test-script shebang failures. The bootstrap smoke needs permission to bind temporary localhost ports.
+
+From `web/`, run `npm run check`, `npm run build`, `npm test`, and `npm run measure`. The browser fixture starts/stops a real localhost-only API server and uses a temporary synthetic account. The application install and operator recovery commands are in [deployment.md](deployment.md).
+
+## Historical report note
+
+The original measurement script wrote `t01-bundle.json`; running it during T03 overwrote that per-asset report. The script now writes `t03-bundle.json`. The T01 report path contains a clearly labeled historical summary of the totals verified in the T01 handoff, with no fabricated asset numbers. Its separate browser/interaction report remains intact.
+
+## Boundaries for subsequent tasks
+
+Profile/model/settings UI remains deliberately unavailable until T04/T05. Setup capabilities are evaluated at process startup; changing operator YAML or claiming an already-configured installation requires a restart. These presence checks do not verify remote credentials. Automatic résumé policy, general-LLM generation, in-container spreadsheet integration, coordinated backup/restore, and portable image acceptance remain their planned later tasks. The retained Codex/Node runtime supports the existing résumé path until T12 replaces it. Existing private volumes and configuration require deliberate operator preservation when changing a deployment; there is no silent migration or destructive reset.
+
+Security API choices were checked against the official [FastAPI password-hashing tutorial](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/) and [Starlette response documentation](https://www.starlette.io/responses/). Context7 was not available in this session.

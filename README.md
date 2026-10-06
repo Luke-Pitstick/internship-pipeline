@@ -22,20 +22,23 @@ uv run internship-pipeline demo
 
 The demo uses synthetic data, writes one opening event and one synthetic PDF event, then repeats ingestion to verify no duplicates. It sends no external messages and does not call Codex or compile personal resumes. Its PDF is labeled as a demonstration.
 
-## Personal setup
+## Browser setup
+
+Run `docker compose up --build -d`, read the one-time owner setup token with `docker compose logs app`, and open `http://localhost:8080`. Account setup and login work before a profile or model is configured. The single-container app uses persistent owner sessions; see [deployment and recovery](docs/deployment.md) and [current dashboard capabilities](docs/dashboard.md). Profile and Job Filters settings save immutable SQLite revisions; workers read the next revision between tasks. AI Models has independent connection configuration and synthetic capability tests; authoritative Jev evaluation and résumé generation are subsequent slices.
+
+## Existing operator worker configuration
 
 ```sh
 mkdir -p private data artifacts
-cp config/profile.example.yaml config/profile.local.yaml
 cp config/companies.example.yaml config/companies.local.yaml
 cp config/settings.example.yaml config/settings.local.yaml
 ```
 
-Fill the profile with supported facts and put your current resume at `private/master-resume.tex`. Do not overwrite an existing personal profile. Set term/location/eligibility constraints only where known. Set companies to real board URLs and `enabled: true`; optional broad searches go in `config/searches.local.yaml` and are enabled by `searches_path` in settings. Example queries need their locations/country adjusted explicitly.
+Maintain supported facts, education, availability and eligibility in browser Settings → Profile; maintain mandatory constraints and soft preferences in Job Filters. YAML no longer supplies candidate data. Existing personal files are left untouched: explicitly back them up, remove `profile_path` from operational settings, and review/re-enter supported facts in the browser. There is no automatic import or fallback. Source configuration remains operational YAML pending the search configuration task. Set companies to real board URLs and `enabled: true`; optional broad searches go in `config/searches.local.yaml` and are enabled by `searches_path`. Example queries need their locations/country adjusted explicitly.
 
 For Apprise, put notification URLs in the ignored settings file or `PIPELINE_NOTIFICATION_URLS` as a JSON array. Use a service supporting PDF attachments. For Dot, set `dot_outbox_path: data/dot-outbox` and configure the [local relay](docs/deployment.md#dot-relay). Set `recording_notifications_path: null` for either live transport. A recording transport is only an offline test sink.
 
-Resume generation edits the original `.tex` through `gpt-5.6-sol` using your saved Codex subscription, then compiles with `pdflatex`. The pipeline preserves template commands, layout and supported formatting, checks factual grounding and PDF output, and records an edit report. Configure `master_resume_path` to the original `.tex`; PDF-only input is rejected. See [Render deployment](docs/render-deployment.md) and the [private dashboard](https://luke-internship-desk.lukepitstick06.chatgpt.site).
+The legacy generation modules remain covered by offline regressions, but the browser application keeps matching, generation and delivery workers inactive until their supported integrations are implemented. Saving a profile or model connection does not enable those legacy paths. See the [same-origin dashboard](docs/dashboard.md).
 
 ```sh
 uv run internship-pipeline --config config/settings.local.yaml scan --once --collect-only

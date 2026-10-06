@@ -1,19 +1,46 @@
 # Deployment and recovery
 
-Use one always-on host with a local filesystem for SQLite WAL and Docker Compose. The Compose file runs independent collector, matcher, resume, delivery and daily-discovery workers, plus the pinned unified Resume Matcher service. It does not schedule work through GitHub Actions.
+Run one application container on a host with local persistent storage for SQLite. The image contains the static Svelte frontend, FastAPI API, Python worker roles, and current résumé tooling. It exposes one port and uses one named volume. The image's Node/Codex runtime remains until the résumé replacement task; Node does not serve the frontend.
 
-## Configure and start
+## Start and claim
 
-1. Create the ignored local profile/settings/company files described in the README and place the factual master PDF in `private/`. Set notification URLs or a Dot outbox; disable the example recording sink for live use.
-2. Create `data/` and `artifacts/` before starting containers. Copy `.env.example` to `.env`, set `PIPELINE_UID` to the output of `id -u`, and `PIPELINE_GID` to `id -g`. These match host ownership so `0600` private configuration remains readable without broadening permissions. The pipeline image defaults to unprivileged UID 10001.
-3. Run `docker compose config --quiet`, then `docker compose build`. Build Resume Matcher from its pinned Git commit; record the resulting image ID/digest with deployment evidence. An upstream source pin verifies identity, not that a host's build succeeds.
-4. Start only `docker compose up -d resume-matcher`. Open `http://localhost:3000` and configure its supported model provider, key and English output. Keep this unauthenticated service loopback-only; use an SSH tunnel for remote access. Other containers use `http://resume-matcher:3000`.
-5. Run `docker compose run --rm collector scan --once --collect-only` to establish a baseline. Check `docker compose run --rm collector status` and `jobs --backlog`. Use `review-backlog` only if those existing jobs should generate alerts.
-6. Verify one synthetic master/job/PDF sequence and one real destination attachment before enabling continuous work. Then run `docker compose up -d collector matcher resumes delivery discovery`.
+```sh
+docker compose config --quiet
+docker compose up --build -d
+docker compose logs app
+```
 
-Pipeline LLM matching is optional and configured separately from Resume Matcher. Do not assume setting `LLM_API_KEY` for one configures the other. Real email requires an Apprise mail URL and supported SMTP/provider credential; a recipient address alone cannot send mail.
+Open `http://localhost:8080`, copy the **Owner setup token** from the first startup log, and create the owner account with a password of at least 12 characters. Only one claim can succeed, including simultaneous attempts. Claim consumes the token; restarting cannot reopen setup. Account creation works with no model credentials, profile, or notification destination. Keep logs private because the first-boot token authorizes account creation.
 
-Pipeline containers mount configuration/private inputs read-only and local data/artifacts read-write. Their root filesystem is read-only with writable temporary space. The upstream service stores its database, model settings and documents in the `resume-data` named volume. Treat that volume as private.
+Compose binds to loopback by default. To change the local port, set both `PIPELINE_PORT` and `PIPELINE_ORIGIN`, for example `PIPELINE_PORT=8081 PIPELINE_ORIGIN=http://localhost:8081 docker compose up -d`. Always open exactly that origin. Non-loopback HTTP origins are rejected. For remote access, terminate HTTPS at a reverse proxy, keep the upstream container port private, preserve the configured Host header, and set `PIPELINE_ORIGIN=https://jobs.example.com`. HTTPS uses a Secure, HttpOnly, SameSite=Strict `__Host-` session cookie. Local loopback HTTP uses a non-Secure development cookie. Do not expose the local HTTP configuration to the internet.
+
+The container runs as UID 10001, with a read-only root filesystem and temporary `/tmp`. The named `pipeline-data` volume mounts at `/var/data`, containing accounts/sessions, jobs, documents, and operator configuration. The image prepares its ownership for the default user. Back up any existing deployment before changing mounts; this setup does not import or delete previous bind-mounted data. Do not run `docker compose down --volumes` on data you need.
+
+## Account recovery
+
+If a fresh instance's setup token was lost, rotate it locally:
+
+```sh
+docker compose exec app internship-pipeline setup-token
+```
+
+After the instance is claimed, setup-token refuses to reopen it. Recover its account interactively:
+
+```sh
+docker compose exec app internship-pipeline recover-owner
+```
+
+The command prompts for the owner username and a new password twice without putting passwords in command arguments or logs. It revokes all sessions and clears login throttles, preserving jobs, documents, and the single account. These commands are local operator operations, with no public recovery endpoint. Outside the container, use `--data-dir /absolute/persistent/directory` after the recovery command name.
+
+## Setup mode and existing worker configuration
+
+`/healthz` means the API process responds. `/readyz` additionally checks SQLite access, built frontend availability, and the supervisor heartbeat. Healthy setup mode is ready even when no worker capability is configured. A worker exit causes the existing supervisor to stop the whole process tree so the host can restart it; graceful shutdown signals entire process groups, including descendants.
+
+Default job storage is `/var/data/state.sqlite3`; accounts live separately in `/var/data/identity.sqlite3`. Existing `/var/data/config/settings.yaml` may continue selecting an existing job database and artifacts. Use absolute paths within the volume and preserve existing inputs. YAML supplies operational source/path settings only. Candidate facts and search constraints/preferences are stored as immutable revisions in the job database and edited in browser Settings. Existing private YAML is never imported or deleted: explicitly back it up before removing obsolete `profile_path` configuration and reviewing/re-entering facts. The Compose service deliberately does not ingest `.env` as worker credentials.
+
+Only configured collection/discovery capabilities launch, and only after owner claim. Collection needs valid source configuration and is independent of candidate, model and notification readiness. The supervisor checks for newly ready collection roles while running; claiming a preconfigured installation needs no restart. Workers freeze a profile/settings snapshot for each task and read the latest revision before the next task. Stale model results cannot publish downstream work after the profile revision changes. Matching, résumé generation and delivery remain inactive in the browser application until their supported task integrations are complete. Saving model credentials is not proof that they work; the separate capability test is explicit. Fresh setup makes no model calls or external notifications.
+
+The browser offers account access, stored jobs, Profile and Job Filters with explicit Save, revision labels and conflict detection, and independent AI Model connection forms. Unknown fields remain unknown; only confirmed facts enter candidate evidence. Saved filters do not yet apply Jev decisions to the job board. Search-run controls and document imports remain later tasks.
 
 ## Dot relay
 
@@ -23,20 +50,10 @@ A separately configured Codex thread heartbeat reads new events, reports opening
 
 Use Apprise directly when latency must avoid the heartbeat interval. Neither route submits applications.
 
-## Inspect and recover
+## Inspect, restart, and preserve data
 
-`status` reports source coverage/completeness, last successes, overdue checks, queue age, bounded failure summaries with task IDs, discovery state and the last 100 opening-handoff latencies. These start at first observation, include backlog age where applicable, and exclude Dot relay delay. They do not measure publication age or human receipt. Exact model token usage is unavailable through the verified upstream contract.
+`docker compose logs app` shows startup and worker exits. `docker compose restart app` reloads operational source/path configuration and preserves the volume. Profile and Job Filters saves require no restart. For a configured worker database, use `docker compose exec app internship-pipeline --config /var/data/config/settings.yaml status` to inspect queue/source state. The existing retry, backup, and collection commands remain available through that executable.
 
-`retry TASK_ID` resets a failed task's attempt budget. Before retrying `ResumeReconciliationRequired`, inspect the saved checkpoint under `artifacts/.checkpoints/` and upstream state. Never delete a pending mutation marker just to unblock a retry: ambiguous job creation has no reliable listing/idempotency endpoint. `ResumeValidationError` requires correcting the source facts or generated content before retrying. A terminal resume failure also queues an actionable notification; destination failures stay visible in `status`.
+For a complete offline backup, stop the app cleanly and copy the entire named volume with host backup tooling, including `identity.sqlite3`, job storage, configuration, source documents, artifacts/checkpoints, and any credential files. Preserve ownership. The existing CLI database-native backup command covers its configured job database only; it is not a complete account/document backup. Never copy just the main SQLite file while live WAL writes continue, and never mix files from different recovery points. Restore only into a stopped instance and preserve the previous volume separately first.
 
-Task ownership uses expiring leases and heartbeats. A stopped worker's task is reclaimed after lease expiry, and stale owners cannot complete its queue row. Notification acknowledgement ambiguity can still yield a duplicate after a crash; exactly-once remote delivery is not promised.
-
-Restart workers after editing profile or configuration files. Set `enabled: false` to disable an explicitly configured company on startup. Discovery candidates are validated daily in their own worker; failed candidates stay inspectable, and directory seeds are not automatically curated or assumed to offer internships. Capped JobSpy queries need explicit narrower location/term partitions; the program reports the coverage limit instead of claiming a full inventory.
-
-## Back up and restore
-
-Run `docker compose run --rm collector backup data/backups/pipeline.sqlite3` for a consistent SQLite backup. Keep an encrypted copy of local profile/company/settings files, master resume, artifacts/checkpoints and the Resume Matcher volume alongside it. Never copy only the main live SQLite file while its WAL is active.
-
-For a coordinated recovery point, stop the five workers, take the SQLite backup, then stop Resume Matcher and copy its volume plus local private/config/artifact directories with host backup tooling. Restart services after the copy. To restore, keep workers stopped, restore all components from the same recovery point, place the backup at `data/pipeline.sqlite3`, ensure no stale WAL/SHM files from a different database remain, verify ownership, then start Resume Matcher and inspect `status` before resuming workers. Preserve existing data separately before replacing anything.
-
-Tests verify a SQLite backup reopens with the same records. Container restart, coordinated volume restore and live resumption remain deployment acceptance gates until exercised on the chosen host.
+Local tests exercise account/session persistence and real supervisor/API restart with a synthetic directory. Docker Compose syntax validates, but image build/run and complete volume restore were not verified on this host because its Docker engine did not respond. Portable-image and coordinated-backup acceptance remain later task gates.
