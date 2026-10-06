@@ -9,6 +9,7 @@ import json
 import os
 import re
 import time
+import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -98,6 +99,26 @@ def _plain_latex(text: str) -> str:
     return text.replace("{", "").replace("}", "")
 
 
+def _pdf_typography(text: str) -> str:
+    return normalized(
+        unicodedata.normalize("NFKC", text)
+        .replace("’", "'")
+        .replace("‘", "'")
+        .replace("–", "-")
+        .replace("—", "-")
+    )
+
+
+def _contains_latex_bullet(text: str, source: str) -> bool:
+    boundary = "\x01"
+    # pypdf can omit spaces only where a TeX formatting command changes glyph runs.
+    marked = re.sub(r"\\(?:textbf|textit|emph|underline)\s*\{", boundary, source)
+    marked = re.sub(r"\\([%&#_$])", r"\1", marked)
+    marked = marked.replace("{", boundary).replace("}", boundary).replace("--", "-")
+    pattern = r"\s*".join(re.escape(_pdf_typography(part)) for part in marked.split(boundary))
+    return bool(re.search(r"(?<!\w)" + pattern + r"(?!\w)", _pdf_typography(text)))
+
+
 def _pdf_text(pdf: bytes, profile: CandidateProfile) -> tuple[str, int]:
     if not pdf.startswith(b"%PDF-"):
         raise ResumeValidationError("LaTeX output is not a PDF")
@@ -130,10 +151,9 @@ class ResumeService:
         *,
         generator: CodexResumeGenerator | None = None,
         compiler: LatexCompiler | None = None,
-        codex_model: str | None = None,
     ):
         self.settings = settings
-        self.generator = generator or CodexResumeGenerator(model=codex_model)
+        self.generator = generator or CodexResumeGenerator(model=settings.resume_model)
         self.compiler = compiler or LatexCompiler()
         self.root = settings.artifact_dir.resolve()
         self.checkpoints = self.root / ".checkpoints"
@@ -218,7 +238,7 @@ class ResumeService:
             if pages != original_pages:
                 raise ResumeValidationError("Tailoring changed the original PDF page count")
             for span in editable_spans(tailored):
-                if normalized(_plain_latex(span.text)) not in text:
+                if not _contains_latex_bullet(text, span.text):
                     raise ResumeValidationError(
                         "Compiled PDF omitted original/tailored bullet content"
                     )
@@ -264,6 +284,7 @@ class ResumeService:
                     "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
                     "tex_sha256": hashlib.sha256(tailored.encode()).hexdigest(),
                     "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
+                    "changes_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
                     "status": "review_needed",
                     "artifact": artifact.model_dump(mode="json"),
                 },
@@ -286,6 +307,8 @@ class ResumeService:
                 != manifest["pdf_sha256"]
                 or hashlib.sha256((output / "resume.tex").read_bytes()).hexdigest()
                 != manifest["tex_sha256"]
+                or hashlib.sha256((output / "changes.json").read_bytes()).hexdigest()
+                != manifest["changes_sha256"]
             ):
                 return None
             return artifact

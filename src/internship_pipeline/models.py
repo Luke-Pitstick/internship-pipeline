@@ -145,6 +145,7 @@ class Settings(Record):
     database_path: Path = Path("data/pipeline.sqlite3")
     artifact_dir: Path = Path("artifacts")
     profile_path: Path = Path("config/profile.local.yaml")
+    resume_model: str = Field(default="gpt-6-luna", min_length=1)
     companies_path: Path = Path("config/companies.local.yaml")
     searches_path: Path | None = None
     resume_matcher_url: str = "http://localhost:3000"

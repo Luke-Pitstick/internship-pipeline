@@ -15,10 +15,10 @@ from test_resumes import match as match_fixture
 from test_resumes import profile as profile_fixture
 from test_resumes import textual_pdf
 
-from internship_pipeline.models import Settings
+from internship_pipeline.models import ResumeArtifact, Settings
 from internship_pipeline.resumes.client import ResumeMatcherError
 from internship_pipeline.resumes.latex import LatexCompiler, apply_plan, editable_spans, load_source
-from internship_pipeline.resumes.service import ResumeService
+from internship_pipeline.resumes.service import ResumeService, _contains_latex_bullet
 from internship_pipeline.resumes.validation import ResumeValidationError
 
 job = job_fixture
@@ -125,6 +125,33 @@ def test_bold_commands_are_preserved_and_unknown_nested_macros_are_not_editable(
     assert len(editable_spans(source)) == 1
 
 
+def test_existing_formatting_commands_cannot_move_within_a_replacement(source, plan, job, profile):
+    source = source.replace("Python", r"\textbf{Python}", 1)
+    plan["edits"][0].update(old=r"\textbf{Python}", new=r"Py\textbf{thon}")
+    with pytest.raises(ResumeValidationError, match="syntax or layout"):
+        apply_plan(source, editable_spans(source), plan, job, profile)
+
+
+def test_comments_are_immutable_and_escaped_percent_multiline_bullets_are_supported(source):
+    commented = source.replace(
+        r"\begin{document}",
+        "\\begin{document}\n% \\resumeItem{This is a commented unsupported factual claim.}",
+    )
+    assert len(editable_spans(commented)) == 2
+    escaped = source.replace("12 synthetic users", "12\\% synthetic\nusers")
+    assert len(editable_spans(escaped)) == 2
+    inline_comment = source.replace("12 synthetic users", "12 synthetic % hidden comment\nusers")
+    assert len(editable_spans(inline_comment)) == 1
+
+
+def test_pdf_comparison_handles_exact_tex_font_boundaries_and_apostrophe_typography():
+    source = r"Validated \textbf{12 TB/week} of data into NCEI's archive."
+    assert _contains_latex_bullet("Validated12 TB/weekof data into NCEI’s archive.", source)
+    assert not _contains_latex_bullet("Validated13 TB/weekof data into NCEI’s archive.", source)
+    assert not _contains_latex_bullet("Validated12 TB/yearof data into NCEI’s archive.", source)
+    assert not _contains_latex_bullet("Validated12TB/weekofdata into NCEI’s archive.", source)
+
+
 def test_generate_compiles_original_source_and_persists_provenance(
     tmp_path, source, plan, job, match, profile
 ):
@@ -135,6 +162,10 @@ def test_generate_compiles_original_source_and_persists_provenance(
     artifact = service.generate(job, match, profile)
     assert compiler.sources == [source, source.replace("serving", "helping")]
     assert artifact.resume_id.startswith("latex-")
+    assert artifact.engine == "original-latex"
+    legacy_record = artifact.model_dump()
+    legacy_record.pop("engine")
+    assert ResumeArtifact.model_validate(legacy_record).engine == "legacy-resume-matcher"
     assert artifact.review_warnings
     output = artifact.pdf_path.parent
     assert (output / "resume.tex").read_text() == compiler.sources[1]
@@ -146,6 +177,10 @@ def test_generate_compiles_original_source_and_persists_provenance(
     artifact.pdf_path.write_bytes(b"corrupt")
     service.generate(job, match, profile)
     assert generator.calls == 1 and len(compiler.sources) == 3
+    (output / "changes.json").unlink()
+    service.generate(job, match, profile)
+    assert generator.calls == 1 and len(compiler.sources) == 4
+    assert json.loads((output / "changes.json").read_text())["changes"][0]["fact_ids"] == ["python"]
 
 
 def test_compile_retry_reuses_verified_plan(tmp_path, source, plan, job, match, profile):
@@ -192,6 +227,14 @@ def test_missing_compiler_is_actionable(source, tmp_path):
         LatexCompiler(str(tmp_path / "missing-tex")).compile(source, time.monotonic() + 2)
 
 
+def test_resume_service_uses_configured_luna_model():
+    assert ResumeService(Settings()).generator.model == "gpt-6-luna"
+    assert (
+        ResumeService(Settings(resume_model="explicit-test-model")).generator.model
+        == "explicit-test-model"
+    )
+
+
 def test_actual_latex_compile_preserves_original_template(
     tmp_path, source, plan, job, match, profile
 ):
@@ -217,3 +260,15 @@ def test_compiler_deadline_kills_child_process_group(tmp_path, source):
     with pytest.raises(ResumeMatcherError, match="deadline"):
         LatexCompiler(str(executable)).compile(source, started + 0.2)
     assert time.monotonic() - started < 3
+
+
+def test_compiler_rejects_tex_reported_overflow_without_exposing_source(tmp_path, source):
+    executable = tmp_path / "overflowing-tex"
+    executable.write_text(
+        f"#!{sys.executable}\nfrom pathlib import Path\n"
+        f"Path('resume.pdf').write_bytes({textual_pdf('Synthetic printable text')!r})\n"
+        "Path('resume.log').write_text('Overfull ' + chr(92) + 'hbox (8pt too wide)')\n"
+    )
+    executable.chmod(0o700)
+    with pytest.raises(ResumeValidationError, match="text overflow"):
+        LatexCompiler(str(executable)).compile(source, time.monotonic() + 5)

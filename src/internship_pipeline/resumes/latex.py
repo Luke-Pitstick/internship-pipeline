@@ -43,6 +43,22 @@ class EditableSpan:
         return {"id": self.id, "text": self.text}
 
 
+def _mask_comments(source: str) -> str:
+    chars = list(source)
+    position = 0
+    while position < len(chars):
+        if chars[position] == "\\":
+            position += 2
+            continue
+        if chars[position] == "%":
+            while position < len(chars) and chars[position] not in "\r\n":
+                chars[position] = " "
+                position += 1
+        else:
+            position += 1
+    return "".join(chars)
+
+
 def _brace_end(source: str, start: int) -> int:
     depth = 0
     position = start
@@ -67,12 +83,13 @@ def _brace_end(source: str, start: int) -> int:
 
 
 def editable_spans(source: str) -> list[EditableSpan]:
-    begin = source.find(r"\begin{document}")
-    end = source.rfind(r"\end{document}")
+    active = _mask_comments(source)
+    begin = active.find(r"\begin{document}")
+    end = active.rfind(r"\end{document}")
     if begin < 0 or end <= begin:
         raise ResumeValidationError("Original source must be a standalone LaTeX document")
     spans: list[EditableSpan] = []
-    for match in re.finditer(r"\\resumeItem\s*\{", source[begin:end]):
+    for match in re.finditer(r"\\resumeItem\s*\{", active[begin:end]):
         start = begin + match.end() - 1
         finish = _brace_end(source, start)
         text = source[start + 1 : finish]
@@ -80,7 +97,7 @@ def editable_spans(source: str) -> list[EditableSpan]:
         commands = re.findall(r"\\([A-Za-z@]+\*?)", text)
         if any(command not in {"textbf", "textit", "emph", "underline"} for command in commands):
             continue
-        if "%" in text or "\n" in text or len(text) < 20:
+        if _mask_comments(text) != text or len(text) < 20:
             continue
         spans.append(EditableSpan(len(spans), start + 1, finish, text))
     if not spans:
@@ -137,7 +154,9 @@ def apply_plan(
             raise ResumeValidationError("Edit lacks supported factual provenance")
         if len(edit.new) != len(edit.old) or not edit.new.strip():
             raise ResumeValidationError("Edit changed the original character count")
-        if TOKEN.findall(edit.old) != TOKEN.findall(edit.new):
+        if [(match.start(), match.group()) for match in TOKEN.finditer(edit.old)] != [
+            (match.start(), match.group()) for match in TOKEN.finditer(edit.new)
+        ]:
             raise ResumeValidationError("Edit changed protected LaTeX syntax or layout")
         if re.findall(r"[.!?](?=\s|$)", edit.old) != re.findall(r"[.!?](?=\s|$)", edit.new):
             raise ResumeValidationError("Edit changed the original sentence punctuation count")
