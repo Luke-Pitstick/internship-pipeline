@@ -1,5 +1,7 @@
 # Stepped implementation plan
 
+> October 6, 2026: this is the historical implementation checklist. The user's new open-source product request supersedes its restriction against a custom dashboard and its old Resume Matcher deployment assumptions. Follow [the open-source plan](../OPEN_SOURCE_PLAN.md) and [repository audit](open-source-step-1.md) for the next changes. Historical checked boxes and live acceptance claims below have not been reclassified as newly verified.
+
 Prepared October 5, 2026. Core implementation and offline acceptance are complete; live deployment/model/delivery verification and the 24-hour trial remain open. See [acceptance-results.md](acceptance-results.md) for evidence and limits. This document is the implementation checklist; [design.md](design.md) contains the supporting architecture and behavior.
 
 ## Delivery rules
