@@ -74,6 +74,11 @@ class DemoGenerator:
         )
 
 
+def synthetic_match(job: Job, profile: CandidateProfile, settings: Settings) -> MatchResult:
+    """Fixed offline result for the explicitly synthetic queue/delivery demonstration."""
+    return MatchResult(fit="possible", eligible=True, fact_ids=[f.id for f in profile.facts])
+
+
 def run_demo(directory: Path) -> dict[str, Any]:
     # A unique child protects previously observed state and makes repeated demos explicit.
     directory = directory / uuid.uuid4().hex[:12]
@@ -112,7 +117,7 @@ def run_demo(directory: Path) -> dict[str, Any]:
     )
     store.ingest("demo", result, profile.revision)
     generator = DemoGenerator(settings.artifact_dir)
-    pipeline = Pipeline(settings, profile, store, resume_service=generator)
+    pipeline = Pipeline(settings, profile, store, resume_service=generator, matcher=synthetic_match)
     pipeline.drain()
     store.ingest("demo", result, profile.revision)
     pipeline.drain()

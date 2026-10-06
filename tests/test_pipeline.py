@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from internship_pipeline.demo import DemoGenerator, run_demo
+from internship_pipeline.demo import DemoGenerator, run_demo, synthetic_match
 from internship_pipeline.models import (
     CandidateProfile,
     ExperienceFact,
@@ -44,7 +44,9 @@ def configured_pipeline(tmp_path: Path) -> tuple[Pipeline, DemoGenerator]:
         profile.revision,
     )
     generator = DemoGenerator(settings.artifact_dir)
-    return Pipeline(settings, profile, store, resume_service=generator), generator
+    return Pipeline(
+        settings, profile, store, resume_service=generator, matcher=synthetic_match
+    ), generator
 
 
 def test_complete_pipeline_and_repeat_are_idempotent(tmp_path: Path) -> None:

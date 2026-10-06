@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
-import hmac
-import json
 import os
 import re
 import sqlite3
@@ -15,17 +12,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from internship_pipeline.config import load_profile, load_settings
-from internship_pipeline.matching import _deterministic_match
+from internship_pipeline.config import load_settings
 from internship_pipeline.models import Job, ResumeArtifact, Settings
 from internship_pipeline.normalization import canonical_url
 
 JOB_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}")
-APPLIED_ROUTE = re.compile(r"/api/jobs/([a-zA-Z0-9_-]{1,128})/applied")
 MAX_JOBS = 1000
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_DESCRIPTION = 30000
@@ -96,9 +90,8 @@ class DashboardUnavailable(RuntimeError):
 
 
 class DashboardAPI:
-    def __init__(self, settings: Settings | Path, token: str) -> None:
+    def __init__(self, settings: Settings | Path) -> None:
         self._configuration = settings
-        self._token = token
         self._lock = threading.Lock()
         self._snapshot: dict[str, Any] | None = None
         self._cached_at = float("-inf")
@@ -108,13 +101,6 @@ class DashboardAPI:
         if isinstance(self._configuration, Settings):
             return self._configuration
         return load_settings(self._configuration)
-
-    def authorized(self, authorization: str | None) -> bool:
-        if not self._token or authorization is None:
-            return False
-        return hmac.compare_digest(
-            authorization.encode("utf-8"), ("Bearer " + self._token).encode("utf-8")
-        )
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -134,20 +120,17 @@ class DashboardAPI:
 
     def jobs(self) -> dict[str, Any]:
         with self._lock:
-            if self._snapshot is not None and time.monotonic() - self._cached_at < 10:
-                return self._snapshot
             try:
                 snapshot = self._read_jobs()
             except Exception as exc:
                 # Failed screening must not return raw inventory or a previously healthy view.
                 self._snapshot = None
-                raise DashboardUnavailable("Job screening is temporarily unavailable") from exc
+                raise DashboardUnavailable("Jobs are temporarily unavailable") from exc
             self._snapshot = snapshot
             self._cached_at = time.monotonic()
             return snapshot
 
     def _read_jobs(self) -> dict[str, Any]:
-        profile = load_profile(self.settings.profile_path)
         now = time.time()
         jobs: list[dict[str, Any]] = []
         screened = 0
@@ -182,14 +165,11 @@ class DashboardAPI:
                 (MAX_JOBS,),
             ):
                 if time.monotonic() > deadline:
-                    raise DashboardUnavailable("Screening timeout")
+                    raise DashboardUnavailable("Inventory timeout")
                 job = Job.model_validate_json(row["data"])
                 screened += 1
                 if row["status"] != "open":
                     screened_applied_closed += 1
-                match = _deterministic_match(job, profile)
-                if not match.accepted or not match.fact_ids or match.role_family is None:
-                    continue
                 if job.id != row["id"] or not JOB_ID.fullmatch(job.id):
                     raise DashboardUnavailable("Invalid job identity")
                 # Validate links without converting original apply endpoints into listing URLs.
@@ -197,14 +177,12 @@ class DashboardAPI:
                 source_url = job.posting.source_url
                 if source_url:
                     canonical_url(source_url)
+                from internship_pipeline.assessments import stored_view
+
+                evaluation = stored_view(connection, job)
+                assessment = evaluation["result"]
                 artifact = self._artifact(connection, job.id)
                 description, description_truncated = plain_description(job.posting.description)
-                reasons = [
-                    reason[:500]
-                    for reason in match.reasons
-                    if not reason.startswith("Candidate fact ")
-                ]
-                reasons.append("Supported candidate experience overlaps with requested skills.")
                 jobs.append(
                     {
                         "id": job.id,
@@ -240,12 +218,15 @@ class DashboardAPI:
                         "applied_at": job.applied_at.isoformat() if job.applied_at else None,
                         "application_status": "applied" if job.applied_at else "not_applied",
                         "event": job.event,
-                        "fit": match.fit,
-                        "role_family": match.role_family.value,
-                        "assessment": "preliminary",
-                        "eligible": match.eligible,
-                        "reasons": reasons,
-                        "unknowns": [item[:500] for item in match.unknowns[:30]],
+                        "fit": assessment["normalized_fit"] if assessment else None,
+                        "role_family": None,
+                        "assessment": assessment["recommendation"]
+                        if assessment
+                        else evaluation["state"],
+                        "evaluation": evaluation,
+                        "eligible": assessment["eligible"] if assessment else None,
+                        "reasons": [],
+                        "unknowns": assessment["uncertainty"] if assessment else [],
                         "resume": {
                             "available": artifact is not None,
                             "download_path": f"/api/resumes/{job.id}" if artifact else None,
@@ -267,7 +248,7 @@ class DashboardAPI:
                 "screened_open": screened - screened_applied_closed,
                 "screened_applied_closed": screened_applied_closed,
                 "limit": MAX_JOBS,
-                "eligible_preliminary": len(jobs),
+                "returned": len(jobs),
             },
             "jobs": jobs,
             "health": {
@@ -278,16 +259,11 @@ class DashboardAPI:
                 "resume_generation_paused": os.getenv("RESUME_GENERATION_PAUSED") == "1",
                 "resume_model": self.settings.resume_model,
                 "resume_reasoning_effort": self.settings.resume_reasoning_effort,
-                "resume_source_connected": bool(
-                    profile.master_resume_path
-                    and profile.master_resume_path.suffix.lower() == ".tex"
-                    and profile.master_resume_path.is_file()
-                ),
                 "note": "SQLite state does not verify inference or local relay delivery.",
             },
         }
 
-    def mark_applied(self, job_id: str) -> dict[str, str] | None:
+    def mark_applied(self, job_id: str, *, applied: bool = True) -> dict[str, str | None] | None:
         """Record a user-confirmed application once, preserving its first recorded date."""
         if not JOB_ID.fullmatch(job_id):
             return None
@@ -309,14 +285,18 @@ class DashboardAPI:
                     job = Job.model_validate_json(row[0])
                     if job.id != job_id:
                         raise DashboardUnavailable("Invalid job identity")
-                    applied_at = job.applied_at or datetime.now(UTC)
-                    if job.applied_at is None:
+                    applied_at = (job.applied_at or datetime.now(UTC)) if applied else None
+                    if job.applied_at != applied_at:
                         job = job.model_copy(update={"applied_at": applied_at})
                         connection.execute(
                             "UPDATE jobs SET data=? WHERE id=?", (job.model_dump_json(), job_id)
                         )
                 self._snapshot = None
-                return {"id": job_id, "status": "applied", "applied_at": applied_at.isoformat()}
+                return {
+                    "id": job_id,
+                    "status": "applied" if applied else "not_applied",
+                    "applied_at": applied_at.isoformat() if applied_at else None,
+                }
             except Exception as exc:
                 raise DashboardUnavailable(
                     "Application tracking is temporarily unavailable"
@@ -383,108 +363,3 @@ class DashboardAPI:
             return pdf if pdf.startswith(b"%PDF-") and len(pdf) <= MAX_PDF_BYTES else None
         except (OSError, sqlite3.Error, ValueError):
             return None
-
-
-def make_handler(api: DashboardAPI) -> type[BaseHTTPRequestHandler]:
-    class Handler(BaseHTTPRequestHandler):
-        def setup(self) -> None:
-            super().setup()
-            self.connection.settimeout(10)
-
-        def respond(
-            self,
-            code: int,
-            body: bytes,
-            mime: str = "application/json",
-            *,
-            filename: str | None = None,
-        ) -> None:
-            self.send_response(code)
-            self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            if filename:
-                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-            self.end_headers()
-            self.wfile.write(body)
-
-        def do_GET(self) -> None:
-            if self.path == "/healthz":
-                self.respond(200, b'{"ok":true}')
-                return
-            if not api.authorized(self.headers.get("Authorization")):
-                self.respond(401, b'{"error":"Unauthorized"}')
-                return
-            if self.path == "/api/jobs":
-                try:
-                    payload = json.dumps(api.jobs(), allow_nan=False).encode()
-                except DashboardUnavailable:
-                    self.respond(503, b'{"error":"Job screening is temporarily unavailable"}')
-                    return
-                self.respond(200, payload)
-            elif self.path.startswith("/api/resumes/"):
-                job_id = self.path.removeprefix("/api/resumes/")
-                pdf = api.resume(job_id)
-                if pdf is None:
-                    self.respond(404, b'{"error":"Resume unavailable"}')
-                else:
-                    self.respond(200, pdf, "application/pdf", filename=f"resume-{job_id}.pdf")
-            else:
-                self.respond(404, b'{"error":"Not found"}')
-
-        def do_POST(self) -> None:
-            if not api.authorized(self.headers.get("Authorization")):
-                self.respond(401, b'{"error":"Unauthorized"}')
-                return
-            route = APPLIED_ROUTE.fullmatch(self.path)
-            if route is None:
-                self.respond(404, b'{"error":"Not found"}')
-                return
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-                content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-                if (
-                    not 0 < length <= 256
-                    or content_type != "application/json"
-                    or self.headers.get("Transfer-Encoding") is not None
-                ):
-                    raise ValueError("Invalid application confirmation")
-                confirmation = json.loads(self.rfile.read(length))
-                if confirmation != {"status": "applied"}:
-                    raise ValueError("Invalid application confirmation")
-            except (ValueError, OSError):
-                self.respond(400, b'{"error":"Expected JSON confirmation: status applied"}')
-                return
-            try:
-                result = api.mark_applied(route[1])
-            except DashboardUnavailable:
-                self.respond(503, b'{"error":"Application tracking is temporarily unavailable"}')
-                return
-            if result is None:
-                self.respond(404, b'{"error":"Job not found"}')
-            else:
-                self.respond(200, json.dumps(result).encode())
-
-        def log_message(self, _format: str, *args: Any) -> None:
-            pass
-
-    return Handler
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("/var/data/config/settings.yaml"))
-    args = parser.parse_args()
-    api = DashboardAPI(args.config, os.getenv("DASHBOARD_API_TOKEN", ""))
-    server = ThreadingHTTPServer(("0.0.0.0", int(os.getenv("PORT", "10000"))), make_handler(api))
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.server_close()
-
-
-if __name__ == "__main__":
-    main()

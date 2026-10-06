@@ -44,6 +44,12 @@ class ExperienceFact(Record):
 
 
 class CandidateProfile(Record):
+    settings_revision: int = 0
+    availability_start: str | None = None
+    availability_end: str | None = None
+    preferred_roles: list[RoleFamily] = Field(default_factory=list)
+    preferred_locations: list[str] = Field(default_factory=list)
+    preferred_skills: list[str] = Field(default_factory=list)
     name: str = ""
     email: str = ""
     constraints: Constraints = Field(default_factory=Constraints)
@@ -144,7 +150,6 @@ class SearchQuery(Record):
 class Settings(Record):
     database_path: Path = Path("data/pipeline.sqlite3")
     artifact_dir: Path = Path("artifacts")
-    profile_path: Path = Path("config/profile.local.yaml")
     resume_model: str = Field(default="gpt-5.6-sol", min_length=1)
     resume_reasoning_effort: Literal["low", "high"] = "low"
     companies_path: Path = Path("config/companies.local.yaml")
@@ -159,6 +164,3 @@ class Settings(Record):
     generation_timeout_seconds: float = Field(default=180, gt=0)
     lease_seconds: int = Field(default=300, ge=30)
     max_attempts: int = Field(default=5, ge=1)
-    llm_base_url: str | None = None
-    llm_model: str | None = None
-    llm_api_key: str | None = Field(default=None, repr=False)

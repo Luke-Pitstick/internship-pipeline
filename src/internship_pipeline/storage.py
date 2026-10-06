@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS matches (
     profile_revision TEXT NOT NULL, result TEXT NOT NULL, created REAL NOT NULL,
     PRIMARY KEY(job_id, content_hash, profile_revision)
 );
+CREATE TABLE IF NOT EXISTS assessments (
+    identity TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id),
+    result TEXT NOT NULL, created REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS assessment_attempts (
+    id INTEGER PRIMARY KEY, identity TEXT NOT NULL, job_id TEXT NOT NULL,
+    started REAL NOT NULL, completed REAL, status TEXT NOT NULL,
+    reserved_tokens INTEGER NOT NULL, input_tokens INTEGER, output_tokens INTEGER
+);
+CREATE INDEX IF NOT EXISTS assessment_attempt_identity ON assessment_attempts(identity);
 CREATE TABLE IF NOT EXISTS artifacts (
     key TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), data TEXT NOT NULL
 );
@@ -413,10 +423,24 @@ class Store:
         return len(jobs)
 
     def save_match(
-        self, job: Job, match: MatchResult, profile_revision: str, destination_ids: list[str]
+        self,
+        job: Job,
+        match: MatchResult,
+        profile_revision: str,
+        destination_ids: list[str],
+        *,
+        settings_revision: int | None = None,
     ) -> None:
         now = utcnow().timestamp()
         with self.transaction() as connection:
+            if (
+                settings_revision is not None
+                and connection.execute(
+                    "SELECT COALESCE(MAX(revision),0) FROM profile_settings_revisions"
+                ).fetchone()[0]
+                != settings_revision
+            ):
+                return
             connection.execute(
                 "INSERT OR REPLACE INTO matches VALUES(?,?,?,?,?)",
                 (job.id, job.content_hash, profile_revision, match.model_dump_json(), now),
@@ -431,6 +455,7 @@ class Store:
                         {
                             "job_id": job.id,
                             "kind": "opening",
+                            "profile_revision": profile_revision,
                             "destination_id": destination,
                             "match": match.model_dump(mode="json"),
                             "opening_revision": job.opening_revision,
@@ -471,9 +496,19 @@ class Store:
         content_hash: str,
         profile_revision: str,
         opening_revision: int,
+        *,
+        settings_revision: int | None = None,
     ) -> None:
         now = utcnow().timestamp()
         with self.transaction() as connection:
+            if (
+                settings_revision is not None
+                and connection.execute(
+                    "SELECT COALESCE(MAX(revision),0) FROM profile_settings_revisions"
+                ).fetchone()[0]
+                != settings_revision
+            ):
+                return
             connection.execute(
                 "INSERT OR REPLACE INTO artifacts VALUES(?,?,?)",
                 (artifact.key, artifact.job_id, artifact.model_dump_json()),

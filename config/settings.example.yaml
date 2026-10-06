@@ -1,7 +1,6 @@
 # Paths are relative to the working directory, not this file.
 database_path: data/pipeline.sqlite3
 artifact_dir: artifacts
-profile_path: config/profile.local.yaml
 companies_path: config/companies.local.yaml
 searches_path: null
 resume_model: gpt-5.6-sol
@@ -17,5 +16,3 @@ request_timeout_seconds: 30
 generation_timeout_seconds: 180
 lease_seconds: 300
 max_attempts: 5
-llm_base_url: null
-llm_model: null

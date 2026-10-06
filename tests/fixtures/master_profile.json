@@ -1,0 +1,14 @@
+{
+  "name": "Synthetic Candidate",
+  "email": "synthetic@example.test",
+  "facts": [
+    {"id": "experience-api", "kind": "experience", "status": "confirmed", "text": "Built a Python API serving 120 synthetic survey requests per day, with 25% less processing time.", "skills": ["Python", "SQL"]},
+    {"id": "project-dashboard", "kind": "project", "status": "confirmed", "text": "Developed an accessible dashboard for synthetic road survey results using React and TypeScript.", "skills": ["React", "TypeScript"]},
+    {"id": "unknown-claim", "kind": "skill", "status": "unknown", "text": "Unverified Rust experience.", "skills": ["Rust"]}
+  ],
+  "education": [
+    {"id": "education-bachelor", "status": "confirmed", "institution": "Example University", "degree": "Bachelor of Science", "field": "Computer Science", "graduation_date": "2027-05-15"},
+    {"id": "education-certificate", "status": "confirmed", "institution": "Synthetic College", "degree": "Certificate", "field": "Data Analysis", "graduation_date": "2024-12-15"},
+    {"id": "education-unknown", "status": "unknown", "institution": "Unconfirmed Institution", "degree": "Unconfirmed Degree", "field": ""}
+  ]
+}

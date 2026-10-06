@@ -46,17 +46,18 @@ class Pipeline:
         resume_service: ResumeGenerator | None = None,
         matcher: Callable[[Job, CandidateProfile, Settings], MatchResult] | None = None,
         notifier: Callable[[str, str, str, Path | None], bool] | None = None,
+        settings_revision: int | None = None,
     ):
-        from internship_pipeline.matching import match_job
         from internship_pipeline.notifications import send_notification
         from internship_pipeline.resumes.service import ResumeService
 
+        self.settings_revision = settings_revision
         self.settings = settings
         self.profile = profile
         self.store = store
         self.queue = Queue(store, settings.lease_seconds, settings.max_attempts)
         self.resume_service = resume_service or ResumeService(settings)
-        self.matcher = matcher or match_job
+        self.matcher = matcher
         self.notifier = notifier or send_notification
         self.destinations = {
             hashlib.sha256(url.encode()).hexdigest()[:16]: url for url in settings.notification_urls
@@ -85,8 +86,20 @@ class Pipeline:
             self.queue.defer(task)
         except Exception as exc:
             # Error bodies from providers can include candidate data, tokens or prompts.
-            error = type(exc).__name__
-            if error in {"ResumeReconciliationRequired", "ResumeValidationError"}:
+            from internship_pipeline.assessments import MAX_ATTEMPTS, EvaluationError
+
+            error = str(exc) if isinstance(exc, EvaluationError) else type(exc).__name__
+            if isinstance(exc, EvaluationError) and error == "evaluation_busy":
+                self.queue.defer(task)
+            elif isinstance(exc, EvaluationError) and task.attempts >= MAX_ATTEMPTS:
+                self.queue.needs_attention(task, error)
+            elif isinstance(exc, EvaluationError) and error not in {
+                "timeout",
+                "provider_unavailable",
+                "rate_limit",
+            }:
+                self.queue.needs_attention(task, error)
+            elif error in {"ResumeReconciliationRequired", "ResumeValidationError"}:
                 self.queue.needs_attention(task, error)
             else:
                 self.queue.fail(task, error)
@@ -116,10 +129,28 @@ class Pipeline:
         job = self.store.get_job(task.payload["job_id"])
         if job.status != "open" or job.applied_at is not None:
             return
+        if self.matcher is None:
+            import os
+
+            from internship_pipeline.assessments import Assessments
+            from internship_pipeline.model_connections import ModelConnectionStore
+
+            root = Path(os.getenv("PIPELINE_DATA_DIR", str(self.settings.database_path.parent)))
+            assessments = Assessments(
+                self.store, ModelConnectionStore(self.store.path, root / "model-credentials.key")
+            )
+            assessments.evaluate(job.id, task.payload.get("assessment_identity"))
+            return
         result = self.store.get_match(job, self.profile.revision)
         if result is None:
             result = self.matcher(job, self.profile, self.settings)
-        self.store.save_match(job, result, self.profile.revision, list(self.destinations))
+        self.store.save_match(
+            job,
+            result,
+            self.profile.revision,
+            list(self.destinations),
+            settings_revision=self.settings_revision,
+        )
 
     def _resume(self, task: Task) -> None:
         job = self.store.get_job(task.payload["job_id"])
@@ -161,6 +192,7 @@ class Pipeline:
             job.content_hash,
             self.profile.revision,
             job.opening_revision,
+            settings_revision=self.settings_revision,
         )
 
     def _deliver(self, task: Task) -> None:
@@ -183,6 +215,11 @@ class Pipeline:
             raise DeliveryFailed("Configured destination has been removed")
         attachment = None
         if task.payload["kind"] == "opening":
+            if (
+                self.settings_revision is not None
+                and task.payload.get("profile_revision") != self.profile.revision
+            ):
+                return
             title, body = opening_message(job, MatchResult.model_validate(task.payload["match"]))
         elif task.payload["kind"] == "failure":
             title = f"Resume needs attention: {job.posting.company} — {job.posting.title}"

@@ -195,7 +195,6 @@ def test_serve_initializes_storage_before_spawning(
         recording_notifications_path=tmp_path / "notifications.jsonl",
     )
     monkeypatch.setattr(cli, "load_settings", lambda _: settings)
-    monkeypatch.setattr(cli, "load_profile", lambda _: None)
 
     def run_workers(_):
         import sqlite3
@@ -216,3 +215,42 @@ def test_resume_pause_keeps_collection_and_delivery_running(
     monkeypatch.setattr(supervisor, "supervise", lambda commands: captured.update(commands) or 0)
     assert supervisor.run_workers(None) == 0
     assert set(captured) == {"collector", "matcher", "delivery", "discovery"}
+
+
+def test_newly_ready_role_starts_without_restarting_existing_worker(tmp_path: Path) -> None:
+    """A newly claimed/configured instance gains workers in its existing process tree."""
+    runner = (
+        "import sys\n"
+        "from pathlib import Path\n"
+        "from internship_pipeline.supervisor import supervise\n"
+        "root = Path(sys.argv[1])\n"
+        'worker = "import os,sys,time; from pathlib import Path; '
+        'Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(60)"\n'
+        "commands = {'web': [sys.executable, '-c', worker, str(root / 'web.ready')]}\n"
+        "def configured():\n"
+        "    result = dict(commands)\n"
+        "    if (root / 'enable').exists():\n"
+        "        result['collector'] = [sys.executable, '-c', worker, "
+        "str(root / 'collector.ready')]\n"
+        "    return result\n"
+        "sys.exit(supervise(commands, shutdown_seconds=1, command_provider=configured))\n"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", runner, str(tmp_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        wait_for(tmp_path / "web.ready", process)
+        web_pid = (tmp_path / "web.ready").read_text()
+        (tmp_path / "enable").touch()
+        wait_for(tmp_path / "collector.ready", process)
+        assert (tmp_path / "web.ready").read_text() == web_pid
+        process.send_signal(signal.SIGTERM)
+        process.communicate(timeout=5)
+        assert process.returncode == 0
+    finally:
+        if process.poll() is None:
+            process.send_signal(signal.SIGTERM)
+            process.communicate(timeout=5)

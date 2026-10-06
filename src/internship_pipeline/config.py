@@ -1,4 +1,4 @@
-"""Load explicit personal configuration without inventing eligibility rules."""
+"""Load operational configuration; candidate/profile preferences live in SQLite."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from internship_pipeline.models import CandidateProfile, Company, SearchQuery, Settings
+from internship_pipeline.models import Company, SearchQuery, Settings
 
 
 class ConfigurationError(ValueError):
@@ -33,14 +33,10 @@ def load_settings(path: Path | None = None) -> Settings:
     env_keys = {
         "PIPELINE_DATABASE_PATH": "database_path",
         "PIPELINE_ARTIFACT_DIR": "artifact_dir",
-        "PIPELINE_PROFILE_PATH": "profile_path",
         "PIPELINE_COMPANIES_PATH": "companies_path",
         "PIPELINE_SEARCHES_PATH": "searches_path",
         "RESUME_MODEL": "resume_model",
         "RESUME_REASONING_EFFORT": "resume_reasoning_effort",
-        "LLM_BASE_URL": "llm_base_url",
-        "LLM_MODEL": "llm_model",
-        "LLM_API_KEY": "llm_api_key",
     }
     for env, key in env_keys.items():
         if value := os.getenv(env):
@@ -56,17 +52,6 @@ def load_settings(path: Path | None = None) -> Settings:
         # Pydantic's normal error text includes inputs, which can contain tokens.
         fields = ", ".join(".".join(map(str, error["loc"])) for error in exc.errors())
         raise ConfigurationError(f"Invalid settings fields: {fields}") from exc
-
-
-def load_profile(path: Path) -> CandidateProfile:
-    try:
-        profile = CandidateProfile.model_validate(read_yaml(path))
-    except ValidationError as exc:
-        raise ConfigurationError("Invalid candidate profile; check the example schema") from exc
-    ids = [fact.id for fact in profile.facts]
-    if len(ids) != len(set(ids)):
-        raise ConfigurationError("Candidate fact IDs must be unique")
-    return profile
 
 
 def load_companies(path: Path) -> list[Company]:

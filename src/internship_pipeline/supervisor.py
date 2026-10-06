@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
 import sys
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import FrameType
 
@@ -22,7 +23,12 @@ def _signal_group(process: subprocess.Popen[bytes], signum: int) -> None:
         pass
 
 
-def supervise(commands: Mapping[str, Sequence[str]], shutdown_seconds: float = 20) -> int:
+def supervise(
+    commands: Mapping[str, Sequence[str]],
+    shutdown_seconds: float = 20,
+    status_path: Path | None = None,
+    command_provider: Callable[[], Mapping[str, Sequence[str]]] | None = None,
+) -> int:
     """Stop every role if one exits; let the service host restart the full service."""
     stop = threading.Event()
 
@@ -32,6 +38,8 @@ def supervise(commands: Mapping[str, Sequence[str]], shutdown_seconds: float = 2
     previous = {sig: signal.signal(sig, request_stop) for sig in (signal.SIGINT, signal.SIGTERM)}
     processes: dict[str, subprocess.Popen[bytes]] = {}
     result = 0
+    last_status_at = float("-inf")
+    last_refresh_at = float("-inf")
     try:
         for role, command in commands.items():
             if stop.is_set():
@@ -44,14 +52,45 @@ def supervise(commands: Mapping[str, Sequence[str]], shutdown_seconds: float = 2
                 stop.set()
                 break
         while not stop.is_set():
+            # Starting newly ready roles does not interrupt work already in flight.
+            # Workers re-read profile/settings between tasks; no container restart.
+            if command_provider and time.monotonic() - last_refresh_at >= 2:
+                last_refresh_at = time.monotonic()
+                for role, command in command_provider().items():
+                    if role not in processes:
+                        try:
+                            processes[role] = subprocess.Popen(command, start_new_session=True)
+                        except OSError as exc:
+                            print(
+                                f"Worker {role} could not start: {type(exc).__name__}",
+                                file=sys.stderr,
+                            )
+                            result = 1
+                            stop.set()
+                            break
             for role, process in processes.items():
                 if (code := process.poll()) is not None:
                     print(f"Worker {role} exited unexpectedly: {code}", file=sys.stderr)
                     result = 1
                     stop.set()
                     break
+            if status_path and time.monotonic() - last_status_at >= 2:
+                temporary = status_path.with_suffix(".tmp")
+                temporary.write_text(
+                    json.dumps(
+                        {
+                            "healthy": not stop.is_set(),
+                            "at": time.time(),
+                            "roles": [role for role in processes if role != "web"],
+                        }
+                    )
+                )
+                temporary.replace(status_path)
+                last_status_at = time.monotonic()
             stop.wait(0.2)
     finally:
+        if status_path:
+            status_path.unlink(missing_ok=True)
         # Signal whole sessions, including collector subprocesses, even if their leader exited.
         for process in processes.values():
             _signal_group(process, signal.SIGTERM)

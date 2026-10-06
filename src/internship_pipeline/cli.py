@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import json
+import os
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,11 +20,11 @@ from internship_pipeline.collection import collect_due, register_targets
 from internship_pipeline.config import (
     ConfigurationError,
     load_companies,
-    load_profile,
     load_searches,
     load_settings,
 )
 from internship_pipeline.models import Company, Settings
+from internship_pipeline.profile_settings import ProfileSettings
 from internship_pipeline.queue import Queue
 from internship_pipeline.storage import Store
 
@@ -35,6 +38,11 @@ def parser() -> argparse.ArgumentParser:
         "--config", type=Path, help="Settings YAML; relative paths use the working directory"
     )
     commands = cli.add_subparsers(dest="command", required=True)
+    for name in ("recover-owner", "setup-token"):
+        account = commands.add_parser(name, help="Local operator account recovery")
+        account.add_argument(
+            "--data-dir", type=Path, default=Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
+        )
     scan = commands.add_parser("scan", help="Run one collection pass and available downstream work")
     scan.add_argument(
         "--once", action="store_true", help="Explicitly select the default one-shot mode"
@@ -45,7 +53,8 @@ def parser() -> argparse.ArgumentParser:
     )
     worker = commands.add_parser("worker", help="Run an independent continuous process")
     worker.add_argument(
-        "role", choices=["collector", "matcher", "resumes", "delivery", "discovery"]
+        "role",
+        choices=["collector", "matcher", "resumes", "delivery", "discovery", "master-resumes"],
     )
     worker.add_argument(
         "--once", action="store_true", help="Process at most one available work item"
@@ -89,8 +98,8 @@ def parser() -> argparse.ArgumentParser:
 def _pipeline(settings: Settings, store: Store) -> Pipeline:
     from internship_pipeline.pipeline import Pipeline
 
-    profile = load_profile(settings.profile_path)
-    return Pipeline(settings, profile, store)
+    profile = ProfileSettings(store).read().candidate()
+    return Pipeline(settings, profile, store, settings_revision=profile.settings_revision)
 
 
 def _require_destination(settings: Settings) -> None:
@@ -108,23 +117,40 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda _signum, _frame: stop.set())
-    _require_destination(settings)
-    pipeline = _pipeline(settings, store)
+    if role in {"delivery", "resumes"}:
+        _require_destination(settings)
     if role == "collector":
         companies = load_companies(settings.companies_path)
         queries = load_searches(settings.searches_path)
         register_targets(store, companies, queries)
     kinds = {"matcher": ["match"], "resumes": ["resume"], "delivery": ["delivery"]}
+    last_reconcile = 0.0
     while not stop.is_set():
-        if role == "discovery":
+        if role == "matcher" and time.monotonic() - last_reconcile > 30:
+            from internship_pipeline.assessments import Assessments
+            from internship_pipeline.model_connections import ModelConnectionStore
+
+            root = Path(os.getenv("PIPELINE_DATA_DIR", str(settings.database_path.parent)))
+            Assessments(
+                store, ModelConnectionStore(store.path, root / "model-credentials.key")
+            ).reconcile()
+            last_reconcile = time.monotonic()
+        # Freeze one immutable snapshot for the whole task; the next task reads fresh state.
+        if role == "master-resumes":
+            from internship_pipeline.resumes.master import MasterResumes
+
+            worked = MasterResumes(store, settings).process_next()
+        elif role == "discovery":
             from internship_pipeline.maintenance import refresh_discovery
 
             asyncio.run(refresh_discovery(store, settings))
             worked = False
         elif role == "collector":
+            pipeline = _pipeline(settings, store)
             asyncio.run(collect_due(store, pipeline.profile, settings))
             worked = False
         else:
+            pipeline = _pipeline(settings, store)
             worked = pipeline.process_next(kinds[role])
         if once:
             break
@@ -136,6 +162,24 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command in {"recover-owner", "setup-token"}:
+            from internship_pipeline.identity import Identity
+
+            identity = Identity(args.data_dir / "identity.sqlite3")
+            if args.command == "setup-token":
+                token = identity.setup_token(rotate=True)
+                if token is None:
+                    print("Instance already claimed; use recover-owner.")
+                    return 2
+                print(f"Owner setup token: {token}")
+            else:
+                username = input("Owner username: ")
+                password = getpass.getpass("New password (12–256 characters): ")
+                if password != getpass.getpass("Confirm password: "):
+                    raise ValueError("Passwords differ")
+                identity.recover(username, password)
+                print("Owner recovered. All previous sessions have been revoked.")
+            return 0
         if args.command == "demo":
             from internship_pipeline.demo import run_demo
 
@@ -147,7 +191,6 @@ def main(argv: list[str] | None = None) -> int:
             from internship_pipeline.supervisor import run_workers
 
             _require_destination(settings)
-            load_profile(settings.profile_path)
             return run_workers(args.config)
         if args.command == "status":
             print(json.dumps(store.health(), indent=2))
@@ -175,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             store.mark_applied(args.job_id)
             print(f"Recorded user-submitted application: {args.job_id}")
         elif args.command == "review-backlog":
-            profile = load_profile(settings.profile_path)
+            profile = ProfileSettings(store).read().candidate()
             print(f"Queued {store.review_backlog(profile.revision)} backlog jobs for review")
         elif args.command == "add-company":
             from internship_pipeline.discovery import validate_company
@@ -216,7 +259,6 @@ def main(argv: list[str] | None = None) -> int:
             count = asyncio.run(refresh_discovery(store, settings, force=True))
             print(f"Enabled {count} verified boards; their first scan establishes a backlog")
         elif args.command == "scan":
-            _require_destination(settings)
             pipeline = _pipeline(settings, store)
             register_targets(
                 store,
