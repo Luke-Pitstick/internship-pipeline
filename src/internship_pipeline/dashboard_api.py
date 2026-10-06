@@ -1,4 +1,4 @@
-"""Read-only, authenticated job and resume access for a private dashboard."""
+"""Authenticated dashboard access and explicit application tracking."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from internship_pipeline.models import Job, ResumeArtifact, Settings
 from internship_pipeline.normalization import canonical_url
 
 JOB_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}")
+APPLIED_ROUTE = re.compile(r"/api/jobs/([a-zA-Z0-9_-]{1,128})/applied")
 MAX_JOBS = 1000
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_DESCRIPTION = 30000
@@ -150,6 +151,7 @@ class DashboardAPI:
         now = time.time()
         jobs: list[dict[str, Any]] = []
         screened = 0
+        screened_applied_closed = 0
         with self.connection() as connection:
             raw_count = connection.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
             queues = [
@@ -175,6 +177,7 @@ class DashboardAPI:
             deadline = time.monotonic() + 10
             for row in connection.execute(
                 "SELECT id,data,status,first_seen,last_seen FROM jobs WHERE status='open' "
+                "OR json_extract(data,'$.applied_at') IS NOT NULL "
                 "ORDER BY first_seen DESC LIMIT ?",
                 (MAX_JOBS,),
             ):
@@ -182,6 +185,8 @@ class DashboardAPI:
                     raise DashboardUnavailable("Screening timeout")
                 job = Job.model_validate_json(row["data"])
                 screened += 1
+                if row["status"] != "open":
+                    screened_applied_closed += 1
                 match = _deterministic_match(job, profile)
                 if not match.accepted or not match.fact_ids or match.role_family is None:
                     continue
@@ -232,6 +237,8 @@ class DashboardAPI:
                         "last_seen": row["last_seen"],
                         "last_seen_age_seconds": max(0, int(now - row["last_seen"])),
                         "status": row["status"],
+                        "applied_at": job.applied_at.isoformat() if job.applied_at else None,
+                        "application_status": "applied" if job.applied_at else "not_applied",
                         "event": job.event,
                         "fit": match.fit,
                         "role_family": match.role_family.value,
@@ -257,7 +264,8 @@ class DashboardAPI:
             "observed_at": datetime.fromtimestamp(now, UTC).isoformat(),
             "scope": {
                 "raw_collected": raw_count,
-                "screened_open": screened,
+                "screened_open": screened - screened_applied_closed,
+                "screened_applied_closed": screened_applied_closed,
                 "limit": MAX_JOBS,
                 "eligible_preliminary": len(jobs),
             },
@@ -271,6 +279,44 @@ class DashboardAPI:
                 "note": "SQLite state does not verify inference or local relay delivery.",
             },
         }
+
+    def mark_applied(self, job_id: str) -> dict[str, str] | None:
+        """Record a user-confirmed application once, preserving its first recorded date."""
+        if not JOB_ID.fullmatch(job_id):
+            return None
+        with self._lock:
+            connection = None
+            try:
+                connection = sqlite3.connect(
+                    self.settings.database_path.resolve().as_uri() + "?mode=rw",
+                    uri=True,
+                    timeout=2,
+                )
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    row = connection.execute(
+                        "SELECT data FROM jobs WHERE id=?", (job_id,)
+                    ).fetchone()
+                    if row is None:
+                        return None
+                    job = Job.model_validate_json(row[0])
+                    if job.id != job_id:
+                        raise DashboardUnavailable("Invalid job identity")
+                    applied_at = job.applied_at or datetime.now(UTC)
+                    if job.applied_at is None:
+                        job = job.model_copy(update={"applied_at": applied_at})
+                        connection.execute(
+                            "UPDATE jobs SET data=? WHERE id=?", (job.model_dump_json(), job_id)
+                        )
+                self._snapshot = None
+                return {"id": job_id, "status": "applied", "applied_at": applied_at.isoformat()}
+            except Exception as exc:
+                raise DashboardUnavailable(
+                    "Application tracking is temporarily unavailable"
+                ) from exc
+            finally:
+                if connection is not None:
+                    connection.close()
 
     def _artifact_path(self, artifact: ResumeArtifact) -> Path | None:
         try:
@@ -334,6 +380,10 @@ class DashboardAPI:
 
 def make_handler(api: DashboardAPI) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            super().setup()
+            self.connection.settimeout(10)
+
         def respond(
             self,
             code: int,
@@ -375,6 +425,39 @@ def make_handler(api: DashboardAPI) -> type[BaseHTTPRequestHandler]:
                     self.respond(200, pdf, "application/pdf", filename=f"resume-{job_id}.pdf")
             else:
                 self.respond(404, b'{"error":"Not found"}')
+
+        def do_POST(self) -> None:
+            if not api.authorized(self.headers.get("Authorization")):
+                self.respond(401, b'{"error":"Unauthorized"}')
+                return
+            route = APPLIED_ROUTE.fullmatch(self.path)
+            if route is None:
+                self.respond(404, b'{"error":"Not found"}')
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                if (
+                    not 0 < length <= 256
+                    or content_type != "application/json"
+                    or self.headers.get("Transfer-Encoding") is not None
+                ):
+                    raise ValueError("Invalid application confirmation")
+                confirmation = json.loads(self.rfile.read(length))
+                if confirmation != {"status": "applied"}:
+                    raise ValueError("Invalid application confirmation")
+            except (ValueError, OSError):
+                self.respond(400, b'{"error":"Expected JSON confirmation: status applied"}')
+                return
+            try:
+                result = api.mark_applied(route[1])
+            except DashboardUnavailable:
+                self.respond(503, b'{"error":"Application tracking is temporarily unavailable"}')
+                return
+            if result is None:
+                self.respond(404, b'{"error":"Job not found"}')
+            else:
+                self.respond(200, json.dumps(result).encode())
 
         def log_message(self, _format: str, *args: Any) -> None:
             pass

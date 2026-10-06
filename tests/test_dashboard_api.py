@@ -129,6 +129,7 @@ def test_jobs_use_shared_matching_without_exposing_candidate_facts(api: Dashboar
     assert data["scope"] == {
         "raw_collected": 5,
         "screened_open": 5,
+        "screened_applied_closed": 0,
         "limit": 1000,
         "eligible_preliminary": 1,
     }
@@ -286,6 +287,49 @@ def test_bearer_auth_is_exact_and_missing_token_fails_closed(api: DashboardAPI) 
     assert not DashboardAPI(api.settings, "").authorized("Bearer ")
 
 
+def test_mark_applied_is_idempotent_and_invalidates_cached_jobs(api: DashboardAPI) -> None:
+    assert api.jobs()["jobs"][0]["applied_at"] is None
+    first = api.mark_applied("relevant")
+    assert first is not None
+    assert first["status"] == "applied"
+    assert api.mark_applied("relevant") == first
+    current = api.jobs()["jobs"][0]
+    assert current["applied_at"] == first["applied_at"]
+    assert current["application_status"] == "applied"
+    with sqlite3.connect(api.settings.database_path) as connection:
+        stored = Job.model_validate_json(
+            connection.execute("SELECT data FROM jobs WHERE id='relevant'").fetchone()[0]
+        )
+    assert stored.applied_at is not None
+    assert stored.applied_at.isoformat() == first["applied_at"]
+    assert api.mark_applied("unknown") is None
+    assert api.mark_applied("../relevant") is None
+
+
+def test_applied_jobs_remain_visible_after_source_closes(api: DashboardAPI) -> None:
+    api.mark_applied("relevant")
+    with sqlite3.connect(api.settings.database_path) as connection:
+        data = json.loads(
+            connection.execute("SELECT data FROM jobs WHERE id='relevant'").fetchone()[0]
+        )
+        data["status"] = "closed"
+        connection.execute(
+            "UPDATE jobs SET status='closed',data=? WHERE id='relevant'", (json.dumps(data),)
+        )
+    data = api.jobs()
+    assert data["jobs"][0]["status"] == "closed"
+    assert data["jobs"][0]["application_status"] == "applied"
+    assert data["scope"]["screened_applied_closed"] == 1
+    assert data["scope"]["screened_open"] == 4
+
+
+def test_mark_applied_does_not_create_missing_database(api: DashboardAPI) -> None:
+    api.settings.database_path.unlink()
+    with pytest.raises(DashboardUnavailable):
+        api.mark_applied("relevant")
+    assert not api.settings.database_path.exists()
+
+
 @pytest.fixture
 def server(api: DashboardAPI) -> Iterator[ThreadingHTTPServer]:
     instance = ThreadingHTTPServer(("127.0.0.1", 0), dashboard_api.make_handler(api))
@@ -300,11 +344,20 @@ def server(api: DashboardAPI) -> Iterator[ThreadingHTTPServer]:
 
 
 def request(
-    server: ThreadingHTTPServer, path: str, auth: str | None = None
+    server: ThreadingHTTPServer,
+    path: str,
+    auth: str | None = None,
+    *,
+    method: str = "GET",
+    body: bytes | None = None,
+    content_type: str = "application/json",
 ) -> tuple[int, dict, bytes]:
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
     try:
-        connection.request("GET", path, headers={"Authorization": auth} if auth else {})
+        headers = {"Authorization": auth} if auth else {}
+        if body is not None:
+            headers["Content-Type"] = content_type
+        connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
         return response.status, dict(response.getheaders()), response.read()
     finally:
@@ -346,3 +399,57 @@ def test_api_boots_without_private_config_and_keeps_health_public(tmp_path: Path
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_post_application_confirmation_requires_auth_and_preserves_date(
+    server: ThreadingHTTPServer, api: DashboardAPI
+) -> None:
+    path = "/api/jobs/relevant/applied"
+    payload = b'{"status":"applied"}'
+    assert request(server, path, method="POST", body=payload)[0] == 401
+    assert request(server, path, "Bearer wrong", method="POST", body=payload)[0] == 401
+    assert api.jobs()["jobs"][0]["applied_at"] is None
+    status, _, body = request(server, path, "Bearer " + TOKEN, method="POST", body=payload)
+    assert status == 200
+    first = json.loads(body)
+    assert first["id"] == "relevant" and first["status"] == "applied"
+    assert request(server, path, "Bearer " + TOKEN, method="POST", body=payload)[2] == body
+    assert (
+        request(
+            server, "/api/jobs/unknown/applied", "Bearer " + TOKEN, method="POST", body=payload
+        )[0]
+        == 404
+    )
+    assert (
+        request(server, "/api/jobs/%2e%2e/applied", "Bearer " + TOKEN, method="POST", body=payload)[
+            0
+        ]
+        == 404
+    )
+    assert (
+        request(
+            server, "/api/jobs/relevant/delete", "Bearer " + TOKEN, method="POST", body=payload
+        )[0]
+        == 404
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"",
+        b"not json",
+        b"{}",
+        b'{"status":"not_applied"}',
+        b'{"status":"applied","applied_at":"2000-01-01"}',
+        b"x" * 257,
+    ],
+)
+def test_post_rejects_uncontrolled_application_updates(
+    server: ThreadingHTTPServer, api: DashboardAPI, body: bytes
+) -> None:
+    response = request(
+        server, "/api/jobs/relevant/applied", "Bearer " + TOKEN, method="POST", body=body
+    )
+    assert response[0] == 400
+    assert api.jobs()["jobs"][0]["applied_at"] is None
