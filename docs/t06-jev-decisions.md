@@ -1,6 +1,6 @@
 # T06 — authoritative persisted Jev decisions
 
-Implemented October 6, 2026. The owner can queue a stored open/unapplied job, and the configured matcher consumes the existing SQLite task queue. Collection remains independent; jobs GET performs read-only SQLite queries and never invokes a provider. Production regex rejection, general-chat matching, their prompt, and obsolete LLM_* infrastructure settings are removed. Explicit synthetic demo/test injection preserves the old queue/delivery safeguards without enabling production résumé or notification work (T12/T14).
+Implemented October 6, 2026. The owner can queue a stored open/unapplied job, and the configured matcher consumes the existing SQLite task queue. Collection remains independent; jobs GET performs read-only SQLite queries and never invokes a provider. Production regex rejection, general-chat matching, their prompt, and obsolete LLM_* infrastructure settings are removed. Synthetic matcher injection verifies matching queue safeguards only; the obsolete delivery/demo path is removed. T12 generation and T14 email use independent durable work.
 
 ## Inputs, results and invalidation
 

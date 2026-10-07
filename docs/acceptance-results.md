@@ -1,5 +1,7 @@
 # Acceptance results — October 5, 2026
 
+> Historical October 5 evidence and design. The current product uses persisted Jev assessments, authenticated master/tailored drafts, optional encrypted SMTP and independent Google Sheets sync. Resume Matcher, the opening/Dot/recording coordinator and the CLI demo are removed; see [current integration contracts](integration-contracts.md) and [cleanup evidence](integration-cleanup.md).
+
 ## Verified
 
 - 195 offline tests pass on Python 3.12, including supported/unknown eligibility, all four role families, source baselines, cross-source identity, conflicting requisitions, partial inventories, closures/reopenings, description edits, durable leases, retries, backup restoration, generation checkpoints, protected facts, unsupported qualifications, unreadable PDFs, stale artifact suppression, per-site cooldown grouping and local Dot outbox idempotency.

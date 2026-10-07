@@ -1,6 +1,6 @@
 # Internship Pipeline task breakdown
 
-Drafted October 6, 2026 from the [product plan](../OPEN_SOURCE_PLAN.md), [repository audit](open-source-step-1.md), and [feature wishlist](../FEATURE_WISHLIST.md). This is a local execution plan, not published tracker issues or new Codex chats. See the [completion audit](completion-audit.md) for evidence and remaining requirements. T01 and T02 completed their bounded experiments; T02 did not validate automatic rejection. T04 and T05 delivered their implementation slices; T05 live-provider acceptance remains open as explicitly assigned below. T03's implementation is present, but actual container acceptance remains blocked. T06, T10, and T11 have completed implementation handoffs; T06 records 535 integrated Python tests plus browser checks. T07, T09, and T12 are now assigned and in progress. Other tasks remain pending. T03 actual container acceptance remains blocked on the Docker engine.
+Drafted October 6, 2026 from the [product plan](../OPEN_SOURCE_PLAN.md), [repository audit](open-source-step-1.md), and [feature wishlist](../FEATURE_WISHLIST.md). This is a local execution plan, not published tracker issues or new Codex chats. See the [completion audit](completion-audit.md) for evidence and remaining requirements. T01 and T02 completed their bounded experiments; T02 did not validate automatic rejection. T04 and T05 delivered their implementation slices; T05 live-provider acceptance remains open as explicitly assigned below. T03's implementation is present, but actual container acceptance remains blocked. T06, T10, and T11 have completed implementation handoffs; T06 records 535 integrated Python tests plus browser checks. T07 and T09 have completed implementation handoffs. T12 remains partial pending removal of obsolete pipeline references, now assigned to the T13 worker before downstream work. T08, T13, T14, T15 and T17 are assigned to GPT-6.1 Sol high workers as described below. Other tasks remain pending. T03 actual container acceptance remains blocked on the Docker engine.
 
 Each task should produce a demonstrable behavior or a bounded experiment with recorded results. Work any task whose blockers are complete; numbering gives a suggested order, not an additional dependency. Keep the existing SQLite store, queue, supervisor, collectors, source identity rules, and useful résumé safeguards. Remove superseded implementations when their replacement works; do not introduce compatibility layers or a second task queue.
 
@@ -103,7 +103,7 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T07 — Run a real search without notification prerequisites
 
-**Status:** in progress — `/root/t07_search_workflow`, GPT-6.1 Sol, medium reasoning. Complete all criteria and integrated verification before handoff; external verification blockers remain explicitly open.
+**Status:** Implementation handoff complete; see t07-search-workflow.md. Fresh-container and combined live-provider Milestone A acceptance remain unverified.
 
 **Blocked by:** T06 — Persist and display authoritative Jev decisions.
 
@@ -119,6 +119,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T08 — Manage saved searches, schedules, and run progress
 
+**Status:** Implementation handoff complete; evidence in t08-saved-searches.md.
+
 **Blocked by:** T07 — Run a real search without notification prerequisites.
 
 **Delivers:** users can manage multiple saved searches and supported sources, schedule or pause them, and inspect run history.
@@ -132,7 +134,7 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T09 — Sort, review, and track jobs in the dashboard
 
-**Status:** in progress — `/root/t09_jobs_workspace`, GPT-6.1 Sol, medium reasoning. Complete all criteria and integrated verification before handoff; external verification blockers remain explicitly open.
+**Status:** Implementation complete; see t09-jobs-workspace.md for API/browser/performance evidence.
 
 **Blocked by:** T06 — Persist and display authoritative Jev decisions.
 
@@ -171,7 +173,7 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T12 — Generate a job-specific résumé with the configured LLM
 
-**Status:** in progress — `/root/t12_tailored_resumes`, GPT-6.1 Sol, medium reasoning. Complete all criteria and integrated verification before handoff; external verification blockers remain explicitly open.
+**Status:** Partial integration: replacement generator is tested, but obsolete pipeline imports/wiring must be removed by /root/t13_generation_policy_high before T13/T17 proceed. Live OpenAI and Docker verification remain blocked.
 
 **Blocked by:** T05 — Configure and test Jev and the general LLM; T06 — Persist and display authoritative Jev decisions; T11 — Render a master résumé from confirmed profile facts.
 
@@ -186,6 +188,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T13 — Control automatic résumé generation separately from filtering
 
+**Status:** Policy implementation handoff complete; integration_cleanup_high owns residual legacy-delivery removal and combined regression verification.
+
 **Blocked by:** T07 — Run a real search without notification prerequisites; T12 — Generate a job-specific résumé with the configured LLM.
 
 **Delivers:** Resume Generation settings control whether and for which jobs the system creates drafts automatically.
@@ -197,6 +201,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T14 — Configure email alerts and digests
 
+**Status:** Implementation handoff complete; live SMTP acceptance remains blocked pending credentials and authorized send.
+
 **Blocked by:** T05 — Configure and test Jev and the general LLM (secret storage); T07 — Run a real search without notification prerequisites.
 
 **Delivers:** users can connect an email destination, send a test, and receive either qualifying-job alerts or scheduled digests.
@@ -207,6 +213,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 - [ ] Deliver available PDFs only when requested and supported; job alerts work before any résumé exists.
 
 ### T15 — Connect a spreadsheet and sync job records safely
+
+**Status:** Implementation handoff complete; live Sheets acceptance remains blocked pending credentials and authorized remote test.
 
 **Blocked by:** T05 — Configure and test Jev and the general LLM (secret storage); T07 — Run a real search without notification prerequisites.
 
@@ -221,6 +229,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T16 — Complete guided setup and settings navigation
 
+**Status:** In progress — /root/t16_guided_setup_high; GPT-6.1 Sol high. Complete resumable browser setup and explicit skip/correction paths; actual live/container acceptance must be labeled separately.
+
 **Blocked by:** T07 — Run a real search without notification prerequisites; T10 — Import PDF/DOCX résumés into a reviewed profile; T14 — Configure email alerts and digests; T15 — Connect a spreadsheet and sync job records safely.
 
 **Delivers:** a coherent first-run wizard that resumes across visits and ends on the first useful search result.
@@ -232,6 +242,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 - [ ] Verify the complete journey on a fresh volume with only the browser and user-supplied credentials.
 
 ### T17 — Add useful diagnostics and complete backup/restore
+
+**Status:** Native implementation/acceptance complete; actual container interruption/restore remains blocked and assigned to t18_container_release_high.
 
 **Blocked by:** T07 — Run a real search without notification prerequisites; T12 — Generate a job-specific résumé with the configured LLM.
 
@@ -246,6 +258,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T18 — Publish portable, versioned container images
 
+**Status:** Assigned preparation and T03/T17 prerequisite verification — /root/t18_container_release_high; GPT-6.1 Sol high. Full acceptance/publication remains gated by T16, container runtime and verified platform evidence.
+
 **Blocked by:** T12 — Generate a job-specific résumé with the configured LLM; T16 — Complete guided setup and settings navigation; T17 — Add useful diagnostics and complete backup/restore.
 
 **Delivers:** a tagged image can run the complete application on each declared supported architecture and runtime.
@@ -258,6 +272,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 - [ ] Document database-version compatibility and preservation/recovery behavior; do not promise downgrade compatibility or silently reset data.
 
 ### T19 — Install with one hosted command
+
+**Status:** preparation assigned October 7, 2026 — `/root/t19_installer_high`, GPT-6.1 Sol high. Installer preparation with explicit versioned image input; live install/hosting acceptance waits for T18.
 
 **Blocked by:** T18 — Publish portable, versioned container images.
 
@@ -272,6 +288,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 
 ### T20 — Manage the installation from a reusable command
 
+**Status:** preparation assigned October 7, 2026 — `/root/t20_management_high`, GPT-6.1 Sol high. Management command preparation after agreeing the T19 manifest contract; live lifecycle acceptance waits for a verified image and installation.
+
 **Blocked by:** T19 — Install with one hosted command; T17 — Add useful diagnostics and complete backup/restore.
 
 **Delivers:** the installed management command can start, stop, inspect, and troubleshoot an existing installation without repeating setup.
@@ -282,6 +300,8 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 - [ ] Preserve the persistent volume across stop/start, and document backup/restore and explicit image-update procedures.
 
 ### T21 — Complete release acceptance and open-source documentation
+
+**Status:** preparation assigned October 7, 2026 — `/root/t21_release_readiness_high`, GPT-6.1 Sol high. Documentation and release-readiness review only; release acceptance remains gated by upstream image/install/runtime/live-provider evidence.
 
 **Blocked by:** T02 — Validate Jev eligibility and scoring; T08 — Manage saved searches, schedules, and run progress; T09 — Sort, review, and track jobs; T13 — Control automatic résumé generation; T18 — Publish portable images; T20 — Manage the installation. Earlier dependencies transitively include profile import, manual generation, both integrations, onboarding, and recovery.
 
@@ -300,3 +320,7 @@ Each task should produce a demonstrable behavior or a bounded experiment with re
 Start with T01 and T02, which have no code dependencies. Proceed through T03–T07 for the first complete product. T09, T10, T11, T14, and T15 can be taken when their listed blockers are satisfied; they do not need to wait for every lower-numbered task. This describes dependency options, not authorization to launch multiple agents or chats.
 
 Tracker publication, effort estimates, and external issue numbers remain unassigned. Current agent ownership and outstanding handoff work are recorded in the completion audit.
+
+## October 7 execution boundary
+
+The native integrated suite passed 525 Python tests, six default browser tests and one dedicated setup journey. Actual image acceptance remains blocked: the Colima engine became responsive, but its build paused with a root-disk nospace error; the test-started runtime is stopped. T19–T21 are authorized for independent preparation only. No image, hosting URL, supported-runtime certification or live release acceptance is implied by simulated installer/management tests. Restoring sufficient disk capacity or supplying a healthy authorized build host remains necessary before the image gate can pass.

@@ -1,5 +1,7 @@
 # Internship search pipeline — build plan
 
+> Historical October 5 evidence and design. The current product uses persisted Jev assessments, authenticated master/tailored drafts, optional encrypted SMTP and independent Google Sheets sync. Resume Matcher, the opening/Dot/recording coordinator and the CLI demo are removed; see [current integration contracts](integration-contracts.md) and [cleanup evidence](integration-cleanup.md).
+
 Prepared October 5, 2026. Status: proposed implementation; nothing deployed.
 
 ## Outcome

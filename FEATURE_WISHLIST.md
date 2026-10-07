@@ -88,3 +88,19 @@ Let users start installation with a single curl command pointing to a hosted ins
 - Which operating systems and container runtimes will be supported initially?
 - What will the installer URL and installed management command be called?
 - Which pipeline status details should the management tool display?
+
+## 4. Recruiters and points of contact for each job
+
+Show up to two relevant recruiters or hiring contacts alongside each job the pipeline finds, so users can reach out by email or LinkedIn. Return fewer contacts, or none, when the evidence is insufficient.
+
+- First look for contacts explicitly named in the posting or linked recruiting material, then look for company recruiters whose hiring area matches the role, location, or internship program.
+- Show each contact's name, title, company, available professional email or LinkedIn profile link, and why they appear relevant to the job.
+- Distinguish a confirmed contact for the specific opening from a recruiter who is relevant at the company level. Include a recruiting team inbox when no suitable person is found, clearly labeled as a shared contact.
+- Attach source links, evidence dates when available, and the last checked date. Show recent recruiting activity separately from evidence of current employment; neither alone proves ownership of the opening.
+- Label email verification separately from contact relevance. Do not invent addresses or present unverified email patterns as confirmed contact details.
+- Provide links for users to open an email draft or visit a LinkedIn profile and initiate outreach themselves.
+- Let users add or correct contacts and flag stale or irrelevant results.
+- Make contact discovery configurable, with enrichment performed independently of job collection so missing contacts or provider failures do not prevent jobs from appearing.
+- Reuse company-level research across postings and support discovery on request to keep search and enrichment costs manageable.
+
+Research and implementation guidance: [Recruiter contact feasibility](docs/recruiter-contact-research.md).
