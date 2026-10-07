@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from pdf_fixtures import textual_pdf
 from pypdf import PdfReader
 from test_owner_app import claim
-from test_resumes import textual_pdf
 
 from internship_pipeline.app import create_app
 from internship_pipeline.models import Settings

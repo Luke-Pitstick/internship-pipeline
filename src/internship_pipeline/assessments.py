@@ -18,6 +18,8 @@ from internship_pipeline.model_connections import ConnectionError, ModelConnecti
 from internship_pipeline.models import Job, Record
 from internship_pipeline.profile_settings import ProfileSettings, Snapshot
 from internship_pipeline.providers.connections import ConnectionInput, metadata
+from internship_pipeline.run_limits import RunLimitError, finish, run_admission
+from internship_pipeline.run_limits import reserve as reserve_run
 from internship_pipeline.storage import Store, enqueue
 
 Outcome = Literal["satisfied", "violated", "not_stated", "ambiguous"]
@@ -30,7 +32,7 @@ MAX_RESPONSE_BYTES = 131_072
 
 def rubric_revision() -> str:
     digest = hashlib.sha256(json.dumps(RUBRIC, sort_keys=True).encode()).hexdigest()
-    return RUBRIC["version"] + ":" + digest
+    return cast(str, RUBRIC["version"]) + ":" + digest
 
 
 class Answer(Record):
@@ -453,6 +455,9 @@ class Assessments:
         """Queue current identities periodically; no model calls or collection dependency."""
         for job in self.store.list_jobs():
             if job.status == "open" and job.applied_at is None:
+                with self.store.connection() as db:
+                    if not run_admission(db, job.id):
+                        continue
                 try:
                     self.enqueue(job.id)
                 except EvaluationError as exc:
@@ -527,6 +532,10 @@ class Assessments:
                 raise EvaluationError("evaluation_budget_exhausted")
             if active:
                 raise EvaluationError("evaluation_busy")
+            try:
+                reservation = reserve_run(db, job.id, "assessment", reserve)
+            except RunLimitError as exc:
+                raise EvaluationError(str(exc)) from None
             cursor = db.execute(
                 "INSERT INTO assessment_attempts(identity,job_id,started,status,"
                 "reserved_tokens) VALUES(?,?,?,'pending',?)",
@@ -562,6 +571,7 @@ class Assessments:
             raise EvaluationError("invalid_output") from None
         finally:
             with self.store.transaction() as db:
+                finish(db, reservation, status, *usage)
                 db.execute(
                     "UPDATE assessment_attempts SET completed=?,status=?,input_tokens=?,"
                     "output_tokens=? WHERE id=?",

@@ -6,7 +6,6 @@ import hashlib
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -126,17 +125,6 @@ class MatchResult(Record):
         return self.fit in {"strong", "possible"} and self.eligible is not False
 
 
-class ResumeArtifact(Record):
-    key: str
-    job_id: str
-    pdf_path: Path
-    resume_id: str
-    engine: str = "legacy-resume-matcher"
-    change_summary: list[str] = Field(default_factory=list)
-    review_warnings: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=utcnow)
-
-
 class SearchQuery(Record):
     id: str
     search_term: str
@@ -150,13 +138,8 @@ class SearchQuery(Record):
 class Settings(Record):
     database_path: Path = Path("data/pipeline.sqlite3")
     artifact_dir: Path = Path("artifacts")
-    resume_model: str = Field(default="gpt-5.6-sol", min_length=1)
-    resume_reasoning_effort: Literal["low", "high"] = "low"
     companies_path: Path = Path("config/companies.local.yaml")
     searches_path: Path | None = None
-    notification_urls: list[str] = Field(default_factory=list, repr=False)
-    recording_notifications_path: Path | None = None
-    dot_outbox_path: Path | None = None
     priority_interval_seconds: int = Field(default=300, ge=120)
     standard_interval_seconds: int = Field(default=900, ge=300)
     search_interval_seconds: int = Field(default=3600, ge=1800)

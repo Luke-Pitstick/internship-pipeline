@@ -192,7 +192,6 @@ def test_serve_initializes_storage_before_spawning(
 
     settings = Settings(
         database_path=tmp_path / "state.sqlite3",
-        recording_notifications_path=tmp_path / "notifications.jsonl",
     )
     monkeypatch.setattr(cli, "load_settings", lambda _: settings)
 
@@ -205,16 +204,6 @@ def test_serve_initializes_storage_before_spawning(
 
     monkeypatch.setattr(supervisor, "run_workers", run_workers)
     assert cli.main(["serve"]) == 3
-
-
-def test_resume_pause_keeps_collection_and_delivery_running(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured = {}
-    monkeypatch.setenv("RESUME_GENERATION_PAUSED", "1")
-    monkeypatch.setattr(supervisor, "supervise", lambda commands: captured.update(commands) or 0)
-    assert supervisor.run_workers(None) == 0
-    assert set(captured) == {"collector", "matcher", "delivery", "discovery"}
 
 
 def test_newly_ready_role_starts_without_restarting_existing_worker(tmp_path: Path) -> None:

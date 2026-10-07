@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from test_dashboard_api import api as dashboard_fixture
-from test_dashboard_api import register_pdf
 
 from internship_pipeline import cli
 from internship_pipeline.app import create_app
@@ -181,60 +180,33 @@ def test_login_throttles_survive_restart(client: TestClient) -> None:
         Identity(client.app.state.identity.path).attempt("testclient")
 
 
-def test_private_pdf_and_explicit_applied_undo(client: TestClient, api) -> None:
-    path = api.settings.artifact_dir / "resume.pdf"
-    path.write_bytes(b"%PDF-1.7\nsynthetic")
-    register_pdf(api, path)
-    assert client.get("/api/resumes/relevant").status_code == 401
-    headers = claim(client)
-    download = client.get("/api/resumes/relevant")
-    assert download.content == path.read_bytes()
-    assert download.headers["cache-control"] == "no-store"
-    assert api.mark_applied("unknown") is None
-    jobs = client.get("/api/jobs").json()["jobs"]
-    assert all(job["applied_at"] is None for job in jobs)
-    assert client.post("/api/jobs/relevant/applied", json={"status": "applied"}).status_code == 403
-    first = client.post(
-        "/api/jobs/relevant/applied", headers=headers, json={"status": "applied"}
-    ).json()
-    assert first["applied_at"]
-    assert (
-        client.post(
+def test_owner_sessions_and_jobs_persist_and_recovery_revokes(
+    tmp_path: Path, api, monkeypatch
+) -> None:
+    app = create_app(tmp_path, origin="http://localhost:8080", settings=api.settings)
+    with TestClient(app, base_url="http://localhost:8080") as client:
+        headers = claim(client)
+        first = client.post(
             "/api/jobs/relevant/applied", headers=headers, json={"status": "applied"}
         ).json()
-        == first
-    )
-    for invalid in ({}, {"status": "arbitrary"}, {"status": "applied", "applied_at": "2000"}):
-        assert (
-            client.post("/api/jobs/relevant/applied", headers=headers, json=invalid).status_code
-            == 422
-        )
-    undone = client.post(
-        "/api/jobs/relevant/applied", headers=headers, json={"status": "not_applied"}
-    ).json()
-    assert undone["applied_at"] is None
-    assert client.get("/api/resumes/unknown").status_code == 404
-
-
-def test_owner_sessions_and_jobs_persist_and_recovery_revokes(
-    client: TestClient, api, monkeypatch
-) -> None:
-    headers = claim(client)
-    first = client.post(
-        "/api/jobs/relevant/applied", headers=headers, json={"status": "applied"}
-    ).json()
-    old_session = client.cookies.get("pipeline_session")
-    identity = Identity(client.app.state.identity.path)
-    assert identity.claimed() and identity.session(old_session)["authenticated"]
-    assert api.mark_applied("relevant") == first
-    monkeypatch.setattr("builtins.input", lambda _: "recovered-owner")
-    monkeypatch.setattr("getpass.getpass", lambda _: "recovered-password-123")
-    assert cli.main(["recover-owner", "--data-dir", str(identity.path.parent)]) == 0
-    assert client.get("/api/jobs").status_code == 401
+        old_session = client.cookies.get("pipeline_session")
+        identity = Identity(app.state.identity.path)
+        assert identity.claimed() and identity.session(old_session)["authenticated"]
+        assert api.mark_applied("relevant") == first
+        monkeypatch.setattr("builtins.input", lambda _: "recovered-owner")
+        monkeypatch.setattr("getpass.getpass", lambda _: "recovered-password-123")
+        # Recovery is an offline operator action and must reject an active application.
+        assert cli.main(["recover-owner", "--data-dir", str(tmp_path)]) == 2
+        assert identity.login("owner", PASSWORD) is not None
+        assert identity.login("recovered-owner", "recovered-password-123") is None
+    assert cli.main(["recover-owner", "--data-dir", str(tmp_path)]) == 0
     assert identity.login("owner", PASSWORD) is None
     assert identity.login("recovered-owner", "recovered-password-123") is not None
     assert identity.setup_token(rotate=True) is None
     assert api.mark_applied("relevant") == first
+    with TestClient(app, base_url="http://localhost:8080") as restarted:
+        restarted.cookies.set("pipeline_session", old_session)
+        assert restarted.get("/api/jobs").status_code == 401
 
 
 def test_secure_cookie_and_origin_configuration(tmp_path: Path) -> None:
@@ -264,4 +236,6 @@ def test_readiness_distinguishes_missing_assets_db_and_supervisor(tmp_path: Path
 
 
 def test_unconfigured_worker_capabilities_remain_inactive(tmp_path: Path) -> None:
-    assert configured_roles(Settings(companies_path=tmp_path / "absent")) == []
+    assert configured_roles(
+        Settings(database_path=tmp_path / "state.db", companies_path=tmp_path / "absent")
+    ) == ["search-runs", "email-delivery", "sheets-sync"]

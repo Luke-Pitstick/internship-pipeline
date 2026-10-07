@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import re
 import sqlite3
-import stat
 import threading
 import time
 from collections.abc import Iterator
@@ -16,18 +14,12 @@ from pathlib import Path
 from typing import Any
 
 from internship_pipeline.config import load_settings
-from internship_pipeline.models import Job, ResumeArtifact, Settings
+from internship_pipeline.models import Job, Settings
 from internship_pipeline.normalization import canonical_url
 
 JOB_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}")
-MAX_JOBS = 1000
 MAX_PDF_BYTES = 10 * 1024 * 1024
 MAX_DESCRIPTION = 30000
-SAFE_REVIEW_WARNINGS = {
-    "Changed custom-section claims require factual review",
-    "Semantic grounding is unverified; review rewritten claims against factual experience",
-    "Text origin outside the page requires visual review",
-}
 
 
 class _DescriptionText(HTMLParser):
@@ -64,27 +56,6 @@ def plain_description(raw: str) -> tuple[str, bool]:
     return text[:MAX_DESCRIPTION], len(raw) > MAX_DESCRIPTION * 3 or len(text) > MAX_DESCRIPTION
 
 
-def review_warnings(artifact: ResumeArtifact | None) -> list[str]:
-    if artifact is None:
-        return []
-    warnings = [item for item in artifact.review_warnings if item in SAFE_REVIEW_WARNINGS]
-    if any(item not in SAFE_REVIEW_WARNINGS for item in artifact.review_warnings):
-        warnings.append("Additional stored review warnings need private review of the PDF.")
-    return list(dict.fromkeys(warnings))[:10]
-
-
-def resume_status(artifact: ResumeArtifact | None) -> str:
-    if artifact is not None:
-        return (
-            "draft_requires_review"
-            if artifact.engine == "original-latex"
-            else "legacy_preview_requires_review"
-        )
-    return (
-        "awaiting_latex_source" if os.getenv("RESUME_GENERATION_PAUSED") == "1" else "not_generated"
-    )
-
-
 class DashboardUnavailable(RuntimeError):
     """Return a generic unavailable response without private configuration details."""
 
@@ -92,6 +63,9 @@ class DashboardUnavailable(RuntimeError):
 class DashboardAPI:
     def __init__(self, settings: Settings | Path) -> None:
         self._configuration = settings
+        from internship_pipeline.job_workspace import initialize
+
+        initialize(self.settings.database_path)
         self._lock = threading.Lock()
         self._snapshot: dict[str, Any] | None = None
         self._cached_at = float("-inf")
@@ -118,19 +92,58 @@ class DashboardAPI:
         finally:
             connection.close()
 
-    def jobs(self) -> dict[str, Any]:
+    def jobs(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        view: str = "All",
+        sort: str = "postedAt",
+        direction: str = "desc",
+        selected: str | None = None,
+    ) -> dict[str, Any]:
         with self._lock:
             try:
-                snapshot = self._read_jobs()
+                return self._read_jobs(
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    view=view,
+                    sort=sort,
+                    direction=direction,
+                    selected=selected,
+                )
+            except ValueError:
+                raise
             except Exception as exc:
-                # Failed screening must not return raw inventory or a previously healthy view.
-                self._snapshot = None
                 raise DashboardUnavailable("Jobs are temporarily unavailable") from exc
-            self._snapshot = snapshot
-            self._cached_at = time.monotonic()
-            return snapshot
 
-    def _read_jobs(self) -> dict[str, Any]:
+    def detail(self, job_id: str) -> dict[str, Any] | None:
+        if not JOB_ID.fullmatch(job_id):
+            return None
+        result = self.jobs(selected=job_id)
+        selected: dict[str, Any] | None = result["selected"]
+        return selected
+
+    def update_workspace(self, job_id: str, body: dict[str, Any]) -> dict[str, Any] | None:
+        if not JOB_ID.fullmatch(job_id):
+            return None
+        from internship_pipeline.job_workspace import update
+
+        return update(self.settings.database_path, job_id, body)
+
+    def _read_jobs(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        search: str,
+        view: str,
+        sort: str,
+        direction: str,
+        selected: str | None,
+    ) -> dict[str, Any]:
         now = time.time()
         jobs: list[dict[str, Any]] = []
         screened = 0
@@ -157,13 +170,36 @@ class DashboardAPI:
                     (now - 60,),
                 ).fetchone()
             )
+            from internship_pipeline import job_workspace
+
+            ids, total, page = job_workspace.page(
+                connection,
+                number=page,
+                size=page_size,
+                search=search,
+                view=view,
+                sort=sort,
+                direction=direction,
+            )
+            row_ids = list(
+                dict.fromkeys(
+                    [*ids, *([selected] if selected and JOB_ID.fullmatch(selected) else [])]
+                )
+            )
             deadline = time.monotonic() + 10
-            for row in connection.execute(
-                "SELECT id,data,status,first_seen,last_seen FROM jobs WHERE status='open' "
-                "OR json_extract(data,'$.applied_at') IS NOT NULL "
-                "ORDER BY first_seen DESC LIMIT ?",
-                (MAX_JOBS,),
-            ):
+            placeholders = ",".join("?" for _ in row_ids) or "NULL"
+            rows = {
+                r["id"]: r
+                for r in connection.execute(
+                    "SELECT id,data,status,first_seen,last_seen FROM jobs WHERE id IN "
+                    f"({placeholders})",
+                    row_ids,
+                )
+            }
+            for job_id in row_ids:
+                if job_id not in rows:
+                    continue
+                row = rows[job_id]
                 if time.monotonic() > deadline:
                     raise DashboardUnavailable("Inventory timeout")
                 job = Job.model_validate_json(row["data"])
@@ -181,11 +217,11 @@ class DashboardAPI:
 
                 evaluation = stored_view(connection, job)
                 assessment = evaluation["result"]
-                artifact = self._artifact(connection, job.id)
                 description, description_truncated = plain_description(job.posting.description)
                 jobs.append(
                     {
                         "id": job.id,
+                        "workspace": job_workspace.state(connection, job.id),
                         "company": job.posting.company,
                         "title": job.posting.title,
                         "description": description,
@@ -227,14 +263,6 @@ class DashboardAPI:
                         "eligible": assessment["eligible"] if assessment else None,
                         "reasons": [],
                         "unknowns": assessment["uncertainty"] if assessment else [],
-                        "resume": {
-                            "available": artifact is not None,
-                            "download_path": f"/api/resumes/{job.id}" if artifact else None,
-                            "created_at": artifact.created_at.isoformat() if artifact else None,
-                            "engine": artifact.engine if artifact else None,
-                            "review_warnings": review_warnings(artifact),
-                            "status": resume_status(artifact),
-                        },
                     }
                 )
         failed = sum(row["count"] for row in queues if row["status"] == "failed")
@@ -247,19 +275,26 @@ class DashboardAPI:
                 "raw_collected": raw_count,
                 "screened_open": screened - screened_applied_closed,
                 "screened_applied_closed": screened_applied_closed,
-                "limit": MAX_JOBS,
+                "limit": page_size,
                 "returned": len(jobs),
             },
-            "jobs": jobs,
+            "jobs": [job for job in jobs if job["id"] in ids],
+            "selected": next((job for job in jobs if job["id"] == selected), None),
+            "pagination": {
+                "total": total,
+                "page": page,
+                "pages": max(1, (total + page_size - 1) // page_size),
+                "page_size": page_size,
+            },
             "health": {
                 "status": health,
                 "sources": sources,
                 "queues": queues,
                 "oldest_work_age_seconds": None if oldest is None else max(0, int(now - oldest)),
-                "resume_generation_paused": os.getenv("RESUME_GENERATION_PAUSED") == "1",
-                "resume_model": self.settings.resume_model,
-                "resume_reasoning_effort": self.settings.resume_reasoning_effort,
-                "note": "SQLite state does not verify inference or local relay delivery.",
+                "note": (
+                    "SQLite state does not verify model-provider health or "
+                    "remote email/Sheets acceptance."
+                ),
             },
         }
 
@@ -304,62 +339,3 @@ class DashboardAPI:
             finally:
                 if connection is not None:
                     connection.close()
-
-    def _artifact_path(self, artifact: ResumeArtifact) -> Path | None:
-        try:
-            root = self.settings.artifact_dir.resolve(strict=True)
-            if self.settings.artifact_dir.is_symlink() or not root.is_dir():
-                return None
-            path = artifact.pdf_path.resolve(strict=True)
-            if not path.is_relative_to(root) or path.suffix.lower() != ".pdf":
-                return None
-            for candidate in (artifact.pdf_path, *artifact.pdf_path.parents):
-                if candidate.is_symlink():
-                    return None
-                if candidate == root:
-                    break
-            info = path.stat()
-            if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= MAX_PDF_BYTES:
-                return None
-            with path.open("rb") as source:
-                if source.read(5) != b"%PDF-":
-                    return None
-            return path
-        except OSError:
-            return None
-
-    def _artifact(self, connection: sqlite3.Connection, job_id: str) -> ResumeArtifact | None:
-        for row in connection.execute(
-            "SELECT key,job_id,data FROM artifacts WHERE job_id=? "
-            "ORDER BY json_extract(data,'$.created_at') DESC LIMIT 20",
-            (job_id,),
-        ):
-            try:
-                artifact = ResumeArtifact.model_validate_json(row["data"])
-            except ValueError:
-                continue
-            if artifact.key != row["key"] or artifact.job_id != row["job_id"]:
-                continue
-            if self._artifact_path(artifact) is not None:
-                return artifact
-        return None
-
-    def resume(self, job_id: str) -> bytes | None:
-        if not JOB_ID.fullmatch(job_id):
-            return None
-        try:
-            with self.connection() as connection:
-                if not connection.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
-                    return None
-                artifact = self._artifact(connection, job_id)
-            if artifact is None or (path := self._artifact_path(artifact)) is None:
-                return None
-            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-            with os.fdopen(descriptor, "rb") as source:
-                info = os.fstat(source.fileno())
-                if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= MAX_PDF_BYTES:
-                    return None
-                pdf = source.read(MAX_PDF_BYTES + 1)
-            return pdf if pdf.startswith(b"%PDF-") and len(pdf) <= MAX_PDF_BYTES else None
-        except (OSError, sqlite3.Error, ValueError):
-            return None

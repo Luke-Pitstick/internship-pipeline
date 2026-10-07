@@ -17,7 +17,7 @@ from pypdf import PdfReader
 from internship_pipeline.models import Settings, utcnow
 from internship_pipeline.profile_settings import ProfileSettings, Snapshot
 from internship_pipeline.queue import Queue, Task
-from internship_pipeline.resumes.errors import ResumeMatcherError
+from internship_pipeline.resumes.errors import DocumentCompileTimeout
 from internship_pipeline.resumes.latex import LatexCompiler
 from internship_pipeline.resumes.master_template import (
     MAX_PAGES,
@@ -36,7 +36,7 @@ class MasterConflict(ValueError):
 
 def validate_master_pdf(content: bytes, snapshot: Snapshot, document: MasterDocument) -> int:
     candidate = snapshot.candidate().model_copy(update={"max_resume_pages": MAX_PAGES})
-    report = validate_pdf(content, candidate, {})
+    report = validate_pdf(content, candidate)
     if report.warnings:
         raise ResumeValidationError("Text extends outside the page. Shorten saved facts and retry.")
     reader = PdfReader(io.BytesIO(content), strict=True)
@@ -238,7 +238,7 @@ class MasterResumes:
                     "or remove entries and save, then generate again."
                 )
             self.queue.needs_attention(task, message)
-        except ResumeMatcherError:
+        except DocumentCompileTimeout:
             self.queue.needs_attention(
                 task,
                 "PDF compilation timed out. Shorten facts and retry; "

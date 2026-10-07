@@ -118,24 +118,17 @@ def test_stale_aggregator_cannot_reopen_authoritatively_closed_job(tmp_path: Pat
     assert store.get_job(job.id).event == "reopened"
 
 
-def test_match_and_downstream_tasks_are_idempotent(tmp_path: Path) -> None:
+def test_match_persistence_never_queues_integration_work(tmp_path: Path) -> None:
     store = setup_store(tmp_path / "db.sqlite")
     job = store.ingest("acme", FetchResult(jobs=[posting()]), "p1", NOW)[0]
     match = MatchResult(fit="possible", eligible=None)
-    store.save_match(job, match, "p1", ["telegram-id"])
-    store.save_match(job, match, "p1", ["telegram-id"])
-    assert store.health()["tasks"] == {"pending": 2}
+    store.save_match(job, match, "p1")
+    store.save_match(job, match, "p1")
+    assert store.health()["tasks"] == {}
+    assert store.get_match(job, "p1") == match
     assert store.get_job(job.id).applied_at is None
     store.mark_applied(job.id)
     assert store.get_job(job.id).applied_at is not None
-
-
-def test_backup_is_restorable(tmp_path: Path) -> None:
-    store = setup_store(tmp_path / "db.sqlite")
-    job = store.ingest("acme", FetchResult(jobs=[posting()]), "p1", NOW)[0]
-    backup = tmp_path / "backup.sqlite"
-    store.backup(backup)
-    assert Store(backup).get_job(job.id) == job
 
 
 def test_generic_apply_url_cannot_merge_different_requisitions(tmp_path: Path) -> None:

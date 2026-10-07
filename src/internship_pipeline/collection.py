@@ -103,6 +103,11 @@ async def collect_due(
             store.finish_target(target_id, due.timestamp(), result, finished.timestamp())
             return len(jobs)
 
-    targets = store.targets()
+    # Browser sources are manual runs until T08 introduces explicit schedules.
+    targets = [
+        target
+        for target in store.targets()
+        if not str(target["id"]).startswith("company:browser-greenhouse-")
+    ]
     results = await asyncio.gather(*(collect(target) for target in targets))
     return sum(results)

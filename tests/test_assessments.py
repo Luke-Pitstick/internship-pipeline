@@ -336,10 +336,23 @@ def test_cached_assessment_invalidates_and_stale_task_makes_no_call(tmp_path):
 def test_readiness_is_independent_and_requires_tested_current_jev(tmp_path):
     service, job = setup(tmp_path)
     settings = Settings(database_path=service.store.path, companies_path=tmp_path / "missing")
-    assert configured_roles(settings) == ["master-resumes", "matcher"]
+    assert configured_roles(settings) == [
+        "search-runs",
+        "email-delivery",
+        "sheets-sync",
+        "master-resumes",
+        "tailored-resumes",
+        "matcher",
+    ]
     revision = service.connections.summary()["jev"]["revision"]
     service.connections.remove("jev", revision)
-    assert configured_roles(settings) == ["master-resumes"]
+    assert configured_roles(settings) == [
+        "search-runs",
+        "email-delivery",
+        "sheets-sync",
+        "master-resumes",
+        "tailored-resumes",
+    ]
     with pytest.raises(EvaluationError, match="configuration_required"):
         service.enqueue(job.id)
 

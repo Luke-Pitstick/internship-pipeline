@@ -1,3 +1,5 @@
 """Safe document compilation failures."""
-class ResumeMatcherError(RuntimeError):
+
+
+class DocumentCompileTimeout(RuntimeError):
     pass

@@ -52,6 +52,10 @@ class ModelConnectionStore:
                 );
             """)
             existing = db.execute("SELECT 1 FROM model_credentials LIMIT 1").fetchone()
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master")}
+            for table in ("email_config", "sheets_config"):
+                if table in tables and db.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone():
+                    existing = True
         if not key_path.exists():
             if existing:
                 raise ConnectionError("Restore model-credentials.key from your private backup.")
@@ -83,13 +87,14 @@ class ModelConnectionStore:
             db.close()
 
     def _latest(self, db: sqlite3.Connection, kind: Kind) -> sqlite3.Row | None:
-        return db.execute(
+        row: sqlite3.Row | None = db.execute(
             "SELECT * FROM model_revisions WHERE kind=? ORDER BY revision DESC LIMIT 1", (kind,)
         ).fetchone()
+        return row
 
-    def summary(self) -> dict[str, Any]:
+    def summary(self) -> dict[str, dict[str, Any]]:
         with self.connection() as db:
-            result = {}
+            result: dict[str, dict[str, Any]] = {}
             for kind in ("jev", "general"):
                 row = self._latest(db, kind)
                 revision = row["revision"] if row else 0

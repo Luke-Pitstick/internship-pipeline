@@ -18,9 +18,15 @@ def test_configured_collection_does_not_require_models_or_notifications(tmp_path
     companies = tmp_path / "companies.yaml"
     companies.write_text("[]")
     settings = Settings(database_path=tmp_path / "state.sqlite3", companies_path=companies)
-    assert configured_roles(settings) == ["collector", "discovery"]
+    assert configured_roles(settings) == [
+        "search-runs",
+        "email-delivery",
+        "sheets-sync",
+        "collector",
+        "discovery",
+    ]
     settings = settings.model_copy(update={"companies_path": tmp_path / "absent"})
-    assert configured_roles(settings) == []
+    assert configured_roles(settings) == ["search-runs", "email-delivery", "sheets-sync"]
 
 
 def test_real_supervisor_setup_restart_and_graceful_shutdown(tmp_path: Path) -> None:
@@ -83,7 +89,14 @@ def test_real_supervisor_setup_restart_and_graceful_shutdown(tmp_path: Path) -> 
                         assert result.status_code == 200
                     assert client.get("/api/jobs").json()["jobs"] == []
                     assert client.get("/api/session").json()["authenticated"] is True
-                    assert client.get("/api/status").json()["worker_roles"] == []
+                    worker_deadline = time.monotonic() + 10
+                    while client.get("/api/status").json()["worker_roles"] != [
+                        "search-runs",
+                        "email-delivery",
+                        "sheets-sync",
+                    ]:
+                        assert time.monotonic() < worker_deadline
+                        time.sleep(0.05)
                 finally:
                     process.terminate()
                     process.wait(timeout=10)

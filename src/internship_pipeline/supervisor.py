@@ -13,7 +13,16 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import FrameType
 
-ROLES = ("collector", "matcher", "resumes", "delivery", "discovery")
+ROLES = (
+    "collector",
+    "matcher",
+    "discovery",
+    "search-runs",
+    "master-resumes",
+    "tailored-resumes",
+    "email-delivery",
+    "sheets-sync",
+)
 
 
 def _signal_group(process: subprocess.Popen[bytes], signum: int) -> None:
@@ -114,9 +123,4 @@ def run_workers(config: Path | None) -> int:
     base = [sys.executable, "-m", "internship_pipeline.cli"]
     if config is not None:
         base.extend(["--config", str(config.resolve())])
-    roles = [
-        role
-        for role in ROLES
-        if not (role == "resumes" and os.environ.get("RESUME_GENERATION_PAUSED") == "1")
-    ]
-    return supervise({role: [*base, "worker", role] for role in roles})
+    return supervise({role: [*base, "worker", role] for role in ROLES})

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import threading
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -30,7 +31,13 @@ class Queue:
         self.lease_seconds = lease_seconds
         self.max_attempts = max_attempts
 
-    def claim(self, kinds: list[str], now: float | None = None) -> Task | None:
+    def claim(
+        self,
+        kinds: list[str],
+        now: float | None = None,
+        *,
+        guard: Callable[[sqlite3.Connection, sqlite3.Row], bool] | None = None,
+    ) -> Task | None:
         now = utcnow().timestamp() if now is None else now
         if not kinds:
             return None
@@ -41,17 +48,24 @@ class Queue:
                 "WHERE status='running' AND lease_until<=? AND attempts>=?",
                 (now, now, self.max_attempts),
             )
-            row = connection.execute(
-                f"SELECT * FROM tasks WHERE kind IN ({placeholders}) AND attempts<? AND "
-                "((status='pending' AND available_at<=?) OR "
-                "(status='running' AND lease_until<=?)) ORDER BY "
-                "CASE WHEN created<=? THEN 0 "
-                "WHEN kind='resume' AND json_extract(payload,'$.match.fit')='strong' THEN 1 "
-                "ELSE 2 END,available_at,id LIMIT 1",
-                (*kinds, self.max_attempts, now, now, now - 300),
-            ).fetchone()
-            if row is None:
-                return None
+            while True:
+                row = connection.execute(
+                    f"SELECT * FROM tasks WHERE kind IN ({placeholders}) AND attempts<? AND "
+                    "((status='pending' AND available_at<=?) OR "
+                    "(status='running' AND lease_until<=?)) ORDER BY "
+                    "CASE WHEN created<=? THEN 0 "
+                    "ELSE 2 END,available_at,id LIMIT 1",
+                    (*kinds, self.max_attempts, now, now, now - 300),
+                ).fetchone()
+                if row is None:
+                    return None
+                if guard is None or guard(connection, row):
+                    break
+                connection.execute(
+                    "UPDATE tasks SET status='cancelled',error='Automation disabled or job "
+                    "no longer qualifies',lease_until=NULL,updated=? WHERE id=?",
+                    (now, row["id"]),
+                )
             token = uuid.uuid4().hex
             connection.execute(
                 "UPDATE tasks SET status='running',attempts=attempts+1,token=?,"

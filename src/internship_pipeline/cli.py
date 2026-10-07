@@ -8,6 +8,7 @@ import getpass
 import json
 import os
 import signal
+import sqlite3
 import sys
 import threading
 import time
@@ -54,7 +55,16 @@ def parser() -> argparse.ArgumentParser:
     worker = commands.add_parser("worker", help="Run an independent continuous process")
     worker.add_argument(
         "role",
-        choices=["collector", "matcher", "resumes", "delivery", "discovery", "master-resumes"],
+        choices=[
+            "collector",
+            "matcher",
+            "discovery",
+            "master-resumes",
+            "search-runs",
+            "tailored-resumes",
+            "email-delivery",
+            "sheets-sync",
+        ],
     )
     worker.add_argument(
         "--once", action="store_true", help="Process at most one available work item"
@@ -86,12 +96,14 @@ def parser() -> argparse.ArgumentParser:
         "--seed", action="store_true", help="Persist candidates for daily validation"
     )
     commands.add_parser("refresh-discovery", help="Validate pending candidate boards now")
-    backup = commands.add_parser("backup", help="Create a consistent SQLite backup")
+    backup = commands.add_parser("backup", help="Back up a stopped complete installation")
     backup.add_argument("destination", type=Path)
-    demo = commands.add_parser(
-        "demo", help="Run a synthetic offline example; sends no external messages"
+    backup.add_argument(
+        "--data-dir", type=Path, default=Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
     )
-    demo.add_argument("--directory", type=Path, default=Path("data/demo"))
+    restore = commands.add_parser("restore", help="Restore into a new installation directory")
+    restore.add_argument("source", type=Path)
+    restore.add_argument("destination", type=Path)
     return cli
 
 
@@ -102,28 +114,14 @@ def _pipeline(settings: Settings, store: Store) -> Pipeline:
     return Pipeline(settings, profile, store, settings_revision=profile.settings_revision)
 
 
-def _require_destination(settings: Settings) -> None:
-    if (
-        not settings.notification_urls
-        and settings.recording_notifications_path is None
-        and settings.dot_outbox_path is None
-    ):
-        raise ConfigurationError(
-            "Configure notification_urls, dot_outbox_path, or a recording transport first"
-        )
-
-
 def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda _signum, _frame: stop.set())
-    if role in {"delivery", "resumes"}:
-        _require_destination(settings)
     if role == "collector":
         companies = load_companies(settings.companies_path)
         queries = load_searches(settings.searches_path)
         register_targets(store, companies, queries)
-    kinds = {"matcher": ["match"], "resumes": ["resume"], "delivery": ["delivery"]}
     last_reconcile = 0.0
     while not stop.is_set():
         if role == "matcher" and time.monotonic() - last_reconcile > 30:
@@ -136,7 +134,50 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
             ).reconcile()
             last_reconcile = time.monotonic()
         # Freeze one immutable snapshot for the whole task; the next task reads fresh state.
-        if role == "master-resumes":
+        if role == "search-runs":
+            from internship_pipeline.search_runs import SearchRuns
+
+            worked = asyncio.run(SearchRuns(store).process_next(settings))
+        elif role == "tailored-resumes":
+            from internship_pipeline.resumes.tailored import TailoredResumes
+
+            service = TailoredResumes(store, settings)
+            if time.monotonic() - last_reconcile > 30:
+                from internship_pipeline.generation_policy import GenerationPolicies
+
+                GenerationPolicies(service).reconcile()
+                last_reconcile = time.monotonic()
+            worked = service.process_next()
+        elif role == "email-delivery":
+            from internship_pipeline.email_integrations import EmailIntegrations
+            from internship_pipeline.model_connections import ModelConnectionStore
+            from internship_pipeline.resumes.tailored import TailoredResumes
+
+            root = Path(os.getenv("PIPELINE_DATA_DIR", str(settings.database_path.parent)))
+            drafts = TailoredResumes(store, settings)
+
+            def pdf(job_id: str, drafts: TailoredResumes = drafts) -> bytes | None:
+                value = drafts.latest(job_id)
+                return drafts.pdf(value["key"]) if value.get("download_url") else None
+
+            email = EmailIntegrations(
+                store,
+                ModelConnectionStore(store.path, root / "model-credentials.key"),
+                pdf_provider=pdf,
+            )
+            email.schedule()
+            worked = email.process_next()
+        elif role == "sheets-sync":
+            from internship_pipeline.model_connections import ModelConnectionStore
+            from internship_pipeline.sheets_integration import SheetsIntegration
+
+            root = Path(os.getenv("PIPELINE_DATA_DIR", str(settings.database_path.parent)))
+            sheets = SheetsIntegration(
+                store, ModelConnectionStore(store.path, root / "model-credentials.key")
+            )
+            sheets.schedule()
+            worked = sheets.process_next()
+        elif role == "master-resumes":
             from internship_pipeline.resumes.master import MasterResumes
 
             worked = MasterResumes(store, settings).process_next()
@@ -146,12 +187,12 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
             asyncio.run(refresh_discovery(store, settings))
             worked = False
         elif role == "collector":
-            pipeline = _pipeline(settings, store)
-            asyncio.run(collect_due(store, pipeline.profile, settings))
+            profile = ProfileSettings(store).read().candidate()
+            asyncio.run(collect_due(store, profile, settings))
             worked = False
         else:
             pipeline = _pipeline(settings, store)
-            worked = pipeline.process_next(kinds[role])
+            worked = pipeline.process_next(["match"])
         if once:
             break
         if not worked:
@@ -159,9 +200,22 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command in {"backup", "restore"}:
+            from internship_pipeline.app import runtime_settings
+            from internship_pipeline.operations import backup_installation, restore_installation
+
+            if args.command == "backup":
+                config = args.config or args.data_dir / "config/settings.yaml"
+                result = backup_installation(
+                    args.data_dir, runtime_settings(args.data_dir, config), args.destination
+                )
+            else:
+                result = restore_installation(args.source, args.destination)
+            print(json.dumps(result))
+            return 0
         if args.command in {"recover-owner", "setup-token"}:
             from internship_pipeline.identity import Identity
 
@@ -180,17 +234,11 @@ def main(argv: list[str] | None = None) -> int:
                 identity.recover(username, password)
                 print("Owner recovered. All previous sessions have been revoked.")
             return 0
-        if args.command == "demo":
-            from internship_pipeline.demo import run_demo
-
-            print(json.dumps(run_demo(args.directory), indent=2))
-            return 0
         settings = load_settings(args.config)
         store = Store(settings.database_path)
         if args.command == "serve":
             from internship_pipeline.supervisor import run_workers
 
-            _require_destination(settings)
             return run_workers(args.config)
         if args.command == "status":
             print(json.dumps(store.health(), indent=2))
@@ -211,9 +259,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "retry":
             count = Queue(store).retry_failed(args.task_id)
             print(f"Queued {count} failed tasks for retry")
-        elif args.command == "backup":
-            store.backup(args.destination)
-            print(f"Database backup saved: {args.destination}")
         elif args.command == "mark-applied":
             store.mark_applied(args.job_id)
             print(f"Recorded user-submitted application: {args.job_id}")
@@ -278,13 +323,40 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
         elif args.command == "worker":
-            return run_worker(settings, store, args.role, args.once)
+            from internship_pipeline.operations import installation_lock
+
+            root = Path(os.getenv("PIPELINE_DATA_DIR", str(settings.database_path.parent)))
+            with installation_lock(root):
+                return run_worker(settings, store, args.role, args.once)
         return 0
-    except (ConfigurationError, KeyError, ValueError) as exc:
-        if isinstance(exc, ConfigurationError):
+    except (ConfigurationError, KeyError, ValueError, OSError, sqlite3.Error) as exc:
+        from internship_pipeline.operations import OperationError
+
+        if isinstance(exc, OperationError):
+            print(f"Operation failed: {exc}", file=sys.stderr)
+        elif isinstance(exc, ConfigurationError):
             print(f"Configuration error: {exc}", file=sys.stderr)
         else:
             print(f"Operation failed: {type(exc).__name__}", file=sys.stderr)
+        return 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    from internship_pipeline.operations import OperationError, installation_lock
+
+    args = parser().parse_args(argv)
+    if args.command in {"backup", "restore"}:
+        return _main(argv)
+    try:
+        if args.command in {"recover-owner", "setup-token"}:
+            root = args.data_dir
+        else:
+            settings = load_settings(args.config)
+            root = Path(os.getenv("PIPELINE_DATA_DIR", str(settings.database_path.parent)))
+        with installation_lock(root, offline=args.command in {"recover-owner", "setup-token"}):
+            return _main(argv)
+    except (OperationError, ConfigurationError) as exc:
+        print(str(exc), file=sys.stderr)
         return 2
 
 

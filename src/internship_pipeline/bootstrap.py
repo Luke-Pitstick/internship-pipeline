@@ -20,7 +20,7 @@ from internship_pipeline.supervisor import supervise
 
 def configured_roles(settings: Settings) -> list[str]:
     """Absent inputs disable only their dependent worker roles."""
-    roles = []
+    roles = ["search-runs", "email-delivery", "sheets-sync"]
     try:
         load_companies(settings.companies_path)
         load_searches(settings.searches_path)
@@ -32,7 +32,7 @@ def configured_roles(settings: Settings) -> list[str]:
     with Store(settings.database_path).connection() as db:
         profile, revision = current_revisions(db)
         if profile:
-            roles.append("master-resumes")
+            roles.extend(["master-resumes", "tailored-resumes"])
         if profile and revision:
             model = db.execute(
                 "SELECT deleted FROM model_revisions WHERE revision=?", (revision,)
@@ -46,7 +46,7 @@ def configured_roles(settings: Settings) -> list[str]:
     return roles
 
 
-def main() -> int:
+def _main() -> int:
     os.umask(0o077)
     root = Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
     root.mkdir(parents=True, exist_ok=True)
@@ -95,6 +95,14 @@ def main() -> int:
     os.environ["PIPELINE_ARTIFACT_DIR"] = str(settings.artifact_dir)
     os.environ["PIPELINE_COMPANIES_PATH"] = str(settings.companies_path)
     return supervise(commands, status_path=status_path, command_provider=current_commands)
+
+
+def main() -> int:
+    from internship_pipeline.operations import installation_lock
+
+    root = Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
+    with installation_lock(root):
+        return _main()
 
 
 if __name__ == "__main__":

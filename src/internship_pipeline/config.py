@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -35,17 +34,10 @@ def load_settings(path: Path | None = None) -> Settings:
         "PIPELINE_ARTIFACT_DIR": "artifact_dir",
         "PIPELINE_COMPANIES_PATH": "companies_path",
         "PIPELINE_SEARCHES_PATH": "searches_path",
-        "RESUME_MODEL": "resume_model",
-        "RESUME_REASONING_EFFORT": "resume_reasoning_effort",
     }
     for env, key in env_keys.items():
         if value := os.getenv(env):
             raw[key] = value
-    if urls := os.getenv("PIPELINE_NOTIFICATION_URLS"):
-        try:
-            raw["notification_urls"] = json.loads(urls)
-        except json.JSONDecodeError as exc:
-            raise ConfigurationError("PIPELINE_NOTIFICATION_URLS must be a JSON list") from exc
     try:
         return Settings.model_validate(raw)
     except ValidationError as exc:

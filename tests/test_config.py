@@ -18,3 +18,13 @@ def test_personal_yaml_is_not_a_profile_authority(tmp_path: Path) -> None:
     path.write_text("profile_path: private-profile.yaml\n")
     with pytest.raises(ConfigurationError, match="profile_path"):
         load_settings(path)
+
+
+@pytest.mark.parametrize(
+    "field", ["notification_urls", "recording_notifications_path", "dot_outbox_path"]
+)
+def test_obsolete_destinations_are_rejected(tmp_path: Path, field: str) -> None:
+    path = tmp_path / "settings.yaml"
+    path.write_text(f"{field}: null\n")
+    with pytest.raises(ConfigurationError, match=field):
+        load_settings(path)

@@ -1,11 +1,11 @@
-"""SQLite state for observations, work, and delivery, using short transactions."""
+"""SQLite state for observations and work, using short transactions."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +16,6 @@ from internship_pipeline.models import (
     FetchResult,
     Job,
     MatchResult,
-    ResumeArtifact,
     utcnow,
 )
 
@@ -56,9 +55,6 @@ CREATE TABLE IF NOT EXISTS assessment_attempts (
     reserved_tokens INTEGER NOT NULL, input_tokens INTEGER, output_tokens INTEGER
 );
 CREATE INDEX IF NOT EXISTS assessment_attempt_identity ON assessment_attempts(identity);
-CREATE TABLE IF NOT EXISTS artifacts (
-    key TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), data TEXT NOT NULL
-);
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY, kind TEXT NOT NULL, key TEXT NOT NULL UNIQUE,
     payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
@@ -66,10 +62,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     lease_until REAL, token TEXT, error TEXT, created REAL NOT NULL, updated REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS task_claim ON tasks(kind, status, available_at);
-CREATE TABLE IF NOT EXISTS deliveries (
-    key TEXT PRIMARY KEY, job_id TEXT NOT NULL, kind TEXT NOT NULL,
-    destination_id TEXT NOT NULL, delivered_at REAL NOT NULL
-);
 CREATE TABLE IF NOT EXISTS providers (
     id TEXT PRIMARY KEY, next_allowed REAL NOT NULL DEFAULT 0
 );
@@ -234,6 +226,7 @@ class Store:
         result: FetchResult,
         profile_revision: str,
         now: datetime | None = None,
+        checkpoint: Callable[[sqlite3.Connection], None] | None = None,
     ) -> list[Job]:
         from internship_pipeline.normalization import canonical_url, content_hash
 
@@ -392,6 +385,8 @@ class Store:
             # Later additions are first observations, never claims of publication time.
             if result.jobs or (result.complete and result.error is None):
                 connection.execute("UPDATE targets SET baselined=1 WHERE id=?", (target_id,))
+            if checkpoint:
+                checkpoint(connection)
         return new_jobs
 
     def get_job(self, job_id: str) -> Job:
@@ -427,7 +422,6 @@ class Store:
         job: Job,
         match: MatchResult,
         profile_revision: str,
-        destination_ids: list[str],
         *,
         settings_revision: int | None = None,
     ) -> None:
@@ -445,36 +439,6 @@ class Store:
                 "INSERT OR REPLACE INTO matches VALUES(?,?,?,?,?)",
                 (job.id, job.content_hash, profile_revision, match.model_dump_json(), now),
             )
-            if match.accepted and job.status == "open":
-                revision = f"{job.content_hash}:{profile_revision}:{job.opening_revision}"
-                for destination in destination_ids:
-                    enqueue(
-                        connection,
-                        "delivery",
-                        f"opening:{job.id}:{job.opening_revision}:{destination}",
-                        {
-                            "job_id": job.id,
-                            "kind": "opening",
-                            "profile_revision": profile_revision,
-                            "destination_id": destination,
-                            "match": match.model_dump(mode="json"),
-                            "opening_revision": job.opening_revision,
-                        },
-                        now,
-                    )
-                enqueue(
-                    connection,
-                    "resume",
-                    f"resume:{job.id}:{revision}",
-                    {
-                        "job_id": job.id,
-                        "match": match.model_dump(mode="json"),
-                        "profile_revision": profile_revision,
-                        "content_hash": job.content_hash,
-                        "opening_revision": job.opening_revision,
-                    },
-                    now,
-                )
             connection.execute(
                 "INSERT INTO events(kind,job_id,at,details) VALUES('matched',?,?,?)",
                 (job.id, now, json.dumps({"fit": match.fit})),
@@ -488,76 +452,6 @@ class Store:
                 (job.id, job.content_hash, profile_revision),
             ).fetchone()
             return MatchResult.model_validate_json(row[0]) if row else None
-
-    def save_artifact(
-        self,
-        artifact: ResumeArtifact,
-        destination_ids: list[str],
-        content_hash: str,
-        profile_revision: str,
-        opening_revision: int,
-        *,
-        settings_revision: int | None = None,
-    ) -> None:
-        now = utcnow().timestamp()
-        with self.transaction() as connection:
-            if (
-                settings_revision is not None
-                and connection.execute(
-                    "SELECT COALESCE(MAX(revision),0) FROM profile_settings_revisions"
-                ).fetchone()[0]
-                != settings_revision
-            ):
-                return
-            connection.execute(
-                "INSERT OR REPLACE INTO artifacts VALUES(?,?,?)",
-                (artifact.key, artifact.job_id, artifact.model_dump_json()),
-            )
-            for destination in destination_ids:
-                enqueue(
-                    connection,
-                    "delivery",
-                    f"resume:{artifact.key}:{opening_revision}:{destination}",
-                    {
-                        "job_id": artifact.job_id,
-                        "kind": "resume",
-                        "destination_id": destination,
-                        "artifact_key": artifact.key,
-                        "opening_revision": opening_revision,
-                        "content_hash": content_hash,
-                        "profile_revision": profile_revision,
-                    },
-                    now,
-                )
-            connection.execute(
-                "INSERT INTO events(kind,job_id,at) VALUES('pdf_ready',?,?)", (artifact.job_id, now)
-            )
-
-    def get_artifact(self, key: str) -> ResumeArtifact:
-        with self.connection() as connection:
-            row = connection.execute("SELECT data FROM artifacts WHERE key=?", (key,)).fetchone()
-            if row is None:
-                raise KeyError(key)
-            return ResumeArtifact.model_validate_json(row["data"])
-
-    def delivered(self, key: str) -> bool:
-        with self.connection() as connection:
-            return (
-                connection.execute("SELECT 1 FROM deliveries WHERE key=?", (key,)).fetchone()
-                is not None
-            )
-
-    def record_delivery(self, key: str, job_id: str, kind: str, destination_id: str) -> None:
-        now = utcnow().timestamp()
-        with self.transaction() as connection:
-            connection.execute(
-                "INSERT OR IGNORE INTO deliveries VALUES(?,?,?,?,?)",
-                (key, job_id, kind, destination_id, now),
-            )
-            connection.execute(
-                "INSERT INTO events(kind,job_id,at) VALUES(?,?,?)",
-                (f"delivered_{kind}", job_id, now),
-            )
 
     def mark_applied(self, job_id: str) -> None:
         with self.transaction() as connection:
@@ -591,21 +485,12 @@ class Store:
                     "SELECT status,COUNT(*) n FROM candidates GROUP BY status"
                 )
             }
-            latencies = [
-                float(row[0])
-                for row in connection.execute(
-                    "SELECT delivered_at-first_seen FROM deliveries JOIN jobs "
-                    "ON deliveries.job_id=jobs.id WHERE deliveries.kind='opening' "
-                    "ORDER BY delivered_at DESC LIMIT 100"
-                )
-            ]
         targets = self.targets()
         return {
             "jobs": job_count,
             "tasks": counts,
             "failed_tasks": failed,
             "discovery_candidates": candidates,
-            "opening_latency_seconds_last_100": latencies,
             "oldest_work_age_seconds": None if oldest is None else round(now - oldest),
             "targets": [
                 {
@@ -671,10 +556,3 @@ class Store:
                 (now + 86400,),
             )
             return True
-
-    def backup(self, destination: Path) -> None:
-        if destination.resolve() == self.path.resolve():
-            raise ValueError("Backup destination must differ from the live database")
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        with self.connection() as source, sqlite3.connect(destination) as target:
-            source.backup(target)

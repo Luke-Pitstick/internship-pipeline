@@ -1,9 +1,0 @@
-{
-  "personalInfo": {"name": "Alex Example", "email": "alex@example.test", "phone": "", "location": "Denver", "website": null, "linkedin": null, "github": null},
-  "summary": "Computer science student building useful software.",
-  "workExperience": [{"id": 1, "title": "Software Intern", "company": "Example Labs", "years": "June 2025 - August 2025", "description": ["Built a Python API serving 12 synthetic users."]}],
-  "education": [{"id": 1, "institution": "Example University", "degree": "BS Computer Science", "years": "2024 - 2028"}],
-  "personalProjects": [{"id": 1, "name": "Weather Explorer", "role": "Developer", "years": "2025", "description": ["Analyzed weather records using SQL."]}],
-  "additional": {"technicalSkills": ["Python", "SQL"], "certificationsTraining": [], "languages": [], "awards": []},
-  "sectionMeta": [], "customSections": {}
-}

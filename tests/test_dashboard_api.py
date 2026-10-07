@@ -8,7 +8,7 @@ import pytest
 
 from internship_pipeline import dashboard_api
 from internship_pipeline.dashboard_api import DashboardAPI, DashboardUnavailable
-from internship_pipeline.models import Job, ResumeArtifact, Settings, SourceJob, utcnow
+from internship_pipeline.models import Job, Settings, SourceJob, utcnow
 from internship_pipeline.storage import SCHEMA
 
 PRIVATE = "PRIVATE_CONTACT_FACT_AND_SECRET_SENTINEL"
@@ -76,32 +76,10 @@ def api(tmp_path: Path) -> DashboardAPI:
         )
         connection.execute(
             "INSERT INTO tasks(kind,key,payload,status,available_at,created,updated,"
-            "error) VALUES('resume','resume:synthetic',?,'failed',?,?,?,?)",
+            "error) VALUES('tailored_resume','tailored:synthetic',?,'failed',?,?,?,?)",
             (PRIVATE, utcnow().timestamp(), utcnow().timestamp(), utcnow().timestamp(), PRIVATE),
         )
     return DashboardAPI(settings)
-
-
-def register_pdf(
-    api: DashboardAPI,
-    path: Path,
-    job_id: str = "relevant",
-    key: str = "artifact",
-    engine: str = "legacy-resume-matcher",
-) -> None:
-    artifact = ResumeArtifact(
-        key=key,
-        job_id=job_id,
-        pdf_path=path,
-        resume_id=PRIVATE,
-        change_summary=[PRIVATE],
-        review_warnings=[PRIVATE],
-        engine=engine,
-    )
-    with sqlite3.connect(api.settings.database_path) as connection:
-        connection.execute(
-            "INSERT INTO artifacts VALUES(?,?,?)", (key, job_id, artifact.model_dump_json())
-        )
 
 
 def test_jobs_are_read_without_matching_or_exposing_candidate_facts(api: DashboardAPI) -> None:
@@ -111,7 +89,7 @@ def test_jobs_are_read_without_matching_or_exposing_candidate_facts(api: Dashboa
         "raw_collected": 5,
         "screened_open": 5,
         "screened_applied_closed": 0,
-        "limit": 1000,
+        "limit": 25,
         "returned": 5,
     }
     assert len(data["jobs"]) == 5
@@ -123,83 +101,10 @@ def test_jobs_are_read_without_matching_or_exposing_candidate_facts(api: Dashboa
     assert item["assessment"] == "pending"
     assert item["timestamp_kind"] == "source_time_ambiguous"
     assert item["unknowns"] == []
-    assert item["resume"]["available"] is False
     assert data["health"]["status"] == "degraded"
-    assert data["health"]["queues"] == [{"kind": "resume", "status": "failed", "count": 1}]
+    assert data["health"]["queues"] == [{"kind": "tailored_resume", "status": "failed", "count": 1}]
     assert PRIVATE not in json.dumps(data)
     assert api.settings.database_path.read_bytes() == before
-
-
-@pytest.mark.parametrize(
-    ("engine", "status"),
-    [
-        ("legacy-resume-matcher", "legacy_preview_requires_review"),
-        ("original-latex", "draft_requires_review"),
-    ],
-)
-def test_existing_pdf_status_identifies_engine_and_download_is_db_backed(
-    api: DashboardAPI, engine: str, status: str
-) -> None:
-    pdf = b"%PDF-1.7\nsynthetic PDF bytes"
-    path = api.settings.artifact_dir / "private-name.pdf"
-    path.write_bytes(pdf)
-    register_pdf(api, path, engine=engine)
-    metadata = next(item for item in api.jobs()["jobs"] if item["id"] == "relevant")["resume"]
-    assert metadata["available"] is True
-    assert metadata["download_path"] == "/api/resumes/relevant"
-    assert metadata["status"] == status
-    assert metadata["engine"] == engine
-    assert metadata["review_warnings"] == [
-        "Additional stored review warnings need private review of the PDF."
-    ]
-    assert api.resume("relevant") == pdf
-    assert PRIVATE not in json.dumps(metadata)
-    assert "private-name.pdf" not in json.dumps(metadata)
-    assert api.resume("../private-name.pdf") is None
-    assert api.resume("%2e%2e%2fprivate-name.pdf") is None
-    assert api.resume("unknown") is None
-
-
-def test_saved_artifacts_without_engine_are_labeled_legacy(api: DashboardAPI) -> None:
-    path = api.settings.artifact_dir / "resume.pdf"
-    path.write_bytes(b"%PDF-1.7\nsynthetic")
-    register_pdf(api, path)
-    with sqlite3.connect(api.settings.database_path) as connection:
-        payload = json.loads(
-            connection.execute("SELECT data FROM artifacts WHERE key='artifact'").fetchone()[0]
-        )
-        payload.pop("engine")
-        connection.execute(
-            "UPDATE artifacts SET data=? WHERE key='artifact'", (json.dumps(payload),)
-        )
-    resume = next(item for item in api.jobs()["jobs"] if item["id"] == "relevant")["resume"]
-    assert resume["engine"] == "legacy-resume-matcher"
-    assert resume["status"] == "legacy_preview_requires_review"
-
-
-@pytest.mark.parametrize("unsafe", ["outside", "symlink", "invalid", "missing", "directory"])
-def test_unavailable_or_unsafe_artifacts_cannot_be_downloaded(
-    api: DashboardAPI, unsafe: str
-) -> None:
-    root = api.settings.artifact_dir
-    path = root / "resume.pdf"
-    if unsafe == "outside":
-        path = root.parent / "outside.pdf"
-        path.write_bytes(b"%PDF-1.7")
-    elif unsafe == "symlink":
-        target = root.parent / "outside.pdf"
-        target.write_bytes(b"%PDF-1.7")
-        path.symlink_to(target)
-    elif unsafe == "invalid":
-        path.write_text("Not a PDF")
-    elif unsafe == "directory":
-        path.mkdir()
-    register_pdf(api, path)
-    assert api.resume("relevant") is None
-    assert (
-        next(item for item in api.jobs()["jobs"] if item["id"] == "relevant")["resume"]["available"]
-        is False
-    )
 
 
 def test_missing_database_fails_closed(api: DashboardAPI) -> None:
@@ -211,13 +116,6 @@ def test_missing_database_fails_closed(api: DashboardAPI) -> None:
 
 def test_absent_profile_does_not_block_inventory(api: DashboardAPI) -> None:
     assert len(api.jobs()["jobs"]) == 5
-
-
-def test_resume_pause_is_truthful(api: DashboardAPI, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RESUME_GENERATION_PAUSED", "1")
-    data = api.jobs()
-    assert data["health"]["resume_generation_paused"] is True
-    assert data["jobs"][0]["resume"]["status"] == "awaiting_latex_source"
 
 
 def test_html_description_becomes_plaintext_with_paragraph_breaks() -> None:
@@ -233,19 +131,6 @@ def test_html_description_becomes_plaintext_with_paragraph_breaks() -> None:
     assert len(result) == 30000
     assert truncated
 
-
-def test_review_warnings_preserve_known_validation_messages_without_private_text() -> None:
-    warning = "Semantic grounding is unverified; review rewritten claims against factual experience"
-    artifact = ResumeArtifact(
-        key="test",
-        job_id="job",
-        pdf_path=Path("test.pdf"),
-        resume_id="resume",
-        review_warnings=[warning, PRIVATE],
-    )
-    result = dashboard_api.review_warnings(artifact)
-    assert warning in result
-    assert PRIVATE not in json.dumps(result)
 
 
 def test_mark_applied_is_idempotent_and_invalidates_cached_jobs(api: DashboardAPI) -> None:

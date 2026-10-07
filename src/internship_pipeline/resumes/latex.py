@@ -1,13 +1,18 @@
 """Bounded compiler for application-owned LaTeX documents."""
+
 from __future__ import annotations
+
 import os
+import re
 import signal
 import subprocess
 import tempfile
 import time
 from pathlib import Path
-from internship_pipeline.resumes.errors import ResumeMatcherError
+
+from internship_pipeline.resumes.errors import DocumentCompileTimeout
 from internship_pipeline.resumes.validation import ResumeValidationError
+
 
 class LatexCompiler:
     def __init__(self, executable: str = "pdflatex"):
@@ -29,7 +34,7 @@ class LatexCompiler:
             for _ in range(2):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise ResumeMatcherError("LaTeX compilation deadline exceeded", retryable=True)
+                    raise DocumentCompileTimeout("LaTeX compilation deadline exceeded")
                 try:
                     process = subprocess.Popen(
                         [
@@ -49,7 +54,7 @@ class LatexCompiler:
                     )
                 except OSError as exc:
                     raise ResumeValidationError(
-                        "LaTeX compiler is unavailable; install the original template's "
+                        "LaTeX compiler is unavailable; install the application template "
                         "TeX dependencies"
                     ) from exc
                 try:
@@ -57,9 +62,7 @@ class LatexCompiler:
                 except subprocess.TimeoutExpired as exc:
                     os.killpg(process.pid, signal.SIGKILL)
                     process.communicate()
-                    raise ResumeMatcherError(
-                        "LaTeX compilation deadline exceeded", retryable=True
-                    ) from exc
+                    raise DocumentCompileTimeout("LaTeX compilation deadline exceeded") from exc
                 except BaseException:
                     if process.poll() is None:
                         os.killpg(process.pid, signal.SIGKILL)
@@ -67,15 +70,13 @@ class LatexCompiler:
                     raise
                 if process.returncode != 0:
                     raise ResumeValidationError(
-                        "Original LaTeX did not compile; check template packages/assets locally"
+                        "PDF compilation failed; check the deployment template packages"
                     )
             log_path = root / "resume.log"
             if log_path.is_file() and re.search(
                 r"Overfull \\[hv]box", log_path.read_text(errors="replace")
             ):
-                raise ResumeValidationError(
-                    "LaTeX reports text overflow; inspect the original/tailored source layout"
-                )
+                raise ResumeValidationError("LaTeX reports text overflow; shorten confirmed facts")
             pdf = root / "resume.pdf"
             if not pdf.is_file() or pdf.stat().st_size > 16 * 1024 * 1024:
                 raise ResumeValidationError(
