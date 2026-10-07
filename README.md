@@ -1,81 +1,64 @@
-# internship-pipeline
+# Internship Pipeline
 
-Find and assess SWE, product management, ML/AI and data science internships, review grounded résumé drafts, and optionally receive email alerts or sync a Google Sheet. The owner records applications explicitly.
+A self-hosted internship workspace: collect jobs, assess fit against confirmed candidate facts, review résumé drafts, and optionally receive email or sync a Google Sheet. You submit applications yourself and record Applied explicitly.
 
-The package, independent workers, persistence, integrations and offline workflow are implemented. Live model/PDF delivery and the 24-hour performance trial require configuration and verification; see [acceptance results](docs/acceptance-results.md) for exact evidence.
+This checkout is **release preparation**. The integrated native acceptance passes 525 Python tests, six default Chromium tests and one fresh guided-setup test using synthetic provider transports. No container image is published, no OS/architecture/runtime support matrix is certified, and live general-LLM, SMTP and Google Sheets acceptance remain open. Model-derived rejections go to review because the independent quality gate is unmet. See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
 
-```text
-ATS / JobSpy → SQLite observations → persisted Jev assessments → jobs workspace
-                                      ├─ reviewed grounded PDF drafts
-                                      ├─ optional email alerts / digest
-                                      └─ optional Google Sheets sync / CSV
-Owner reviews and applies → explicit Applied record
-```
+## Start from source
 
-Collection, matching, generation, delivery and daily discovery run as separate processes. A slow model or failed notification cannot hold up company checks. Optional email uses Apprise through the browser SMTP configuration; Google Sheets sync runs in its own server worker. Neither requires a local Codex session or SSH download.
-
-## Browser setup
-
-Run `docker compose up --build -d`, read the one-time owner setup token with `docker compose logs app`, and open `http://localhost:8080`. Account setup and login work before a profile or model is configured. The single-container app uses persistent owner sessions; see [deployment and recovery](docs/deployment.md) and [current dashboard capabilities](docs/dashboard.md). Profile and Job Filters settings save immutable SQLite revisions; workers read the next revision between tasks. AI Models configures independent Jev and general LLM connections. The configured general LLM selects confirmed facts for a job-specific draft; inspect changes, preview/download the PDF and explicitly review it in job detail. Master PDFs use saved facts without a model. See [master rendering](docs/t11-master-resume.md) and [job-specific generation](docs/t12-tailored-resumes.md).
-
-## Existing operator worker configuration
+The intended deployment is one container containing the web app, Python workers and PDF renderer, with one persistent data volume. The repository's Compose path is available for testing on a healthy Docker engine, but its actual build/lifecycle/recovery checks have not passed yet:
 
 ```sh
-mkdir -p private data artifacts
-cp config/companies.example.yaml config/companies.local.yaml
-cp config/settings.example.yaml config/settings.local.yaml
+docker compose up --build -d
+docker compose logs app
 ```
 
-Maintain supported facts, education, availability and eligibility in browser Settings → Profile; maintain mandatory constraints and soft preferences in Job Filters. YAML no longer supplies candidate data. Existing personal files are left untouched: explicitly back them up, remove `profile_path` from operational settings, and review/re-enter supported facts in the browser. There is no automatic import or fallback. Source configuration remains operational YAML pending the search configuration task. Set companies to real board URLs and `enabled: true`; optional broad searches go in `config/searches.local.yaml` and are enabled by `searches_path`. Example queries need their locations/country adjusted explicitly.
+Read the one-time owner setup token privately from the log, then open [localhost:8080](http://localhost:8080). The log is sensitive until the owner is claimed. Set `PIPELINE_PORT` when choosing a different local port; Compose derives the corresponding browser origin. `docker compose stop` preserves the data volume. Follow [deployment](docs/deployment.md), [operations](docs/t17-operations.md) and [support](docs/support.md) for exact persistence and recovery constraints.
 
-Configure optional email in Settings → Notifications & Integrations with SMTP host, TLS mode, sender/recipient and encrypted credentials. Choose qualifying-job alerts or a daily digest, inspect delivery status, and explicitly send a test when ready. Configure Google Sheets there with a service-account key, select the shared spreadsheet/tab, preview column mappings and then queue sync. The app preserves unrelated cells and proposes explicitly mapped status/notes changes for owner review. CSV export works without Google. See [email setup](docs/t14-email-alerts.md) and [Google authorization and ownership](docs/t15-spreadsheet-sync.md).
+There is no hosted one-command installer or published image URL yet. [Local explicit-image installer preparation](docs/t19-installer.md) requires Python 3.12+ and the complete reviewed deploy bundle; `sh deploy/install.sh --help` is a safe way to inspect it. [Management preparation](docs/t20-management.md) supplies lifecycle commands and authenticated diagnostics against its [saved manifest](docs/installation-manifest.md). A versioned image, healthy runtime and real acceptance evidence are prerequisites for recommending that path.
 
-Job-specific generation supports manual requests plus an off-by-default automatic policy under Settings → Resume Generation; see [generation controls](docs/t13-generation-policy.md). Both operate independently of notification delivery. Configure and test the general LLM, save confirmed profile facts, then request a draft in job detail or explicitly enable bounded automation. The Codex subscription/source-edit generator has been removed. See the [same-origin dashboard](docs/dashboard.md).
+For a native development installation, use Python 3.12+, uv and Node.js 22. Install a local `pdflatex` environment with the template's packages if testing PDFs; the proposed image provides TeX itself. From the repository root:
 
 ```sh
-uv run internship-pipeline --config config/settings.local.yaml scan --once --collect-only
-uv run internship-pipeline --config config/settings.local.yaml jobs --backlog
-uv run internship-pipeline --config config/settings.local.yaml review-backlog
-uv run internship-pipeline --config config/settings.local.yaml scan --once
+uv sync --frozen --python 3.12
+cd web
+npm ci
+npm run build
+cd ..
+PIPELINE_DATA_DIR="$PWD/private/dev-instance" \
+PIPELINE_WEB_DIR="$PWD/web/build" \
+PIPELINE_ORIGIN=http://localhost:8080 \
+uv run --frozen python -m internship_pipeline.bootstrap
 ```
 
-The first inventory of each board becomes an explicitly labeled backlog, so old jobs are not presented as newly posted. `review-backlog` opts into assessing them. Subsequent new jobs enter the pipeline automatically while workers run.
+The final command creates an ignored local installation, prints its setup token and supervises the application. Keep that terminal running and visit the same local URL. A new instance starts without configured models or sources; later saved connections and enabled searches can make external requests, so use synthetic fixtures for development acceptance.
 
-## Continuous operation and controls
+## Finish setup in the browser
 
-Use [Docker Compose setup and recovery](docs/deployment.md) for continuous operation. Complete stopped-instance backups and fresh-only restore are documented in [operations](docs/t17-operations.md); database-only backups no longer represent full recovery. Worker roles include `collector`, `matcher`, `master-resumes`, `tailored-resumes`, `search-runs`, `email-delivery`, `sheets-sync` and `discovery`; each supports `--once`. `scan --once` is useful for manual runs, but continuous workers provide latency isolation.
+1. **Claim the owner account.** Enter the one-time token and choose the username/password. Setup resumes from its saved checkpoint after reload; an already-owned installation requires sign-in.
+2. **Configure AI Models.** Jev uses TypeSafe's official endpoint; the independent general LLM uses official OpenAI Responses. Saving credentials makes no provider call. Testing submits a bounded synthetic request and may incur provider charges. You can defer a missing model and return to Settings later.
+3. **Confirm your profile and filters.** Enter supported facts or import a PDF/DOCX and review extracted fields before saving. Import is local and makes no model call. Keep mandatory eligibility requirements distinct from soft preferences; uncertain evidence stays inspectable.
+4. **Save a search and choose integrations.** Configure sources in Settings, then review the saved search. Email and Sheets can each be connected or skipped independently. CSV export needs no Google credential. Review the final setup preview before starting the first search.
+5. **Review useful results.** Inspect source posting date separately from first observation, persisted fit/evidence and run status. Initial board inventory is labeled backlog. Generate a master PDF from saved facts or request a tailored draft after the general LLM is ready, review its changes, and mark Applied only after submitting the application yourself.
 
-```sh
-uv run internship-pipeline status
-uv run internship-pipeline jobs
-uv run internship-pipeline add-company acme Acme https://jobs.ashbyhq.com/acme --priority
-uv run internship-pipeline discover --seed --limit 200
-uv run internship-pipeline refresh-discovery
-uv run internship-pipeline retry TASK_ID
-uv run internship-pipeline mark-applied JOB_ID
-uv run internship-pipeline backup private/pipeline-backup --data-dir /absolute/persistent/directory
-```
+[Guided setup](docs/t16-guided-setup.md) records the fresh native journey and the remaining container/live boundary. [Search controls](docs/t08-saved-searches.md), [jobs](docs/t09-jobs-workspace.md), [résumé import](docs/t10-resume-import.md), [master rendering](docs/t11-master-resume.md) and [tailoring](docs/t12-tailored-resumes.md) describe the implemented workflows. Automatic résumé generation is off by default and requires an explicit bounded policy under [Resume Generation](docs/t13-generation-policy.md).
 
-Pass `--config config/settings.local.yaml` before commands when using local settings. Directory entries are unverified candidates; daily validation enables supported working boards. Directory order does not establish internship relevance. To stop a configured company, set `enabled: false` and restart the collector; deleting its YAML row does not remove persisted history or disable it.
+## Providers and operating limits
 
-## Timing and correctness
+| Capability | Implemented contract | Acceptance boundary |
+| --- | --- | --- |
+| Job sources | Ashby, Greenhouse and Lever direct boards; configured JobSpy searches | Complete board snapshots alone can close jobs after two complete misses; aggregators cannot reopen directly closed jobs. Real source availability and throttling vary. |
+| Jev matching | Official TypeSafe SystemOne endpoint, typed criterion/evidence/score output | One historical synthetic live capability probe passed; representative quality and automatic rejection remain unvalidated. |
+| General LLM | Official OpenAI Responses, strict structured output, `store: false` | Synthetic transport validation passes; live generation with a supplied supported model credential is open. No generic compatible endpoint support. |
+| Email | SMTP STARTTLS or implicit TLS through Apprise; alerts or daily digest | Synthetic transport acceptance passes; actual mailbox receipt and attachment delivery are open. Ambiguous acceptance requires owner review. |
+| Google Sheets | Dedicated service account, explicit columns, preview, stable-ID write/readback and reviewed inward changes | Synthetic HTTP/auth/worker checks pass; live disposable-sheet acceptance is open. Google offers no conditional per-cell write, so concurrent edits inside the write interval remain a limit. |
 
-- Priority boards default to five-minute polls, ordinary boards to 15 minutes and JobSpy queries to 60 minutes. Configured minimums are two, five and 30 minutes respectively. Backoff, cooldowns and actual provider availability can increase these intervals.
-- Only Ashby, Greenhouse and Lever have audited full-board snapshot contracts. Incomplete responses can add observations but cannot close jobs. Closure needs two complete misses, and stale aggregators cannot reopen directly closed jobs.
-- Email membership and attempt records persist independently of search and generation. Ambiguous SMTP acceptance requires explicit review; deliberately retrying it can duplicate a remote email. Sheets reads stable IDs before writing and preserves verified row checkpoints after partial failures.
-- Explicit unsupported qualifications and protected factual changes block the PDF. Tailored drafts preserve selected confirmed wording verbatim and carry review warnings for omitted experience and uncertain eligibility.
-- Provider or profile changes invalidate generation fingerprints. Changed descriptions are reassessed; stale generation results and queued attachments are suppressed. Applied status records an explicit owner decision through the workspace, `mark-applied`, or acceptance of a reviewed Sheets proposal; the pipeline never submits applications.
+Configure providers in authenticated Settings. See [model connections](docs/t05-model-configuration.md), [SMTP](docs/t14-email-alerts.md), [Sheets authorization/mapping](docs/t15-spreadsheet-sync.md) and [privacy/data flow](docs/privacy.md) before supplying credentials. Backoff and provider outages can extend polling and delivery intervals; current timings are not a publication-to-alert guarantee. Broad daily discovery is optional and its directory entries need source validation.
 
-These are polling settings, not publication-to-delivery guarantees. Email digests follow the configured local timezone/hour; remote provider availability and retries can increase delivery time.
+## Architecture, contribution and release evidence
 
-## Development and evidence
+The static SvelteKit frontend and FastAPI API share one origin. SQLite holds job observations, immutable settings/model/profile revisions, durable tasks and delivery/sync ledgers; an independent SQLite database holds owner identity. A supervisor runs collection, matching, generation, saved searches, email, Sheets and discovery in separate processes so a slow provider cannot block collection. The application never submits applications. See [architecture](docs/architecture.md) for module boundaries and [contributing](CONTRIBUTING.md) for reproducible synthetic checks.
 
-```sh
-uv run ruff check src tests
-uv run mypy src/internship_pipeline
-uv run pytest -q
-uv build
-docker compose config --quiet
-```
+Full backup includes both databases, the exact credential-encryption key, config, provenance and documents. Stop every supported writer before backup and restore only into a fresh installation; a database-only copy is insufficient. [Operations](docs/t17-operations.md) covers restore validation, session revocation, uncertain side effects and local owner recovery. [Support](docs/support.md) covers diagnostics and safe failure handling.
 
-See [implementation progress](docs/implementation-plan.md), [integration contracts](docs/integration-contracts.md), [design](docs/design.md), [acceptance results](docs/acceptance-results.md) and [agent guidance](AGENTS.md). Private documents, generated PDFs, database files, local configuration and credentials are Git-ignored and excluded from the Docker build context.
+The project license remains **unselected**: there is no root license or package license declaration. [Redistribution review](docs/redistribution-review.md) records the dependency/template/font inventory and the owner decisions required before an open-source release. Historical audits remain evidence of earlier snapshots; [integrated acceptance](docs/integrated-acceptance.md), [portable-image gates](docs/t18-portable-images.md) and [release readiness](docs/release-readiness.md) govern current claims.
