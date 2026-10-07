@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Manage the existing installation recorded by the installer."""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from pipeline_management import main  # noqa: E402
+
+if __name__ == "__main__":
+    bundle = Path(__file__).resolve().parent
+    installation = bundle.parent
+    raise SystemExit(
+        main(install_dir=installation if (bundle / ".installation-id").is_file() else None)
+    )
