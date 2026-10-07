@@ -23,9 +23,11 @@ export interface Job {
   score: number | null;
   eligibility: 'Eligible' | 'Needs review' | 'Pending' | 'Evaluation error';
   evaluation?: Evaluation;
+  workspace?: {notes: string; saved: boolean; dismissed: boolean; decision: string | null; reason: string; history: {decision: string | null; reason: string; at: number; assessment_identity: string}[]};
   status: JobStatus;
   appliedAt: string | null;
   description: string;
+  descriptionTruncated?: boolean;
   applicationUrl: string;
   resumeUrl: string | null;
 }
@@ -34,7 +36,7 @@ export interface JobsQuery {
   page: number;
   pageSize: number;
   search: string;
-  status: 'All' | JobStatus;
+  status: 'All' | 'Recommendations' | 'Needs review' | 'Saved' | 'Applied' | 'Rejected';
   sort: SortField;
   direction: 'asc' | 'desc';
 }

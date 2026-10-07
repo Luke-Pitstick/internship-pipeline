@@ -11,12 +11,10 @@ test('owner claim, separate settings, logout and login work without profile or m
   await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
   await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
   await page.getByRole('button', {name: 'Create owner account'}).click();
-  await expect(page.getByRole('heading', {name: 'Find your next chapter.'})).toBeVisible();
-  await expect(page.getByRole('heading', {name: '0 opportunities'})).toBeVisible();
-  await expect(page.getByRole('button', {name: 'Applied', exact: true})).toBeVisible();
-  await expect(page.locator('[data-job]')).toHaveCount(0);
+  await expect(page.getByRole('heading', {name: 'Guided setup', exact: true})).toBeVisible();
+  await expect(page.getByLabel('Defer model work and collect jobs first')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', {name: 'Find your next chapter.'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Guided setup', exact: true})).toBeVisible();
   await page.getByRole('link', {name: 'Settings', exact: true}).click();
   await expect(page).toHaveURL(/\/settings\/$/);
   await expect(page.getByRole('heading', {name: 'Settings', exact: true})).toBeVisible();
@@ -37,7 +35,7 @@ test('owner claim, separate settings, logout and login work without profile or m
   await page.getByRole('button', {name: 'Sign in', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Settings', exact: true})).toBeVisible();
   await page.goto('/');
-  await expect(page.getByRole('heading', {name: '0 opportunities'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Guided setup', exact: true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({width: 1440, height: 1000});
   await page.screenshot({path: 'test-results/t03-jobs-desktop.png', fullPage: true});

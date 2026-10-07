@@ -29,3 +29,11 @@ build/
 *.egg-info/
 *.log
 .DS_Store
+
+web/test-results-tailored/
+
+web/test-results-email/
+
+web/test-results-sheets/
+
+web/test-results-setup/

@@ -1,0 +1,2 @@
+import { defineConfig } from '@playwright/test';
+export default defineConfig({testDir:'./tests', outputDir:'test-results-t09', testMatch:'t09-workspace.spec.ts', workers:1, reporter:'list', use:{baseURL:'http://127.0.0.1:4189', browserName:'chromium',viewport:{width:1440,height:1000},trace:'retain-on-failure'}, webServer:{command:'../.venv/bin/python tests/t09-serve.py',url:'http://127.0.0.1:4189',reuseExistingServer:false,stdout:'ignore',stderr:'pipe'}});

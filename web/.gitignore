@@ -4,3 +4,6 @@ build/
 test-results/
 test-results-master/
 playwright-report/
+test-results-t09*/
+
+test-results-generation-policy/

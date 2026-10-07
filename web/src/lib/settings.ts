@@ -1,4 +1,4 @@
-export const categories = ['Profile', 'Job Filters', 'Resume Generation', 'AI Models', 'Notifications & Integrations'] as const;
+export const categories = ['Profile', 'Job Filters', 'Sources', 'Resume Generation', 'AI Models', 'Notifications & Integrations', 'Diagnostics'] as const;
 export type Category = typeof categories[number];
 export type Confirmation = 'confirmed' | 'unknown';
 export interface Fact { id: string; kind: 'experience'|'project'|'skill'; status: Confirmation; text: string; skills: string[] }

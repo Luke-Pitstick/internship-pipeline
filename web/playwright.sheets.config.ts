@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'./tests',testMatch:'sheets.spec.ts',workers:1,reporter:'list',outputDir:'test-results-sheets',use:{baseURL:'http://127.0.0.1:4179',browserName:'chromium',channel:'chromium',viewport:{width:1440,height:1000}},webServer:{command:'../.venv/bin/python tests/sheets-serve.py',url:'http://127.0.0.1:4179',reuseExistingServer:false,stdout:'ignore',stderr:'pipe'}});

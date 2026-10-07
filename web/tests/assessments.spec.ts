@@ -17,15 +17,20 @@ for (const narrow of [false, true]) {
     if (narrow) await page.setViewportSize({width: 390, height: 844});
     let state = 'pending', appliedAt: string | null = null, calls = 0;
     await page.route('**/api/session', route => route.fulfill({json: {authenticated: true, claimed: true, csrf: 'synthetic-csrf'}}));
-    await page.route('**/api/jobs', route => route.fulfill({json: {
-      jobs: [{id: 'synthetic-job', title: 'Synthetic Python Internship', company: 'Example Labs', locations: ['Denver'],
+    await page.route('**/api/onboarding', route => route.fulfill({json:{complete:true,has_jobs:true}}));
+    await page.route('**/api/search-runs', route => route.fulfill({json:{runs:[]}}));
+    await page.route('**/api/jobs/synthetic-job/resume', route => route.fulfill({json:{state:'blocked', profile_revision:0, model_revision:0}}));
+    await page.route('**/api/jobs?*', route => {
+      const job = {id: 'synthetic-job', title: 'Synthetic Python Internship', company: 'Example Labs', locations: ['Denver'],
         source_timestamp: '2026-09-30T12:00:00Z', first_seen: 1791280800, deadline: null, applied_at: appliedAt,
         description: 'Synthetic job description.', application_url: 'https://example.test/apply', resume: {download_path: null},
         fit: state === 'complete' ? 92.5 : null, eligible: null,
         evaluation: {state, result: state === 'complete' ? assessment : null, error: state === 'error' ? 'provider_unavailable' : null,
-          attempts: state === 'pending' ? [] : [{started: 1791280800, completed: 1791280801, status: state === 'error' ? 'timeout' : 'success', reserved_tokens: 1000, input_tokens: state === 'error' ? null : 100, output_tokens: state === 'error' ? null : 40}]}}],
-      scope: {raw_collected: 1, limit: 1000}
-    }}));
+          attempts: state === 'pending' ? [] : [{started: 1791280800, completed: 1791280801, status: state === 'error' ? 'timeout' : 'success', reserved_tokens: 1000, input_tokens: state === 'error' ? null : 100, output_tokens: state === 'error' ? null : 40}]}};
+      const params = new URL(route.request().url()).searchParams;
+      const rows = params.get('view') === 'Applied' && !appliedAt ? [] : [job];
+      return route.fulfill({json:{jobs:rows, selected: params.get('selected') ? job : null, pagination:{total:rows.length,page:1,pages:1,page_size:25}}});
+    });
     await page.route('**/api/jobs/synthetic-job/evaluate', async route => {
       expect(route.request().method()).toBe('POST');
       expect(route.request().headers()['x-csrf-token']).toBe('synthetic-csrf');
