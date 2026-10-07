@@ -70,6 +70,10 @@ def test_failed_readiness_cleans_only_uniquely_created_resources(monkeypatch) ->
         if args[0] == "info":
             return '{"OperatingSystem":"synthetic","ServerVersion":"1",' \
                    '"OSType":"linux","Architecture":"arm64"}'
+        if args[0] == "version":
+            return '{"Server":{"Version":"1"}}'
+        if args[:2] == ("image", "inspect"):
+            return '{"Id":"synthetic-image","Os":"linux","Architecture":"arm64","Size":1}'
         return "synthetic-image"
 
     def failed_readiness(*args):
@@ -102,3 +106,20 @@ def test_failed_readiness_cleans_only_uniquely_created_resources(monkeypatch) ->
         ("image", "rm", name + ":smoke"),
     ]
     assert not any("prune" in args for args in calls)
+
+
+def test_existing_image_platform_mismatch_never_removes_supplied_image(monkeypatch) -> None:
+    calls = []
+
+    def docker(*args, **kwargs):
+        calls.append(args)
+        if args[0] in {"info", "version"}:
+            return "{}"
+        if args[:2] == ("image", "inspect"):
+            return '{"Id":"synthetic-image","Os":"linux","Architecture":"arm64","Size":1}'
+        raise AssertionError("No resources should be created after platform mismatch")
+
+    monkeypatch.setattr(smoke, "docker", docker)
+    with pytest.raises(smoke.SmokeFailure, match="platform differs"):
+        smoke.run(20, existing_image="operator-owned:1.0.0", expected_platform="linux/amd64")
+    assert not any(args[0] in {"build", "run", "rm", "volume"} for args in calls)

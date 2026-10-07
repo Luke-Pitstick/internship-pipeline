@@ -1,0 +1,112 @@
+name: Container image candidates
+on:
+  pull_request:
+    paths: ["Dockerfile", ".dockerignore", "compose.yaml", "deploy/**", "src/**", "web/**", "pyproject.toml", "uv.lock", ".github/workflows/**"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read package version
+        id: version
+        run: |
+          python3 - <<'PY'
+          import os, re, tomllib
+          version = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version), 'Use a stable package version'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('version=' + version + '\n')
+          PY
+      - uses: docker/setup-buildx-action@v3
+      - name: Build native test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          tags: internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          build-args: |
+            IMAGE_VERSION=${{ steps.version.outputs.version }}
+            IMAGE_REVISION=${{ github.sha }}
+            IMAGE_SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+      - name: Docker lifecycle and fresh restore
+        run: >-
+          python3 deploy/container-smoke.py
+          --image internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          --platform ${{ matrix.platform }} --recovery
+          --report evidence/docker-${{ matrix.arch }}.json
+      - name: Prepare rootless Podman on the isolated runner
+        run: |
+          if ! command -v podman >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+          docker save internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }} -o /tmp/pipeline-image.tar
+          podman load -i /tmp/pipeline-image.tar >/dev/null
+          rm /tmp/pipeline-image.tar
+      - name: Podman lifecycle and fresh restore
+        run: >-
+          python3 deploy/container-smoke.py --engine podman
+          --image internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          --platform ${{ matrix.platform }} --recovery
+          --report evidence/podman-${{ matrix.arch }}.json
+      - name: Export versioned OCI candidate with dependency attestations
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: false
+          tags: internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          outputs: type=oci,dest=/tmp/pipeline-${{ matrix.arch }}.tar
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            IMAGE_VERSION=${{ steps.version.outputs.version }}
+            IMAGE_REVISION=${{ github.sha }}
+            IMAGE_SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+      - name: Record dependency lock and candidate hashes
+        run: |
+          python3 - <<'PY'
+          import json, tarfile
+          arch = '${{ matrix.arch }}'
+          expected = json.load(open('evidence/docker-' + arch + '.json'))['image_id']
+          with tarfile.open('/tmp/pipeline-' + arch + '.tar') as archive:
+              def blob(descriptor):
+                  algorithm, digest = descriptor['digest'].split(':', 1)
+                  assert algorithm == 'sha256'
+                  return json.load(archive.extractfile('blobs/sha256/' + digest))
+              pending = json.load(archive.extractfile('index.json'))['manifests']
+              matched = False
+              while pending:
+                  manifest = blob(pending.pop())
+                  pending.extend(manifest.get('manifests', []))
+                  matched |= manifest.get('config', {}).get('digest') == expected
+              assert matched, 'OCI candidate does not contain the exact smoke-tested image'
+          PY
+          cp pyproject.toml uv.lock web/package-lock.json evidence/
+          sha256sum /tmp/pipeline-${{ matrix.arch }}.tar > evidence/oci-${{ matrix.arch }}.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ steps.version.outputs.version }}-${{ matrix.arch }}-${{ github.sha }}
+          path: |
+            /tmp/pipeline-${{ matrix.arch }}.tar
+            evidence/
+          retention-days: 7

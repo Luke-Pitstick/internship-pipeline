@@ -1,18 +1,20 @@
 FROM ghcr.io/astral-sh/uv:0.9.14 AS uv
-FROM node:22-bookworm-slim AS codex
-RUN npm install --prefix /opt/codex @openai/codex@0.153.0
-FROM node:22-bookworm-slim AS frontend
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS frontend
 WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
 COPY web/ ./
-RUN npm run build
+RUN npm run check && npm run build
 
-FROM python:3.12-slim AS pipeline
+FROM python:3.12-slim-bookworm AS pipeline
+ARG IMAGE_VERSION=0.1.0
+ARG IMAGE_REVISION=local
+ARG IMAGE_SOURCE
+LABEL org.opencontainers.image.title="Internship Pipeline" \
+    org.opencontainers.image.version=$IMAGE_VERSION \
+    org.opencontainers.image.revision=$IMAGE_REVISION \
+    org.opencontainers.image.source=$IMAGE_SOURCE
 COPY --from=uv /uv /usr/local/bin/uv
-COPY --from=codex /usr/local/bin/node /usr/local/bin/node
-COPY --from=codex /opt/codex /opt/codex
-RUN ln -s /opt/codex/node_modules/.bin/codex /usr/local/bin/codex
 RUN apt-get update && apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -25,8 +27,9 @@ RUN uv sync --frozen --no-dev --no-editable \
     && mkdir -p /var/data \
     && chown pipeline:pipeline /var/data
 COPY --from=frontend /web/build /app/web/build
-ENV PIPELINE_DATA_DIR=/var/data PIPELINE_WEB_DIR=/app/web/build CODEX_HOME=/var/data/codex
+ENV PIPELINE_DATA_DIR=/var/data PIPELINE_WEB_DIR=/app/web/build
 EXPOSE 8080
 VOLUME ["/var/data"]
 USER pipeline
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s CMD python -c "import os,urllib.request,urllib.parse; origin=os.environ.get('PIPELINE_ORIGIN','http://localhost:8080'); urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8080/readyz',headers={'Host':urllib.parse.urlsplit(origin).netloc}),timeout=3)"
 ENTRYPOINT ["python", "-m", "internship_pipeline.bootstrap"]

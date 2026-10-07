@@ -13,9 +13,32 @@ jobs:
         with:
           version: "0.9.14"
       - run: uv sync --python 3.12 --frozen
-      - run: uv run --frozen ruff check src tests
+      - run: uv run --frozen ruff check src tests deploy
       - run: uv run --frozen mypy src/internship_pipeline
       - run: uv run --frozen pytest -q
       - run: uv build
-      - run: uv run --frozen internship-pipeline demo
       - run: docker compose config --quiet
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.14"
+      - run: uv sync --python 3.12 --frozen
+      - run: npm ci
+        working-directory: web
+      - run: npm run check && npm run build && npm run measure
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npx playwright test --config playwright.setup.config.ts
+        working-directory: web
