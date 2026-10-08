@@ -1,5 +1,7 @@
 # Candidate distribution
 
+The [curl publication workflow](curl-publication.md) builds on this bundle/verification contract to generate the user-facing `install.sh` with release identities embedded. The manual bootstrap invocation below is useful for inspecting the underlying contract; it is not the intended end-user setup flow. See [curl acceptance](curl-installation-acceptance.md) for executed checks and remaining hosted gates.
+
 October 8, 2026. Local packaging and verification are implemented. The owner chose
 MIT as the working license candidate, GHCR for images and GitHub Releases for
 installer assets. This document does not certify an image, publish an endpoint or
