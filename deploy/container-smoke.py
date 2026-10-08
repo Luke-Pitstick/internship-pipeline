@@ -99,21 +99,6 @@ def healthy(container: str) -> None:
         if docker("inspect", "--format", "{{.State.Health.Status}}", container) == "healthy":
             return
         time.sleep(0.5)
-    state = json.loads(docker("inspect", "--format", "{{json .State}}", container))
-    health = state.get("Health") or {}
-    status = health.get("Status")
-    print("Health diagnostic: " + json.dumps({
-        "running": state.get("Running") is True,
-        "status": status if status in {"healthy", "unhealthy", "starting"} else "unknown",
-        "recorded_checks": len(health.get("Log") or []),
-    }), flush=True)
-    if ENGINE == "podman":
-        try:
-            docker("healthcheck", "run", container, timeout=10)
-        except SmokeFailure:
-            print("Health diagnostic: explicit Podman image probe failed", flush=True)
-        else:
-            print("Health diagnostic: explicit Podman image probe passed", flush=True)
     raise SmokeFailure("Image healthcheck did not become healthy within 45s")
 
 
