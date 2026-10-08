@@ -14,20 +14,24 @@ LABEL org.opencontainers.image.title="Internship Pipeline" \
     org.opencontainers.image.version=$IMAGE_VERSION \
     org.opencontainers.image.revision=$IMAGE_REVISION \
     org.opencontainers.image.source=$IMAGE_SOURCE
-COPY --from=uv /uv /usr/local/bin/uv
 RUN apt-get update && apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended lmodern \
     && kpsewhich lmodern.sty \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+COPY pyproject.toml uv.lock LICENSE ./
+RUN --mount=from=uv,source=/uv,target=/usr/local/bin/uv \
+    --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 COPY src ./src
-RUN uv sync --frozen --no-dev --no-editable \
+RUN --mount=from=uv,source=/uv,target=/usr/local/bin/uv \
+    --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable \
     && useradd --uid 10001 --create-home pipeline \
     && mkdir -p /var/data \
     && chown pipeline:pipeline /var/data
 COPY --from=frontend /web/build /app/web/build
+RUN test -s /app/LICENSE && test -s /app/web/build/third-party-licenses.md
 ENV PIPELINE_DATA_DIR=/var/data PIPELINE_WEB_DIR=/app/web/build
 EXPOSE 8080
 VOLUME ["/var/data"]
