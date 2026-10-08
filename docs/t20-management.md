@@ -34,7 +34,7 @@ internship-pipeline open
 | `logs --diagnostics` | Uses the same explicit owner login and prints the application's sanitized work-failure event view. |
 | `setup-token` / `recover-owner` | Require a stopped owned application container and private interactive terminal. Pin maintenance to the inspected container image ID, saved endpoint and preserved volume, with networking and image pulls disabled. They leave the application stopped, and the exclusive installation lock still rejects any separately running writers. |
 
-The schema-1 `installation.json` records the installation UUID, explicit image version/digest, engine executable, captured local endpoint (and Podman SSH identity where needed), container/volume names, port and origin. The shared runtime helper validates its owner and write permissions and refuses incompatible resource labels, image, data mount or loopback port mapping. Commands use literal argument vectors and the saved endpoint; inherited Docker/Podman connection variables cannot redirect them. They never change a global engine context or start runtime software. Missing runtime, manifest, container or volume produces an actionable failure. Missing data is never treated as permission to create a second installation.
+The schema-1 `installation.json` records the installation UUID, explicit image version/digest (or exact local image ID for recovery), required data directory, engine executable, captured local endpoint (and Podman SSH identity where needed), container/volume names, port and origin. The shared runtime helper validates its owner and write permissions and refuses incompatible resource labels, image, data mount or loopback port mapping. Commands use literal argument vectors and the saved endpoint; inherited Docker/Podman connection variables cannot redirect them. They never change a global engine context or start runtime software. Missing runtime, manifest, container or volume produces an actionable failure. Missing data is never treated as permission to create a second installation.
 
 Owner diagnostics perform `/api/session` → CSRF-protected `/api/login` → `/api/diagnostics` → `/api/logout`. Cookies remain in process memory, redirects and ambient HTTP proxies are disabled, responses have a size limit, and individual requests have a five-second timeout. The client clears its cookie jar even on error and attempts logout after a session exists; a network failure during logout may leave that short-lived server session until normal expiry. Passwords/tokens aren't accepted as arguments or saved in files. Output includes an additional field/value allowlist, so arbitrary response fields cannot print credentials or private exception text. Diagnostics show the activity available in T17; they do not claim a complete history of completed search runs. Use Settings → Diagnostics to inspect and deliberately retry work.
 
@@ -55,26 +55,77 @@ configuration and artifacts are required. Copying a subset is insufficient.
 3. **Restore into a fresh destination.** Use the same image version/digest and restore into a new directory in a separate recovery volume or private directory. Restore refuses an existing destination. Owner passwords survive, browser sessions are revoked, and uncertain delivery work requires review rather than replay.
 4. **Verify the fresh application before switching.** Start it with the restored data root, correct origin and a different available loopback port. Check owner login, readiness, retained jobs/documents and connection decryption. Keep the original stopped installation intact until this check passes.
 
-Prepared Docker syntax for step 2 is shown below. Replace the quoted placeholders with the saved manifest's values and a new owner-only host backup directory. These are documentation examples; actual engine execution is unverified.
+Prepared Docker syntax for step 2 uses a separate owned backup volume, then streams its archive to the host. This avoids binding a host-UID-owned mode-0700 directory into the UID-10001 image. Replace placeholders with the saved endpoint, source UUID/volume/container, exact inspected local image ID, recorded data root and a newly generated backup-volume name. Preserve both volumes. These commands remain actual-engine acceptance cases.
 
 ```sh
-docker --host 'unix:///saved/local/docker.sock' run --rm --network none \
-  --entrypoint internship-pipeline \
-  --mount 'type=volume,src=SAVED_VOLUME,dst=/var/data' \
-  --mount 'type=bind,src=/private/new-backup-parent,dst=/backups' \
-  'SAVED_IMAGE_VERSION_OR_DIGEST' backup /backups/snapshot --data-dir /var/data
+docker --host 'SAVED_UNIX_ENDPOINT' volume create \
+  --label 'io.internship-pipeline.install-id=SAVED_SOURCE_UUID' 'NEW_BACKUP_VOLUME'
+docker --host 'SAVED_UNIX_ENDPOINT' run --rm --pull never --network none \
+  --read-only --tmpfs /tmp --entrypoint python \
+  --mount 'type=volume,src=NEW_BACKUP_VOLUME,dst=/var/data' \
+  'SAVED_LOCAL_IMAGE_ID' -c \
+  "from pathlib import Path; Path('/var/data/backup').mkdir(mode=0o700)"
+docker --host 'SAVED_UNIX_ENDPOINT' run --rm --pull never --network none \
+  --read-only --tmpfs /tmp --entrypoint internship-pipeline \
+  --mount 'type=volume,src=SAVED_SOURCE_VOLUME,dst=/var/data' \
+  --mount 'type=volume,src=NEW_BACKUP_VOLUME,dst=/recovery' \
+  'SAVED_LOCAL_IMAGE_ID' backup /recovery/backup/snapshot --data-dir 'SAVED_DATA_DIR'
+umask 077
+set -C
+docker --host 'SAVED_UNIX_ENDPOINT' run --rm --pull never --network none \
+  --read-only --tmpfs /tmp --entrypoint python \
+  --mount 'type=volume,src=NEW_BACKUP_VOLUME,dst=/var/data,readonly' \
+  'SAVED_LOCAL_IMAGE_ID' -c \
+  "import sys, tarfile; archive = tarfile.open(fileobj=sys.stdout.buffer, mode='w|'); archive.add('/var/data/backup/snapshot', arcname='snapshot'); archive.close()" \
+  > /private/backups/new-snapshot.tar
 ```
 
-The non-root image user must be able to write the private backup mount; provision suitable local permissions without making the backup public. For Podman, use the manifest's saved executable and `--url`/`--identity` values, or `--remote=false` for native local operation. Do not use a new global connection or silently switch engines. SELinux mount permissions and cross-runtime volume behavior have not passed actual acceptance.
+Create the host backup parent privately first; `set -C` prevents replacing an existing archive and `umask 077` keeps the output owner-only. The initial one-off volume mount at the image's owned `/var/data` initializes ordinary Docker/Podman volume copy-up ownership for its UID 10001. Mounting that same volume at `/recovery` preserves the ownership; no host backup permissions, user namespaces or source bytes are changed. Verify this behavior on each declared runtime before claiming it works. A failed command retains the new backup volume and source; don't reuse an incomplete backup or remove a useful volume to retry.
 
-The existing T18 recovery runner restores to `/var/data/restored` inside a separate volume and starts with `PIPELINE_DATA_DIR=/var/data/restored`. That is the prepared container recovery pattern, not verified image evidence. The T19 installer currently provisions the default `/var/data` root and does not register restored subdirectory roots; automatic restore registration remains unavailable. Follow T17's explicit destination-host configuration and retain the original installation rather than claiming an installer rerun adopts a restore automatically. Local `recover-owner` prompts for credentials and revokes sessions under the offline lock; no public owner-recovery bypass exists.
+Extract the archive as the host owner into the private parent, refusing links and unsafe paths. The new `snapshot` destination must not already exist:
 
-## Explicit image changes
+```sh
+python3 - <<'PY_BACKUP'
+from pathlib import Path
+import os, tarfile
+parent = Path('/private/backups')
+assert not (parent / 'snapshot').exists()
+os.umask(0o077)
+def regular(member, destination):
+    if not (member.isfile() or member.isdir()):
+        raise ValueError('Backup archive accepts only regular files and directories')
+    return tarfile.data_filter(member, destination)
+with tarfile.open(parent / 'new-snapshot.tar') as archive:
+    archive.extractall(parent, filter=regular)
+PY_BACKUP
+```
 
-There is no automatic updater. Installer reruns retain the saved image, endpoint, port and data. Before changing an image, record the original digest and keep a complete same-version private backup, then stop the installation. Inspect the candidate release's documented database-version contract and validate a separate fresh restore with that exact image before switching any installation manifest/container. T18 currently verifies neither cross-release migration nor downgrade compatibility, so upgrading existing data is not approved by this preparation. Running an older image against data already opened by a newer image is unsupported; recovery uses the old image and its full pre-change backup in a fresh destination. Never edit only the manifest's image while leaving a mismatched container, and never reset the original volume to make an update succeed.
+The source container's `Image` field supplies `SAVED_LOCAL_IMAGE_ID`; this local content identity is distinct from the registry digest. Use the manifest's `data_dir` so recovered installations back up their restored root. For Podman, use the manifest's saved executable and `--url`/`--identity`, or `--remote=false` for native local mode. Keep the generated backup volume's source UUID label and inspection evidence. The private host archive plus extracted directory are secret recovery material; retain an encrypted offline copy. No raw tokens/credentials are printed by the host-installed lifecycle command.
+
+The explicit installer recovery path manages the same `/var/data/restored` root used by the T18 runner. With the complete reviewed bundle and a new destination, run:
+
+```sh
+sh /private/reviewed-bundle/install.sh \
+  --restore-from /private/backups/snapshot \
+  --restore-source /private/original-installation \
+  --install-dir /private/recovered-installation \
+  --command-dir /private/recovered-commands --port 18080
+/private/recovered-commands/internship-pipeline status
+/private/recovered-commands/internship-pipeline status --diagnostics
+```
+
+Paths are placeholders; the hosted equivalent must use the exact verified S4 bundle, as recorded in [installation acceptance](release/installation-acceptance.md). The source must still have its owned stopped container and retained volume; the new port must differ. No new runtime or image is selected. Restore reads the owner-only host backup as the invoking host user, creates a private temporary tar, and passes it through stdin to the source image with pulls/network disabled and only a new labelled destination volume mounted. The non-root image user extracts regular files/directories privately into `/var/data/backup`, checks the transferred manifest SHA-256, then restores into `/var/data/restored`. The host backup is never mounted, chmodded or chowned; source UID and rootless namespace mappings cannot make its mode-0700 path unreadable to this transfer. T17 validates both databases, encryption key and retained documents and writes fresh configuration at `/var/data/restored/config/settings.yaml`. Owner passwords survive and sessions are revoked. Verify jobs, readable PDFs, decrypted connections and retained confirmed side-effect ledgers before keeping only the recovered installation; authorization for live delivery/provider work is separate.
+
+The transfer reserves temporary host disk for the private tar, and the fresh volume retains both the transferred backup and restored data. Plan host temporary space of at least the backup size plus tar overhead and volume capacity for both copies; measure actual disk requirements in S3/S5. A total 600-second deadline covers archive creation checks, subprocess stdin transfer and restore; a stopped receiver times out instead of blocking an unbounded pipe write. Only the installer's unlinked temporary file is cleaned automatically. `.backup-manifest.sha256` records the copied backup identity before `.restore-completed` permits app startup. Image UID ownership, fresh-volume copy-up permissions and real Docker/Podman stdio remain actual-runtime gates, covered separately from native archive regressions.
+
+The destination command uses its own manifest and completion marker, so `start`, `stop`, diagnostics and offline `recover-owner` work after the checkout and original command path are unavailable. Recovery never adopts the original volume. A successful restore followed by a failed container create/start can resume with the same bundle and destination paths, without restore flags or another pull. An unconfirmed restore cannot start through either installer or management; preserve its volume and use a different fresh destination for another attempt. Do not delete markers, edit only the manifest, or overwrite an existing restored directory to force progress.
+
+## First-release image contract
+
+There is no automatic updater, cross-release migration or downgrade compatibility. Installer reruns retain their saved image, endpoint, port and data root. Fresh first-release installation and complete exact-image backup/recovery are the current contract. Upgrading development snapshots by changing their manifest or running a new image against old data is unsupported. Broader updates require a separate requirement and accepted test path; no cross-version procedure is implied by these recovery commands.
 
 ## Recorded checks and missing acceptance
 
-`PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_management.py` passes **46 tests**. Temporary executable fixtures simulate Docker and Podman command contracts: literal argv with spaces/shell metacharacters, frozen endpoint/connection environment, idempotent start/stop, matching UUID labels/image/mount/port, missing installation/volume/container, engine errors, readiness/call timeouts, bounded limits, safe logs and symlinked launcher imports. One test exercises the management client's request serialization against the real native application API through a FastAPI TestClient-backed opener with synthetic owner/work data, checking authenticated diagnostics, Origin/CSRF login, sanitized failures, logout and session cleanup. Redirect/error handling, malformed session refusal before password submission, noninteractive credential refusal, refusal of an echoing password prompt and explicitly requested browser-opening behavior also pass; browser opening is mocked. Owned Ruff and management-module mypy pass. These fixtures do not establish that either actual engine accepts the prepared argv or that an image serves the HTTP client end to end.
+The historical October 7 management-only run passed **46 tests**. The October 8 installer/management/native T17 recovery follow-up passes **150 tests, with 1 skipped**, in 54.79 seconds; see [T19](t19-installer.md) for the exact command. New cases verify restored-root lifecycle/owner recovery, completion-marker refusal, config/data-root mismatch and nested-mount refusal. Temporary executable fixtures simulate Docker and Podman command contracts: literal argv with spaces/shell metacharacters, frozen endpoint/connection environment, idempotent start/stop, matching UUID labels/image/mount/port, missing installation/volume/container, engine errors, readiness/call timeouts, bounded limits, safe logs and symlinked launcher imports. One test exercises the management client's request serialization against the real native application API through a FastAPI TestClient-backed opener with synthetic owner/work data, checking authenticated diagnostics, Origin/CSRF login, sanitized failures, logout and session cleanup. Redirect/error handling, malformed session refusal before password submission, noninteractive credential refusal, refusal of an echoing password prompt and explicitly requested browser-opening behavior also pass; browser opening is mocked. Owned Ruff and management-module mypy pass. These fixtures do not establish that either actual engine accepts the prepared argv or that an image serves the HTTP client end to end.
 
 T20 still requires T18's actual image/architecture/runtime acceptance and T19's real saved installation, then installed-command start/stop/status/logs/URL, authenticated diagnostics over the serving container, persistent-data checks across lifecycle actions, stopped/missing-runtime recovery, and same-image backup/fresh restore on each declared runtime. The public installer URL, published release image, supported matrix and resource measurements remain undecided or unverified upstream. No actual image pull, engine action, provider request, publication, reset, prune or disk cleanup was performed in this slice.

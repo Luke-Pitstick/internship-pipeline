@@ -2,19 +2,103 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
+import tarfile
+import tempfile
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
 LABEL = "io.internship-pipeline.install-id"
+
+RESTORE_STREAM = """\
+import hashlib, os, pathlib, sys, tarfile
+from internship_pipeline.operations import restore_installation
+os.umask(0o077)
+def private_member(member, destination):
+    if not (member.isfile() or member.isdir()):
+        raise RuntimeError('Backup transfer accepts only regular files and directories')
+    return tarfile.data_filter(member, destination)
+backup = pathlib.Path('/var/data/backup')
+backup.mkdir(mode=0o700)
+with tarfile.open(fileobj=sys.stdin.buffer, mode='r|') as archive:
+    archive.extractall(backup, filter=private_member)
+if hashlib.sha256((backup / 'manifest.json').read_bytes()).hexdigest() != sys.argv[1]:
+    raise RuntimeError('Backup identity changed during transfer')
+restore_installation(backup, pathlib.Path('/var/data/restored'))
+"""
+
+
+class DeadlineReader:
+    def __init__(self, source: BinaryIO, deadline: float) -> None:
+        self.source = source
+        self.deadline = deadline
+
+    def read(self, size: int) -> bytes:
+        if time.monotonic() >= self.deadline:
+            raise Failure("Private backup transfer timed out; destination remains stopped.")
+        return self.source.read(size)
+
+
+def archive_backup(backup: Path, stream: BinaryIO, deadline: float) -> str:
+    """Copy owner-readable private files without exposing them through host mounts."""
+    manifest = backup / "manifest.json"
+    if manifest.is_symlink() or not manifest.is_file():
+        raise Failure("A complete regular T17 backup manifest is required.")
+    digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+    paths = sorted(backup.rglob("*"))
+    required_bytes = sum(path.lstat().st_size + 1024 for path in paths) + 1024 * 1024
+    if shutil.disk_usage(tempfile.gettempdir()).free < required_bytes:
+        raise Failure("Insufficient temporary disk for private backup transfer; preserve all data.")
+    with tarfile.open(fileobj=stream, mode="w") as archive:
+        for path in paths:
+            if time.monotonic() >= deadline:
+                raise Failure("Private backup transfer timed out; destination remains stopped.")
+            before = path.lstat()
+            if (
+                stat.S_ISLNK(before.st_mode)
+                or not (stat.S_ISREG(before.st_mode) or stat.S_ISDIR(before.st_mode))
+                or (stat.S_ISREG(before.st_mode) and before.st_nlink != 1)
+            ):
+                raise Failure("Backup contains an unsafe file; preserve it and inspect locally.")
+            info = archive.gettarinfo(str(path), arcname=str(path.relative_to(backup)))
+            info.uid = info.gid = 10001
+            info.uname = info.gname = ""
+            info.mode = 0o700 if info.isdir() else 0o600
+            if info.isfile():
+                descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+                with os.fdopen(descriptor, "rb") as source:
+                    current = os.fstat(source.fileno())
+                    if (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns) != (
+                        before.st_dev,
+                        before.st_ino,
+                        before.st_size,
+                        before.st_mtime_ns,
+                    ):
+                        raise Failure(
+                            "Backup changed during transfer; preserve it and retry fresh."
+                        )
+                    archive.addfile(info, cast(BinaryIO, DeadlineReader(source, deadline)))
+                    after = os.fstat(source.fileno())
+                    if (after.st_size, after.st_mtime_ns) != (before.st_size, before.st_mtime_ns):
+                        raise Failure(
+                            "Backup changed during transfer; preserve it and retry fresh."
+                        )
+            else:
+                archive.addfile(info)
+    if hashlib.sha256(manifest.read_bytes()).hexdigest() != digest:
+        raise Failure("Backup manifest changed during transfer; preserve it and retry fresh.")
+    stream.seek(0)
+    return digest
 
 
 class Failure(Exception):
@@ -40,6 +124,7 @@ class Manifest:
     port: int
     origin: str
     url: str
+    data_dir: str
 
 
 def default_install_dir() -> Path:
@@ -117,6 +202,7 @@ def load_manifest(path: Path) -> Manifest:
                 manifest.image,
                 manifest.origin,
                 manifest.url,
+                manifest.data_dir,
             )
         ):
             raise ValueError("manifest string fields")
@@ -132,6 +218,7 @@ def load_manifest(path: Path) -> Manifest:
             or not 1024 <= manifest.port <= 65535
             or manifest.origin != f"http://localhost:{manifest.port}"
             or manifest.url != manifest.origin
+            or manifest.data_dir not in {"/var/data", "/var/data/restored"}
         ):
             raise ValueError("invalid manifest fields")
         return manifest
@@ -186,13 +273,20 @@ class Runtime:
             prefix += ["--remote=false"]
         return prefix + list(args)
 
-    def run(self, *args: str, timeout: float = 15, include_stderr: bool = False) -> str:
+    def run(
+        self,
+        *args: str,
+        timeout: float = 15,
+        include_stderr: bool = False,
+        stdin: BinaryIO | None = None,
+    ) -> str:
         try:
             result = subprocess.run(
                 self.argv(*args),
                 env=self.environment,
                 capture_output=True,
                 text=True,
+                stdin=stdin,
                 timeout=timeout,
                 check=False,
             )
@@ -237,7 +331,7 @@ class Runtime:
                     image_id,
                     command,
                     "--data-dir",
-                    "/var/data",
+                    manifest.data_dir,
                 ),
                 env=self.environment,
                 timeout=600,
@@ -262,6 +356,40 @@ class Runtime:
                 raise Failure("The installer requires a Linux container engine.")
         except (ValueError, AttributeError, TypeError) as exc:
             raise Failure("The local runtime returned invalid engine information.") from exc
+
+    def restore(self, manifest: Manifest, backup: Path) -> str:
+        """Restore privately into fresh owned storage using an exact local image ID."""
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", manifest.image):
+            raise Failure("Fresh restore requires the inspected source image identity.")
+        deadline = time.monotonic() + 600
+        with tempfile.TemporaryFile(mode="w+b") as stream:
+            digest = archive_backup(backup, stream, deadline)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise Failure("Private backup transfer timed out; destination remains stopped.")
+            self.run(
+                "run",
+                "--rm",
+                "--pull",
+                "never",
+                "--network",
+                "none",
+                "--read-only",
+                "--tmpfs",
+                "/tmp",
+                "-i",
+                "--entrypoint",
+                "python",
+                "--mount",
+                f"type=volume,src={manifest.volume_name},dst=/var/data",
+                manifest.image,
+                "-c",
+                RESTORE_STREAM,
+                digest,
+                timeout=remaining,
+                stdin=stream,
+            )
+        return digest
 
     def _inspect(
         self, kind: str, name: str, deadline: float | None = None
@@ -330,13 +458,35 @@ class Runtime:
             )
         bindings = host["PortBindings"]
         expected = [{"HostIp": "127.0.0.1", "HostPort": str(manifest.port)}]
-        data_mounts = [mount for mount in mounts if mount.get("Destination") == "/var/data"]
+        data_mounts = [
+            mount
+            for mount in mounts
+            if isinstance(mount.get("Destination"), str)
+            and (
+                mount["Destination"] == "/var/data" or mount["Destination"].startswith("/var/data/")
+            )
+        ]
+        environment = config.get("Env")
         if (
             (config.get("Labels") or {}).get(LABEL) != manifest.install_id
             or config.get("Image") != manifest.image
             or len(data_mounts) != 1
             or data_mounts[0].get("Name") != manifest.volume_name
+            or data_mounts[0].get("Destination") != "/var/data"
             or bindings.get("8080/tcp") != expected
+            or not isinstance(environment, list)
+            or [
+                entry
+                for entry in environment
+                if isinstance(entry, str) and entry.startswith("PIPELINE_DATA_DIR=")
+            ]
+            != [f"PIPELINE_DATA_DIR={manifest.data_dir}"]
+            or [
+                entry
+                for entry in environment
+                if isinstance(entry, str) and entry.startswith("PIPELINE_CONFIG=")
+            ]
+            != [f"PIPELINE_CONFIG={manifest.data_dir}/config/settings.yaml"]
         ):
             raise Failure(
                 "Container ownership, image, storage or loopback port "

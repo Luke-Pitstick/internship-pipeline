@@ -61,7 +61,9 @@ elif args[0] == "create":
     mount = args[args.index("--mount") + 1].split(",src=", 1)[1].split(",", 1)[0]
     port = args[args.index("--publish") + 1].split(":")[1]
     state["containers"][container_name] = {
-        "Config": {"Labels": dict([label]), "Image": args[-1]},
+        "Image": "sha256:" + "a" * 64,
+        "Config": {"Labels": dict([label]), "Image": args[-1],
+                   "Env": [args[i + 1] for i, arg in enumerate(args) if arg == "--env"]},
         "Mounts": [{"Name": mount, "Destination": "/var/data"}],
         "HostConfig": {"PortBindings": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}},
         "State": {"Running": False, "Status": "created", "Health": {"Status": "starting"}}}
@@ -70,6 +72,12 @@ elif args[0] == "start":
                                              "Health": {"Status": state.get("health", "healthy")}}
 elif args[0] == "stop": state["containers"][args[-1]]["State"]["Running"] = False
 elif args[0] == "pull": pass
+elif args[0] == "run":
+    if "-i" in args:
+        import hashlib
+        state["stdin_digest"] = hashlib.sha256(sys.stdin.buffer.read()).hexdigest()
+    if state.get("restore_failure"): sys.exit(1)
+    state["restore_count"] = state.get("restore_count", 0) + 1
 elif args[0] == "logs": print("private setup_token=never-print-this")
 else: sys.exit(2)
 statefile.write_text(json.dumps(state))
@@ -139,6 +147,7 @@ def test_first_install_creates_owned_loopback_volume_and_command(fake, capsys):
     assert fake[0].joinpath("installation.json").stat().st_mode & 0o777 == 0o600
     command = fake[1] / "internship-pipeline"
     assert command.is_symlink()
+    assert (fake[0] / "command/LICENSE").read_text() == (DEPLOY.parent / "LICENSE").read_text()
     help_run = subprocess.run([str(command), "--help"], text=True, capture_output=True)
     assert help_run.returncode == 0, help_run.stderr
     status_run = subprocess.run([str(command), "status"], text=True, capture_output=True)
@@ -407,3 +416,179 @@ def test_unsupported_hosts_fail_before_runtime(system, machine, monkeypatch):
     monkeypatch.setattr(installer.platform, "machine", lambda: machine)
     with pytest.raises(Failure):
         installer.check_host()
+
+
+def recovery_arguments(fake, *extra):
+    return [
+        "--install-dir",
+        str(fake[0].parent / "recovered"),
+        "--command-dir",
+        str(fake[0].parent / "recovered-commands"),
+        "--port",
+        "18080",
+        *extra,
+    ]
+
+
+def prepare_recovery(fake):
+    source = installed(fake)
+    state = read_state(fake)
+    state["containers"][source.container_name]["State"]["Running"] = False
+    state["calls"] = []
+    fake[2].write_text(json.dumps(state))
+    backup = fake[0].parent / "private backup $(literal)"
+    backup.mkdir(mode=0o700)
+    (backup / "manifest.json").write_text('{"format": 1, "files": {}}')
+    (backup / "manifest.json").chmod(0o600)
+    return source, backup
+
+
+def restore_arguments(fake, backup, *extra):
+    return recovery_arguments(
+        fake, "--restore-source", str(fake[0]), "--restore-from", str(backup), *extra
+    )
+
+
+def test_fresh_restore_registers_exact_image_data_root_and_retains_source(fake):
+    source, backup = prepare_recovery(fake)
+    before = read_state(fake)
+    assert installer.main(restore_arguments(fake, backup)) == 0
+    root = fake[0].parent / "recovered"
+    destination = load_manifest(root / "installation.json")
+    after = read_state(fake)
+    assert destination.data_dir == "/var/data/restored"
+    assert destination.image == "sha256:" + "a" * 64
+    assert destination.runtime == source.runtime
+    assert destination.install_id != source.install_id
+    assert after["volumes"][source.volume_name] == before["volumes"][source.volume_name]
+    assert after["containers"][source.container_name] == before["containers"][source.container_name]
+    commands = [entry["args"] for entry in after["calls"]]
+    restore = next(command for command in commands if command[0] == "run")
+    assert restore[-4] == destination.image
+    assert restore[-3] == "-c"
+    assert "type=bind" not in ",".join(restore)
+    assert "-i" in restore
+    assert after["stdin_digest"]
+    assert (root / ".backup-manifest.sha256").read_text().strip() == restore[-1]
+    assert restore[restore.index("--network") + 1] == "none"
+    assert restore[restore.index("--pull") + 1] == "never"
+    create = next(command for command in commands if command[0] == "create")
+    assert create[-1] == destination.image
+    assert "PIPELINE_DATA_DIR=/var/data/restored" in create
+    assert not any(command[0] in {"pull", "stop"} for command in commands)
+    assert (root / ".restore-completed").read_text().strip() == destination.install_id
+    command = fake[0].parent / "recovered-commands/internship-pipeline"
+    for operation in ("status", "stop", "start"):
+        result = subprocess.run([str(command), operation], text=True, capture_output=True)
+        assert result.returncode == 0, result.stderr
+    update_state(fake, calls=[])
+    assert installer.main(recovery_arguments(fake)) == 0
+    assert read_state(fake)["restore_count"] == 1
+
+
+@pytest.mark.parametrize("change", ["running", "volume", "owner", "image", "port", "backup"])
+def test_unsafe_restore_source_refused_before_destination_resources(fake, change):
+    source, backup = prepare_recovery(fake)
+    state = read_state(fake)
+    extra = []
+    if change == "running":
+        state["containers"][source.container_name]["State"]["Running"] = True
+    elif change == "volume":
+        state["volumes"] = {}
+    elif change == "owner":
+        state["volumes"][source.volume_name]["Labels"] = {}
+    elif change == "image":
+        state["containers"][source.container_name]["Image"] = "not-an-exact-image"
+    elif change == "port":
+        extra = ["--port", "8080"]
+    elif change == "backup":
+        backup.chmod(0o755)
+    fake[2].write_text(json.dumps(state))
+    assert installer.main(restore_arguments(fake, backup, *extra)) == 1
+    assert not (fake[0].parent / "recovered/installation.json").exists()
+    assert not any(
+        call["args"][0] in {"run", "create", "start", "pull"}
+        or call["args"][:2] == ["volume", "create"]
+        for call in read_state(fake)["calls"]
+    )
+
+
+def test_interrupted_restore_never_starts_partial_destination_or_repeats(fake, capsys):
+    source, backup = prepare_recovery(fake)
+    update_state(fake, restore_failure=True)
+    assert installer.main(restore_arguments(fake, backup)) == 1
+    root = fake[0].parent / "recovered"
+    destination = load_manifest(root / "installation.json")
+    assert (root / ".restore-started").is_file()
+    assert not (root / ".restore-completed").exists()
+    assert destination.container_name not in read_state(fake)["containers"]
+    assert source.volume_name in read_state(fake)["volumes"]
+    update_state(fake, restore_failure=False, calls=[])
+    assert installer.main(restore_arguments(fake, backup)) == 1
+    assert "completion is unconfirmed" in capsys.readouterr().err
+    assert not any(
+        call["args"][0] in {"run", "create", "start", "pull"} for call in read_state(fake)["calls"]
+    )
+    command = fake[0].parent / "recovered-commands/internship-pipeline"
+    result = subprocess.run([str(command), "start"], text=True, capture_output=True)
+    assert result.returncode == 1
+    assert "completion is unconfirmed" in result.stderr
+
+
+def test_completed_restore_resumes_failed_create_without_repeating_restore(fake):
+    _, backup = prepare_recovery(fake)
+    update_state(fake, fail="create")
+    assert installer.main(restore_arguments(fake, backup)) == 1
+    assert read_state(fake)["restore_count"] == 1
+    update_state(fake, fail="", calls=[])
+    assert installer.main(recovery_arguments(fake)) == 0
+    assert read_state(fake)["restore_count"] == 1
+    assert not any(call["args"][0] in {"run", "pull"} for call in read_state(fake)["calls"])
+
+
+def test_bare_podman_image_identity_is_normalized_for_exact_restore(fake):
+    source, backup = prepare_recovery(fake)
+    state = read_state(fake)
+    state["containers"][source.container_name]["Image"] = "a" * 64
+    fake[2].write_text(json.dumps(state))
+    assert installer.main(restore_arguments(fake, backup)) == 0
+    destination = load_manifest(fake[0].parent / "recovered/installation.json")
+    assert destination.image == "sha256:" + "a" * 64
+
+
+@pytest.mark.parametrize("destination", ["source", "inside-source", "inside-backup"])
+def test_restore_destination_must_be_independent(fake, destination):
+    _, backup = prepare_recovery(fake)
+    root = {
+        "source": fake[0],
+        "inside-source": fake[0] / "nested",
+        "inside-backup": backup / "nested",
+    }[destination]
+    assert installer.main(restore_arguments(fake, backup, "--install-dir", str(root))) == 1
+    assert not any(
+        call["args"][0] in {"run", "create", "start"} for call in read_state(fake)["calls"]
+    )
+
+
+def test_missing_source_and_unpaired_restore_flags_do_not_create_source(fake):
+    backup = fake[0].parent / "backup"
+    backup.mkdir(mode=0o700)
+    assert installer.main(restore_arguments(fake, backup)) == 1
+    assert not fake[0].exists()
+    assert installer.main(recovery_arguments(fake, "--restore-from", str(backup))) == 1
+    assert read_state(fake)["calls"] == []
+
+
+@pytest.mark.parametrize("data_dir", [None, "/var/data/other", "/tmp", 17])
+def test_missing_or_unsupported_data_root_manifest_refused(fake, data_dir):
+    installed(fake)
+    path = fake[0] / "installation.json"
+    data = json.loads(path.read_text())
+    if data_dir is None:
+        del data["data_dir"]
+    else:
+        data["data_dir"] = data_dir
+    path.write_text(json.dumps(data))
+    update_state(fake, calls=[])
+    assert installer.main(arguments(fake)) == 1
+    assert read_state(fake)["calls"] == []

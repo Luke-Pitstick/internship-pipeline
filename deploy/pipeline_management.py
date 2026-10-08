@@ -7,6 +7,7 @@ import getpass
 import http.cookiejar
 import json
 import math
+import os
 import re
 import sys
 import urllib.error
@@ -329,7 +330,8 @@ def parser(install_dir: Path | None = None) -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
         description="Manage an existing installation; never creates or replaces its data.",
         epilog="Use status --diagnostics for an interactive owner sign-in. "
-        "Backup, restore and explicit image updates: docs/t20-management.md. "
+        "Fresh exact-image restore: installer --restore-from/--restore-source; "
+        "see docs/t20-management.md. Automatic and cross-release updates are unsupported. "
         "The host command and the image's maintenance CLI have different commands.",
     )
     root.add_argument(
@@ -381,10 +383,20 @@ def main(argv: list[str] | None = None, *, install_dir: Path | None = None) -> i
         command_parser.error("--lines must be between 1 and 200")
     try:
         manifest = load_manifest(args.install_dir / "installation.json")
+        if manifest.data_dir == "/var/data/restored":
+            marker = args.install_dir / ".restore-completed"
+            if (
+                marker.is_symlink()
+                or not marker.is_file()
+                or marker.stat().st_uid != os.getuid()
+                or marker.stat().st_mode & 0o077
+                or marker.read_text().strip() != manifest.install_id
+            ):
+                raise Failure("Restore completion is unconfirmed; preserve the destination.")
         result = manage(args, manifest)
         print(result if isinstance(result, str) else json.dumps(result, indent=2))
         return 0
-    except Failure as exc:
+    except (Failure, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     except (EOFError, KeyboardInterrupt):

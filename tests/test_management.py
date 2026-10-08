@@ -106,6 +106,7 @@ def installed(tmp_path, request):
         8080,
         "http://localhost:8080",
         "http://localhost:8080",
+        "/var/data",
     )
     runtime_module.write_manifest(installation / "installation.json", manifest)
     state = {
@@ -114,7 +115,14 @@ def installed(tmp_path, request):
         "volume": {"Labels": {runtime_module.LABEL: install_id}},
         "container": {
             "Image": "sha256:" + "a" * 64,
-            "Config": {"Labels": {runtime_module.LABEL: install_id}, "Image": manifest.image},
+            "Config": {
+                "Labels": {runtime_module.LABEL: install_id},
+                "Image": manifest.image,
+                "Env": [
+                    "PIPELINE_DATA_DIR=/var/data",
+                    "PIPELINE_CONFIG=/var/data/config/settings.yaml",
+                ],
+            },
             "Mounts": [{"Destination": "/var/data", "Name": manifest.volume_name}],
             "HostConfig": {
                 "PortBindings": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"}]}
@@ -332,6 +340,76 @@ def test_offline_recovery_noninteractive_refusal_preserves_volume(installed, cap
     assert run(installation, command) == 1
     assert "private interactive terminal" in capsys.readouterr().err
     assert all(entry["argv"][2] != "run" for entry in calls(engine_dir))
+
+
+def test_restored_data_root_is_required_for_owner_recovery(installed, monkeypatch):
+    from dataclasses import replace
+
+    installation, original, engine_dir = installed
+    restored = replace(original, data_dir="/var/data/restored")
+    (installation / "installation.json").unlink()
+    runtime_module.write_manifest(installation / "installation.json", restored)
+    marker = installation / ".restore-completed"
+    marker.write_text(restored.install_id + "\n")
+    marker.chmod(0o600)
+    alter(
+        engine_dir,
+        lambda state: state["container"]["Config"].update(
+            Env=[
+                "PIPELINE_DATA_DIR=/var/data/restored",
+                "PIPELINE_CONFIG=/var/data/restored/config/settings.yaml",
+            ]
+        ),
+    )
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    assert run(installation, "recover-owner") == 0
+    assert calls(engine_dir)[-1]["argv"][-2:] == ["--data-dir", restored.data_dir]
+    marker.unlink()
+    before = len(calls(engine_dir))
+    assert run(installation, "start") == 1
+    assert len(calls(engine_dir)) == before
+
+
+@pytest.mark.parametrize(
+    "environment",
+    [
+        None,
+        [],
+        ["PIPELINE_DATA_DIR=/var/data/restored"],
+        ["PIPELINE_DATA_DIR=/var/data", "PIPELINE_DATA_DIR=/tmp"],
+    ],
+)
+def test_changed_data_root_refuses_lifecycle_mutation(installed, environment):
+    installation, _, engine_dir = installed
+    if isinstance(environment, list):
+        environment = [*environment, "PIPELINE_CONFIG=/var/data/config/settings.yaml"]
+    alter(engine_dir, lambda state: state["container"]["Config"].update(Env=environment))
+    assert run(installation, "start") == 1
+    assert all(entry["argv"][2] not in {"run", "start", "stop"} for entry in calls(engine_dir))
+
+
+def test_nested_mount_cannot_redirect_data_root(installed):
+    installation, _, engine_dir = installed
+    alter(
+        engine_dir,
+        lambda state: state["container"]["Mounts"].append(
+            {"Destination": "/var/data/restored", "Name": "unrelated-volume"}
+        ),
+    )
+    assert run(installation, "start") == 1
+    assert all(entry["argv"][2] != "start" for entry in calls(engine_dir))
+
+
+def test_changed_config_cannot_redirect_restored_storage(installed):
+    installation, _, engine_dir = installed
+    alter(
+        engine_dir,
+        lambda state: state["container"]["Config"].update(
+            Env=["PIPELINE_DATA_DIR=/var/data", "PIPELINE_CONFIG=/tmp/foreign-settings.yaml"]
+        ),
+    )
+    assert run(installation, "start") == 1
+    assert all(entry["argv"][2] != "start" for entry in calls(engine_dir))
 
 
 def test_readiness_deadline_and_runtime_timeout_are_bounded(installed, capsys):
