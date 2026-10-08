@@ -296,9 +296,11 @@ def parser() -> argparse.ArgumentParser:
             "No image/host matrix is certified yet."
         ),
     )
-    cli.add_argument(
+    images = cli.add_mutually_exclusive_group()
+    images.add_argument(
         "--image", help="explicit version tag or sha256 digest; required for first installation"
     )
+    images.add_argument("--default-image", help=argparse.SUPPRESS)
     cli.add_argument(
         "--runtime",
         choices=("docker", "podman"),
@@ -358,6 +360,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise Failure(
                     "Another installer is using this directory; wait for it to finish."
                 ) from exc
+            existing = manifest_path.exists() or manifest_path.is_symlink()
             if existing:
                 manifest = load_manifest(manifest_path)
                 if (
@@ -380,13 +383,13 @@ def main(argv: list[str] | None = None) -> int:
                 runtime = Runtime(manifest.runtime)
                 runtime.check()
             else:
-                if not args.image and source is None:
+                if not (args.image or args.default_image) and source is None:
                     raise Failure(
                         "First installation requires --image with a "
                         "verified release version or digest. No release "
                         "image is supplied automatically."
                     )
-                image = image_id if source is not None else args.image
+                image = image_id if source is not None else (args.image or args.default_image)
                 if not isinstance(image, str):
                     raise Failure("Exact installation image is unavailable.")
                 validate_image(image)

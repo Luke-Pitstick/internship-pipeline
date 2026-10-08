@@ -161,9 +161,7 @@ def test_builder_requires_root_license_notice(kind: str, source: Path, tmp_path:
     assert not (tmp_path / "out").exists()
 
 
-def test_builder_refuses_an_archive_too_large_for_bootstrap(
-    source: Path, tmp_path: Path
-) -> None:
+def test_builder_refuses_an_archive_too_large_for_bootstrap(source: Path, tmp_path: Path) -> None:
     for name in builder.BUNDLE_FILES:
         (source / name).write_bytes(os.urandom(512 * 1024))
     with pytest.raises(ValueError, match="bootstrap download size"):
@@ -368,7 +366,10 @@ def test_bootstrap_launches_only_after_verification_and_removes_temp_bundle(
     assert not Path(calls[0][1]).exists()
 
 
-@pytest.mark.parametrize("override", ["--image", "--image=other", "--im", "--imag=other"])
+@pytest.mark.parametrize(
+    "override",
+    ["--image", "--image=other", "--im", "--imag=other", "--default-image=other", "--default"],
+)
 def test_bootstrap_refuses_image_override_without_download(
     override: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -446,3 +447,25 @@ def test_bootstrap_saved_manifest_rerun_has_no_image_override(
     args = bootstrap_args()[:-2]
     assert bootstrap.main([*args, "--", "--install-dir", "/private/saved-root"]) == 0
     assert run.call_args.args[0][2:] == ["--install-dir", "/private/saved-root"]
+
+
+@pytest.mark.parametrize("restore", [False, True])
+def test_release_image_is_only_a_default_for_rerun_and_restore(
+    source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, restore: bool
+) -> None:
+    payload, _ = make_bundle(source, tmp_path / "out")
+    monkeypatch.setattr(bootstrap, "download", Mock(return_value=payload))
+    run = Mock(return_value=Mock(returncode=0))
+    monkeypatch.setattr(bootstrap.subprocess, "run", run)
+    args = bootstrap_args()[:-2]
+    forwarded = ["--install-dir", "/private/user's saved path"]
+    if restore:
+        forwarded.extend(["--restore-source", "/private/source", "--restore-from=/private/backup"])
+    assert bootstrap.main([*args, "--release-image", IMAGE, "--", *forwarded]) == 0
+    assert run.call_args.args[0][2:] == [*forwarded, "--default-image", IMAGE]
+
+
+def test_bootstrap_image_authorities_are_mutually_exclusive() -> None:
+    with pytest.raises(SystemExit) as exc:
+        bootstrap.main([*bootstrap_args(), "--release-image", IMAGE])
+    assert exc.value.code == 2

@@ -151,8 +151,13 @@ def main(argv: list[str] | None = None) -> int:
         "--sha256", required=True, help="reviewed archive SHA-256; never fetched implicitly"
     )
     cli.add_argument("--version", required=True, help="reviewed release version, e.g. v0.1.0-rc.1")
-    cli.add_argument(
+    images = cli.add_mutually_exclusive_group()
+    images.add_argument(
         "--image", help="reviewed OCI image digest; omit for saved-manifest reruns/restore"
+    )
+    images.add_argument(
+        "--release-image",
+        help="pinned release default; saved installations/restores retain their image",
     )
     cli.add_argument("installer_args", nargs=argparse.REMAINDER, help="installer options after --")
     args = cli.parse_args(argv)
@@ -170,7 +175,9 @@ def main(argv: list[str] | None = None) -> int:
         if forwarded and forwarded[0] == "--":
             forwarded = forwarded[1:]
         if any(
-            item.partition("=")[0] in {"--im", "--ima", "--imag", "--image"} for item in forwarded
+            item.partition("=")[0] in {"--im", "--ima", "--imag", "--image"}
+            or (item.startswith("--") and "--default-image".startswith(item.partition("=")[0]))
+            for item in forwarded
         ):
             raise ValueError("Installer options cannot override the reviewed image digest.")
         restore_flags = {item.partition("=")[0] for item in forwarded} & {
@@ -182,15 +189,18 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("Restoration requires both restore flags and no --image override.")
             image_args: list[str] = []
         else:
-            if args.image is not None and not re.fullmatch(
-                r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}", args.image
+            # First installation requires an image; reruns preserve the saved manifest
+            # image, including a stopped-source restoration's inspected local image ID.
+            image_args = ["--image", args.image] if args.image is not None else []
+        for image in (args.image, args.release_image):
+            if image is not None and not re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}", image
             ):
                 raise ValueError(
                     "Supply the reviewed image reference with a complete sha256 digest."
                 )
-            # First installation requires an image; reruns preserve the saved manifest
-            # image, including a stopped-source restoration's inspected local image ID.
-            image_args = ["--image", args.image] if args.image is not None else []
+        if args.release_image is not None:
+            image_args = ["--default-image", args.release_image]
         payload = download(args.bundle_url, args.sha256)
         with tempfile.TemporaryDirectory(prefix="pipeline-reviewed-installer-") as temporary:
             bundle = unpack(payload, Path(temporary), args.version)

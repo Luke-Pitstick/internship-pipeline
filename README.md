@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="#installation">Install</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#how-it-works">How it works</a> ·
@@ -55,41 +56,45 @@ Those checks use synthetic provider transports.
 Automatic model-derived rejection remains disabled behind an independent quality gate. Review
 routing is the current behavior; a successful connection test does not establish matching accuracy.
 
+## Installation
+
+The intended installation is **one curl command**, followed by setup in your browser. Each
+published release will provide an `install.sh` asset that selects its own verified installer bundle
+and pinned container image. You won't need to clone the repository or supply checksums, image names
+or API keys to the command.
+
+The launcher checks your prerequisites, creates persistent storage, starts the application and
+prints the browser URL plus instructions for retrieving the owner setup token. Repeating the
+command preserves the existing installation, image and data; it does not perform an upgrade.
+
+**Publication is still pending.** No hosted command is advertised as runnable until its release
+assets and image are anonymously downloadable and the hosted path has been checked. The
+[publication guide](docs/release/curl-publication.md) and
+[installation acceptance record](docs/release/curl-installation-acceptance.md) track that boundary.
+For now, maintainers can use the [source setup](#development) below.
+
 ## Requirements
 
-For the source-based container setup:
+For the hosted installation:
 
-- Git and a working Docker engine with Docker Compose.
-- Network access to build the image and query any sources or providers you enable.
-- Persistent local storage for accounts, jobs, settings and documents.
-- A browser to claim the owner account and finish setup.
+- `curl` and Python 3.12 or newer on the host.
+- A working Docker or Podman endpoint running Linux containers.
+- Network access to download the release and query sources or providers you enable.
+- Persistent local storage and a browser for owner setup.
+
+The installer guides missing prerequisite setup; it does not install system software or start a
+container VM. Linux/macOS on amd64/arm64 are candidate targets awaiting the declared host checks.
+If both runtimes are available, select one with `--runtime docker` or `--runtime podman`.
 
 You can claim the account and explore setup without model credentials. Matching requires a Jev
 connection; tailored résumés require a separate supported general-LLM connection. SMTP and Google
 Sheets are optional. No numerical memory or disk minimum is certified yet.
 
-Native development additionally requires Python 3.12+, uv, Node.js 22 and a working `pdflatex`
-environment with the template's packages when testing PDF generation.
-
 ## Quick start
 
-The current container path builds from source. It is available for testing while final release
-acceptance is being completed:
-
-```bash
-git clone https://github.com/Luke-Pitstick/internship-pipeline.git
-cd internship-pipeline
-
-# Optional: copy the blank template if you want local port/origin overrides.
-cp .env.example .env
-
-docker compose up --build -d
-docker compose logs app
-```
-
-Read the **Owner setup token** privately from the startup log, open
-[http://localhost:8080](http://localhost:8080), and claim the owner account. Keep the log private:
-the first-boot token authorizes account creation.
+After installation prints its ready URL, read the **Owner setup token** privately using the
+printed log command, open the URL (normally [http://localhost:8080](http://localhost:8080)) and
+claim the owner account. Keep the log private: the first-boot token authorizes account creation.
 
 Then complete the guided setup:
 
@@ -106,9 +111,8 @@ Then complete the guided setup:
 Setup progress persists across reloads. The initial board inventory is labeled backlog, and
 collection can continue independently of model or notification readiness.
 
-The [deployment guide](docs/deployment.md) covers origins, owner claim and persistence. The
-[prepared standalone installer](docs/t19-installer.md) requires a complete reviewed bundle and an
-explicit image; it is not yet a published one-command installation.
+The [deployment guide](docs/deployment.md) covers origins, owner claim and persistence.
+The [installer guide](docs/t19-installer.md) covers runtime selection, reruns and recovery.
 
 ## Configuration
 
@@ -160,7 +164,20 @@ provider boundaries.
 
 ## Everyday commands
 
-For the Compose installation above, run these from the checkout:
+The hosted installer places a management command in `~/.local/bin` by default. Add that directory
+to your `PATH`, or use the absolute command path printed by installation:
+
+```bash
+internship-pipeline status
+internship-pipeline url
+internship-pipeline stop
+internship-pipeline start
+```
+
+These commands use the saved runtime and installation; they do not require a source checkout.
+See the [management guide](docs/t20-management.md) for private diagnostics and owner recovery.
+
+For a source-based Compose installation, run these from its checkout:
 
 | Command | Purpose |
 | --- | --- |
@@ -170,9 +187,8 @@ For the Compose installation above, run these from the checkout:
 | `docker compose start` | Start the existing stopped application |
 | `docker compose restart app` | Restart the application while retaining its data volume |
 
-The prepared host installer has a separate [management command](docs/t20-management.md) for its
-saved installation. Its runtime wrapper and the in-container Python maintenance CLI have distinct
-purposes despite sharing the `internship-pipeline` name.
+The host management command and the in-container Python maintenance CLI have distinct purposes
+despite sharing the `internship-pipeline` name. Use the command for your installation type.
 
 ## Data and recovery
 
@@ -188,7 +204,20 @@ and [operations guide](docs/t17-operations.md).
 
 ## Development
 
-From a checkout, install the locked dependencies and build the frontend:
+Source-based development requires Git. To build and run the container locally:
+
+```bash
+git clone https://github.com/Luke-Pitstick/internship-pipeline.git
+cd internship-pipeline
+# Optional local Compose overrides; keep the real .env ignored.
+cp .env.example .env
+docker compose up --build -d
+docker compose logs app
+```
+
+Native development additionally requires Python 3.12+, uv, Node.js 22 and a working `pdflatex`
+environment with the template's packages for PDF generation. From a checkout, install the locked
+dependencies and build the frontend:
 
 ```bash
 uv sync --frozen --python 3.12
@@ -233,8 +262,9 @@ checks needed for a change.
 
 ### The browser cannot connect
 
-Confirm Docker is running, inspect `docker compose ps`, and check the configured port and origin.
-Open the exact configured origin. Preserve the existing volume while diagnosing startup problems.
+For a hosted installation, inspect `internship-pipeline status` and `internship-pipeline url`.
+For source Compose, inspect `docker compose ps`. Confirm the selected runtime is running and open
+the configured origin. Preserve the existing volume while diagnosing startup problems.
 
 ### The setup token is rejected
 

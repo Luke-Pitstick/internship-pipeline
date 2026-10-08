@@ -179,6 +179,37 @@ def test_rerun_preserves_exact_data_image_and_resources(fake):
     assert (fake[0] / "installation.json").read_text().find(manifest.install_id) >= 0
 
 
+def test_release_default_is_used_fresh_and_never_upgrades_saved_installation(fake):
+    image = "ghcr.io/example/pipeline@sha256:" + "b" * 64
+    assert installer.main(arguments(fake, "--default-image", image)) == 0
+    manifest = load_manifest(fake[0] / "installation.json")
+    assert manifest.image == image
+    before = read_state(fake)
+    update_state(fake, calls=[])
+    newer = "ghcr.io/example/pipeline@sha256:" + "c" * 64
+    assert installer.main(arguments(fake, "--default-image", newer)) == 0
+    assert load_manifest(fake[0] / "installation.json") == manifest
+    after = read_state(fake)
+    assert after["volumes"] == before["volumes"]
+    assert after["containers"] == before["containers"]
+    assert not any(call["args"][0] in {"pull", "create"} for call in after["calls"])
+
+
+def test_explicit_and_default_images_are_mutually_exclusive(fake):
+    with pytest.raises(SystemExit) as exc:
+        installer.main(
+            arguments(
+                fake,
+                "--image",
+                "registry.invalid/pipeline:1.2.3",
+                "--default-image",
+                "registry.invalid/pipeline:2.0.0",
+            )
+        )
+    assert exc.value.code == 2
+    assert read_state(fake)["calls"] == []
+
+
 @pytest.mark.parametrize(
     "option,value", [("--image", "pipeline:2.0.0"), ("--runtime", "podman"), ("--port", "8081")]
 )
@@ -484,6 +515,19 @@ def test_fresh_restore_registers_exact_image_data_root_and_retains_source(fake):
     update_state(fake, calls=[])
     assert installer.main(recovery_arguments(fake)) == 0
     assert read_state(fake)["restore_count"] == 1
+
+
+def test_release_default_preserves_inspected_restore_and_saved_recovery_image(fake):
+    _, backup = prepare_recovery(fake)
+    release = "ghcr.io/example/pipeline@sha256:" + "b" * 64
+    assert installer.main(restore_arguments(fake, backup, "--default-image", release)) == 0
+    root = fake[0].parent / "recovered"
+    destination = load_manifest(root / "installation.json")
+    assert destination.image == "sha256:" + "a" * 64
+    assert installer.main(recovery_arguments(fake, "--default-image", release)) == 0
+    assert load_manifest(root / "installation.json") == destination
+    assert read_state(fake)["restore_count"] == 1
+    assert not any(call["args"][0] == "pull" for call in read_state(fake)["calls"])
 
 
 @pytest.mark.parametrize("change", ["running", "volume", "owner", "image", "port", "backup"])

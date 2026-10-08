@@ -1,0 +1,131 @@
+name: Stage curl installation prerelease
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful manual container-images.yml run on this default-branch revision
+        required: true
+        type: string
+      source_sha:
+        description: Full accepted source SHA, equal to this workflow dispatch revision
+        required: true
+        type: string
+      version:
+        description: Explicit prerelease matching package version, for example v0.1.0-rc.1
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: curl-release-publication
+  cancel-in-progress: false
+env:
+  PIPELINE_RUN_ID: ${{ inputs.candidate_run_id }}
+  PIPELINE_SOURCE_SHA: ${{ inputs.source_sha }}
+  PIPELINE_VERSION: ${{ inputs.version }}
+  PIPELINE_REPOSITORY: ${{ github.repository }}
+  PIPELINE_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+  PIPELINE_WORKFLOW_SHA: ${{ github.sha }}
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate candidate identity before downloading artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          python3 - <<'PY'
+          import os, re
+          assert re.fullmatch(r'[1-9][0-9]*', os.environ['PIPELINE_RUN_ID']), 'Invalid run ID'
+          assert os.environ['PIPELINE_SOURCE_SHA'] == os.environ['PIPELINE_WORKFLOW_SHA'], 'Dispatch the accepted source revision'
+          PY
+          mkdir -p "$RUNNER_TEMP/publication"
+          gh api "repos/$PIPELINE_REPOSITORY/actions/runs/$PIPELINE_RUN_ID" > "$RUNNER_TEMP/publication/run.json"
+          gh api --paginate --slurp "repos/$PIPELINE_REPOSITORY/actions/runs/$PIPELINE_RUN_ID/artifacts" > "$RUNNER_TEMP/publication/artifacts.json"
+          PYTHONPATH=deploy python3 - <<'PY'
+          import json, os, pathlib, tomllib
+          from publish_release import validate_run, validate_artifacts
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'publication'
+          run = json.loads((root / 'run.json').read_text())
+          validate_run(run, repository=os.environ['PIPELINE_REPOSITORY'], source_commit=os.environ['PIPELINE_SOURCE_SHA'],
+                       default_branch=os.environ['PIPELINE_DEFAULT_BRANCH'])
+          pages = json.loads((root / 'artifacts.json').read_text())
+          package = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']
+          validate_artifacts([item for page in pages for item in page['artifacts']], package_version=package,
+                             source_commit=os.environ['PIPELINE_SOURCE_SHA'], run_id=int(os.environ['PIPELINE_RUN_ID']))
+          PY
+          gh run download "$PIPELINE_RUN_ID" --repo "$PIPELINE_REPOSITORY" --pattern 'image-*' --dir "$RUNNER_TEMP/publication/candidates"
+      - name: Validate complete evidence and generated installer without writes
+        run: |
+          python3 deploy/publish_release.py \
+            --source-dir "$GITHUB_WORKSPACE" --artifacts-dir "$RUNNER_TEMP/publication/candidates" \
+            --run-json "$RUNNER_TEMP/publication/run.json" --artifacts-json "$RUNNER_TEMP/publication/artifacts.json" \
+            --repository "$PIPELINE_REPOSITORY" --default-branch "$PIPELINE_DEFAULT_BRANCH" \
+            --source-commit "$PIPELINE_SOURCE_SHA" \
+            --version "$PIPELINE_VERSION" --output-dir "$RUNNER_TEMP/publication/release"
+  promote:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install OCI copy tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+      - uses: docker/setup-buildx-action@v3
+      - name: Download the accepted run artifacts again for validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/publication"
+          gh api "repos/$PIPELINE_REPOSITORY/actions/runs/$PIPELINE_RUN_ID" > "$RUNNER_TEMP/publication/run.json"
+          gh api --paginate --slurp "repos/$PIPELINE_REPOSITORY/actions/runs/$PIPELINE_RUN_ID/artifacts" > "$RUNNER_TEMP/publication/artifacts.json"
+          gh run download "$PIPELINE_RUN_ID" --repo "$PIPELINE_REPOSITORY" --pattern 'image-*' --dir "$RUNNER_TEMP/publication/candidates"
+      - name: Authenticate GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIPELINE_ACTOR: ${{ github.actor }}
+        run: |
+          set -eu
+          printf '%s' "$GH_TOKEN" | skopeo login --username "$PIPELINE_ACTOR" --password-stdin ghcr.io
+          printf '%s' "$GH_TOKEN" | docker login --username "$PIPELINE_ACTOR" --password-stdin ghcr.io
+      - name: Revalidate, preserve OCI bytes, and create a draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 deploy/publish_release.py --promote \
+            --source-dir "$GITHUB_WORKSPACE" --artifacts-dir "$RUNNER_TEMP/publication/candidates" \
+            --run-json "$RUNNER_TEMP/publication/run.json" --artifacts-json "$RUNNER_TEMP/publication/artifacts.json" \
+            --repository "$PIPELINE_REPOSITORY" --default-branch "$PIPELINE_DEFAULT_BRANCH" \
+            --source-commit "$PIPELINE_SOURCE_SHA" \
+            --version "$PIPELINE_VERSION" --output-dir "$RUNNER_TEMP/publication/release"
+      - name: Preserve publication evidence, including partial failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: curl-release-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/publication/release*
+            ${{ runner.temp }}/publication/run.json
+            ${{ runner.temp }}/publication/artifacts.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Clear registry credentials
+        if: always()
+        run: |
+          docker logout ghcr.io
+          skopeo logout ghcr.io
