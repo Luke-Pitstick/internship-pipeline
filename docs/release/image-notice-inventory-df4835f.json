@@ -1,0 +1,2348 @@
+{
+  "reviewed_source": "df4835f7674007de38a45045f593c5a0b314b680",
+  "candidate_run": 37838328196,
+  "architecture": "amd64",
+  "image_config": "sha256:c0e002c301d6c50ed336090c3d2f542313479e4554d93c3eb2e397ce01b5bcc6",
+  "sbom_package_entries": 300,
+  "sbom_noassertion_entries": 85,
+  "notice_files_observed": 467,
+  "notice_inventory_sha256": "19e8457a9eb4016a5320c38c0ed87af62e9bedd9367800fb278b0807584a2591",
+  "review_scope": "Notice presence and packaging, not a completed redistribution clearance",
+  "files": [
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/annotated_doc-0.0.5.dist-info/licenses/LICENSE",
+      "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf",
+      "bytes": 1086
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/annotated_types-0.8.0.dist-info/licenses/LICENSE",
+      "sha256": "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d",
+      "bytes": 1083
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/anyio-4.15.1.dist-info/licenses/LICENSE",
+      "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
+      "bytes": 1081
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/apprise-1.13.1.dist-info/licenses/LICENSE",
+      "sha256": "9ac007e806bd7199cf3158adff83a16351ae85c46373c3533a98b961975103f2",
+      "bytes": 1343
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/argon2_cffi-25.1.0.dist-info/licenses/LICENSE",
+      "sha256": "b6944d386e87ccf49d9632da083685a4b7624733e686a7fe283dd2d428341d77",
+      "bytes": 1115
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/argon2_cffi_bindings-26.1.0.dist-info/licenses/LICENSE",
+      "sha256": "88707653d5414f2242d597302a769565107ac139817b8ca321b3928cc1346c50",
+      "bytes": 1124
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/ats_scrapers-0.3.0.dist-info/licenses/LICENSE",
+      "sha256": "25c62e6693fe87debecf37cc6c820ae42246adb0792189617e6bf418a3102fba",
+      "bytes": 1072
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/beautifulsoup4-4.15.0.dist-info/licenses/AUTHORS",
+      "sha256": "b989238918e1fdac1e46717cb405b63e92497a272413af0d989c1df6c8abcb6f",
+      "bytes": 2201
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/beautifulsoup4-4.15.0.dist-info/licenses/LICENSE",
+      "sha256": "55b4d8d4b1e5bc86d10efac91b74c87bcb77526b0f5b9edaf8b9cd2adc7397b2",
+      "bytes": 1441
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/certifi-2026.7.22.dist-info/licenses/LICENSE",
+      "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+      "bytes": 989
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/cffi-2.1.1.dist-info/licenses/LICENSE",
+      "sha256": "5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63",
+      "bytes": 1123
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/charset_normalizer-3.5.2.dist-info/licenses/LICENSE",
+      "sha256": "6d0d41bfe170ac6c7dc248c9a63e254d0fb45a60d50a8257d0af92c6e249b887",
+      "bytes": 1071
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/click-8.5.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d",
+      "bytes": 1475
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/cryptography-46.0.7.dist-info/licenses/LICENSE",
+      "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb",
+      "bytes": 197
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/cryptography-46.0.7.dist-info/licenses/LICENSE.APACHE",
+      "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe",
+      "bytes": 11360
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/cryptography-46.0.7.dist-info/licenses/LICENSE.BSD",
+      "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb",
+      "bytes": 1532
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/curl_cffi-0.16.3.dist-info/licenses/LICENSE",
+      "sha256": "3e88b029b50b6afd36d6b18642ce4c8b6eee4c903f1cfabef5b811f61e07050b",
+      "bytes": 1106
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/fastapi-0.142.2.dist-info/licenses/LICENSE",
+      "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e",
+      "bytes": 1086
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/google_auth-2.60.0.dist-info/licenses/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/h11-0.16.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361",
+      "bytes": 1124
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/httpcore-1.0.9.dist-info/licenses/LICENSE.md",
+      "sha256": "fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5",
+      "bytes": 1518
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/httpx-0.28.1.dist-info/licenses/LICENSE.md",
+      "sha256": "4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d",
+      "bytes": 1508
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/idna-3.20.dist-info/licenses/LICENSE.md",
+      "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04",
+      "bytes": 1541
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/lxml-6.1.3.dist-info/licenses/LICENSE.txt",
+      "sha256": "8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855",
+      "bytes": 1507
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/lxml-6.1.3.dist-info/licenses/LICENSES.txt",
+      "sha256": "388fa99f3bde4447cd5a4cbb114037be026854db6cfe89e112691c1d8abdcf3c",
+      "bytes": 6221
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/markdown-3.11.dist-info/licenses/LICENSE.md",
+      "sha256": "7ba4eb6d10b32b2d11dce13821340351cdbbb30ba8ccc67841db2ffd86e79aca",
+      "bytes": 1650
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/markdownify-1.2.3.dist-info/LICENSE",
+      "sha256": "fae8b42db142dabf03b0c5c495831a5d11b9649ead0cf0bd4ab4f52294b263be",
+      "bytes": 1083
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/LICENSE.txt",
+      "sha256": "4860083caa0de2ac3292ca98bd074bd8f45d8b32624e37b1e70a240bff61e488",
+      "bytes": 46794
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+      "sha256": "fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec",
+      "bytes": 1018
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING",
+      "sha256": "3f2c1ffa76383a55ae0aac01c9737cd70050dff63e1f026694fbe9d662573c98",
+      "bytes": 690
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/_core/src/highway/LICENSE",
+      "sha256": "e340270d4f64384569a91d546acb5b094d69ce47f0c015db77abb74dc6f815af",
+      "bytes": 20785
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/_core/src/multiarray/dragon4_LICENSE.txt",
+      "sha256": "f7b14309e5f54e5022b26448eefd419988ada2aec01d3c1162d84a0ea8f21f2c",
+      "bytes": 1414
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+      "sha256": "211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910",
+      "bytes": 1514
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE",
+      "sha256": "c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9",
+      "bytes": 1543
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md",
+      "sha256": "a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056",
+      "bytes": 1498
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt",
+      "sha256": "a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55",
+      "bytes": 2266
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/ma/LICENSE",
+      "sha256": "05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6",
+      "bytes": 1593
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/LICENSE.md",
+      "sha256": "103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f",
+      "bytes": 3511
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/src/distributions/LICENSE.md",
+      "sha256": "469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face",
+      "bytes": 2745
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md",
+      "sha256": "0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156",
+      "bytes": 2926
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md",
+      "sha256": "e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918",
+      "bytes": 1154
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/src/philox/LICENSE.md",
+      "sha256": "6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800",
+      "bytes": 1509
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md",
+      "sha256": "9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f",
+      "bytes": 1226
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/numpy-2.5.3.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md",
+      "sha256": "268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9",
+      "bytes": 332
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/oauthlib-4.0.0.dist-info/licenses/LICENSE",
+      "sha256": "0028aa4763a8a0b09ca4c68d585263474cf9aaa6ec69ffbef3a31a9eccdd3b91",
+      "bytes": 1534
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/opentelemetry_api-1.45.0.dist-info/licenses/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pandas-3.0.6.dist-info/LICENSE",
+      "sha256": "5c1052e921e62d36ccda50a61585e9c0444b80c62f39b57c4f3f0d5fb62f5071",
+      "bytes": 52127
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pwdlib-0.3.1.dist-info/licenses/LICENSE",
+      "sha256": "4bdaaafc879717d95eddd23b1ba1c3eccdf1092071805cc515171488f7ff43eb",
+      "bytes": 1074
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pyasn1-0.6.4.dist-info/licenses/LICENSE.rst",
+      "sha256": "2aad5fc00f705c4a1addb83eed10a6a75d286a3779f0cf8519d87e62bc4735fd",
+      "bytes": 1334
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pyasn1_modules-0.4.2.dist-info/licenses/LICENSE.txt",
+      "sha256": "2aad5fc00f705c4a1addb83eed10a6a75d286a3779f0cf8519d87e62bc4735fd",
+      "bytes": 1334
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pycparser-3.0.dist-info/licenses/LICENSE",
+      "sha256": "0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1",
+      "bytes": 1543
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pydantic-2.13.5.dist-info/licenses/LICENSE",
+      "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3",
+      "bytes": 1129
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pydantic_core-2.46.5.dist-info/licenses/LICENSE",
+      "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a",
+      "bytes": 1080
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pypdf-6.19.0.dist-info/licenses/LICENSE",
+      "sha256": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524",
+      "bytes": 1605
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/python_dateutil-2.9.0.post0.dist-info/LICENSE",
+      "sha256": "ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e",
+      "bytes": 2889
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/python_docx-1.2.0.dist-info/licenses/LICENSE",
+      "sha256": "7652f271e46d0d533e9dc463f3b5fcbdcacf4d6a9c8d6b554d15efd0f37f6132",
+      "bytes": 1104
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/python_jobspy-1.2.0.dist-info/licenses/LICENSE",
+      "sha256": "9cc13e45f26ec0760dddfe43a537dac77249fb5dd7f926767f6029452e766cda",
+      "bytes": 1070
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/pyyaml-6.0.3.dist-info/licenses/LICENSE",
+      "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4",
+      "bytes": 1101
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/requests-2.34.2.dist-info/licenses/LICENSE",
+      "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b",
+      "bytes": 10142
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/requests-2.34.2.dist-info/licenses/NOTICE",
+      "sha256": "f5110972dedad2b4e9d314518daf3b7d72d6e02e499acd802181de6f74571dcc",
+      "bytes": 38
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/requests_oauthlib-2.0.0.dist-info/LICENSE",
+      "sha256": "ae01846afad8a8291fe6a08966f3015af9a8ff675d84b981f9793c122f7876e8",
+      "bytes": 745
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/six-1.17.0.dist-info/LICENSE",
+      "sha256": "4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0",
+      "bytes": 1066
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/soupsieve-2.10.dist-info/licenses/LICENSE.md",
+      "sha256": "76a0acdb98c3a63681e20b6f096699ef8cad5fb35d56eef8387e0fa71d797a9a",
+      "bytes": 1096
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/starlette-1.7.0.dist-info/licenses/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf",
+      "bytes": 1518
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+      "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+      "bytes": 13936
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/typing_inspection-0.4.4.dist-info/licenses/LICENSE",
+      "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3",
+      "bytes": 1090
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/tzdata-2026.5.dist-info/licenses/LICENSE",
+      "sha256": "df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46",
+      "bytes": 625
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/tzdata-2026.5.dist-info/licenses/licenses/LICENSE_APACHE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+      "bytes": 1093
+    },
+    {
+      "path": "app/.venv/lib/python3.12/site-packages/uvicorn-0.54.0.dist-info/licenses/LICENSE.md",
+      "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371",
+      "bytes": 1526
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/0y1Qd6I8JFJHfyzeefkoV/starlette-1.7.0.dist-info/licenses/LICENSE.md",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf",
+      "bytes": 1518
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/21nM3UyRgWUp0_aRpnDuD/pyyaml-6.0.3.dist-info/licenses/LICENSE",
+      "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4",
+      "bytes": 1101
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/3f5u8bqWKhNDlvxB9yIvb/google_auth-2.60.0.dist-info/licenses/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/4t21u08BtfWBfoFaohNx1/charset_normalizer-3.5.2.dist-info/licenses/LICENSE",
+      "sha256": "6d0d41bfe170ac6c7dc248c9a63e254d0fb45a60d50a8257d0af92c6e249b887",
+      "bytes": 1071
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/4vZJ-GBHlhvty_gf7-PKm/markdownify-1.2.3.dist-info/LICENSE",
+      "sha256": "fae8b42db142dabf03b0c5c495831a5d11b9649ead0cf0bd4ab4f52294b263be",
+      "bytes": 1083
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/6CjHvKT5yuwOsompWNs1z/argon2_cffi_bindings-26.1.0.dist-info/licenses/LICENSE",
+      "sha256": "88707653d5414f2242d597302a769565107ac139817b8ca321b3928cc1346c50",
+      "bytes": 1124
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/8tzv719w4bWINnggEYicC/tzdata-2026.5.dist-info/licenses/LICENSE",
+      "sha256": "df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46",
+      "bytes": 625
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/8tzv719w4bWINnggEYicC/tzdata-2026.5.dist-info/licenses/licenses/LICENSE_APACHE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/BV3_zFzQTc2TFwXDDHGav/argon2_cffi-25.1.0.dist-info/licenses/LICENSE",
+      "sha256": "b6944d386e87ccf49d9632da083685a4b7624733e686a7fe283dd2d428341d77",
+      "bytes": 1115
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/EhRQcK1eb3waGU_9jcpG0/pydantic_core-2.46.5.dist-info/licenses/LICENSE",
+      "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a",
+      "bytes": 1080
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/FEvZDnTrp1Yc9OFg_e6F8/python_jobspy-1.2.0.dist-info/licenses/LICENSE",
+      "sha256": "9cc13e45f26ec0760dddfe43a537dac77249fb5dd7f926767f6029452e766cda",
+      "bytes": 1070
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/FwrhqGnrM8lTf8o1H8LuH/typing_inspection-0.4.4.dist-info/licenses/LICENSE",
+      "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3",
+      "bytes": 1090
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/H2EXXCwEDsJC5dVdgg9Bw/apprise-1.13.1.dist-info/licenses/LICENSE",
+      "sha256": "9ac007e806bd7199cf3158adff83a16351ae85c46373c3533a98b961975103f2",
+      "bytes": 1343
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/HXecJlob9Hj4WGj-kRxmp/pyasn1_modules-0.4.2.dist-info/licenses/LICENSE.txt",
+      "sha256": "2aad5fc00f705c4a1addb83eed10a6a75d286a3779f0cf8519d87e62bc4735fd",
+      "bytes": 1334
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/J4DUBoaBjn2D_zQdTwSin/pathspec-1.1.1.dist-info/licenses/LICENSE",
+      "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+      "bytes": 16726
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/LaczvWYVL_kOD105bnWRs/tomlkit-0.15.1.dist-info/licenses/LICENSE",
+      "sha256": "f2f9b460ba719da6626add264d3782f275a4ff7aab677beda08b330911e23adb",
+      "bytes": 1062
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/M-3q8RCWQ5_KJbWjTYu7n/pypdf-6.19.0.dist-info/licenses/LICENSE",
+      "sha256": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524",
+      "bytes": 1605
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/M5ANsSQlSIfVL4gApML8a/annotated_types-0.8.0.dist-info/licenses/LICENSE",
+      "sha256": "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d",
+      "bytes": 1083
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/MEpGidcKO0jtYRhiifEtl/fastapi-0.142.2.dist-info/licenses/LICENSE",
+      "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e",
+      "bytes": 1086
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/MLOhIP0vdnhTEovURj1rX/anyio-4.15.1.dist-info/licenses/LICENSE",
+      "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
+      "bytes": 1081
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/NYaPU7t6FQFmOKcCsCcyd/cffi-2.1.1.dist-info/licenses/LICENSE",
+      "sha256": "5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63",
+      "bytes": 1123
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/OBDZRuLLo6tDc3L6csy7K/markdown-3.11.dist-info/licenses/LICENSE.md",
+      "sha256": "7ba4eb6d10b32b2d11dce13821340351cdbbb30ba8ccc67841db2ffd86e79aca",
+      "bytes": 1650
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/OZpwvTK2ooS_TpuGeFQwa/idna-3.20.dist-info/licenses/LICENSE.md",
+      "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04",
+      "bytes": 1541
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Q7nb5SGD2pYR1jDQWGQPn/opentelemetry_api-1.45.0.dist-info/licenses/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/LICENSE.txt",
+      "sha256": "4860083caa0de2ac3292ca98bd074bd8f45d8b32624e37b1e70a240bff61e488",
+      "bytes": 46794
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+      "sha256": "fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec",
+      "bytes": 1018
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING",
+      "sha256": "3f2c1ffa76383a55ae0aac01c9737cd70050dff63e1f026694fbe9d662573c98",
+      "bytes": 690
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/_core/src/highway/LICENSE",
+      "sha256": "e340270d4f64384569a91d546acb5b094d69ce47f0c015db77abb74dc6f815af",
+      "bytes": 20785
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/_core/src/multiarray/dragon4_LICENSE.txt",
+      "sha256": "f7b14309e5f54e5022b26448eefd419988ada2aec01d3c1162d84a0ea8f21f2c",
+      "bytes": 1414
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+      "sha256": "211e7d737d6179a08f791ebb0a99897ce7cd2457410c542876d125576edfe910",
+      "bytes": 1514
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE",
+      "sha256": "c17011467b4fe6e20fbfbeda4df09e58c2bca5480a063e55735a4000a379aad9",
+      "bytes": 1543
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md",
+      "sha256": "a85ca13fdf90160b64a0698215868c13b74d835ad0a4e2ba44713b8c5058a056",
+      "bytes": 1498
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt",
+      "sha256": "a14cc25e10d40a3aa705b7de2fb764a6535d8ee9b2db4e1724900585457dfd55",
+      "bytes": 2266
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/ma/LICENSE",
+      "sha256": "05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6",
+      "bytes": 1593
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/LICENSE.md",
+      "sha256": "103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f",
+      "bytes": 3511
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/src/distributions/LICENSE.md",
+      "sha256": "469778be8f33d54e1bcaab28c281cc472916d2d273f835e55bc487d30503face",
+      "bytes": 2745
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md",
+      "sha256": "0e111337b25494a773106695f0e799f642b8567aaacca4f116a74a8177179156",
+      "bytes": 2926
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md",
+      "sha256": "e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918",
+      "bytes": 1154
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/src/philox/LICENSE.md",
+      "sha256": "6f5828a57223d4cc7f8ea505a2623e7b978b242752c1515e355f46ba2cec1800",
+      "bytes": 1509
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md",
+      "sha256": "9d4098846018319cd68e228ee6220361787f73bccbf00237a85e4fc9621b998f",
+      "bytes": 1226
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/Qeg8uGjqbw02gXdj1WILj/numpy-2.5.3.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md",
+      "sha256": "268b0ca06759d31ea3ca68dd35f20e877916e927b1c2a835e4592a3c4354b1f9",
+      "bytes": 332
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/RvjrHto5NYUINcQ1WDEnf/httpcore-1.0.9.dist-info/licenses/LICENSE.md",
+      "sha256": "fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5",
+      "bytes": 1518
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/S8fduWhqSWe8Jq0ARV8Fx/hatchling-1.32.4.dist-info/licenses/LICENSE.txt",
+      "sha256": "7f143a8127ad4873862d70854b5bd2abd0085aa73e64fd2b08704a3b9f5c07fc",
+      "bytes": 1088
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/SGUOxsRnHKK8tJbAEMtIy/trove_classifiers-2026.9.21.13.dist-info/licenses/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/SIKVVwmF_19GAO_4vfNPZ/requests-2.34.2.dist-info/licenses/LICENSE",
+      "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b",
+      "bytes": 10142
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/SIKVVwmF_19GAO_4vfNPZ/requests-2.34.2.dist-info/licenses/NOTICE",
+      "sha256": "f5110972dedad2b4e9d314518daf3b7d72d6e02e499acd802181de6f74571dcc",
+      "bytes": 38
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/SQY_wPO0ZHkL5jUKtA9xC/six-1.17.0.dist-info/LICENSE",
+      "sha256": "4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0",
+      "bytes": 1066
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/SzuCaoeFpJ1roWTg7Pi9K/httpx-0.28.1.dist-info/licenses/LICENSE.md",
+      "sha256": "4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d",
+      "bytes": 1508
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/UnHlm25_a8MmvpOr8g0DF/pydantic-2.13.5.dist-info/licenses/LICENSE",
+      "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3",
+      "bytes": 1129
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/WHGY7MM88GVwbJVyd8eWH/h11-0.16.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361",
+      "bytes": 1124
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/WnfzBD3Vio8a_ULzLskhX/pandas-3.0.6.dist-info/LICENSE",
+      "sha256": "5c1052e921e62d36ccda50a61585e9c0444b80c62f39b57c4f3f0d5fb62f5071",
+      "bytes": 52127
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/YQ66lga9WventnjdLzxA6/pluggy-1.6.0.dist-info/licenses/LICENSE",
+      "sha256": "d6b65e6c213a5d0b577911d34d6e5949b9f59d76c238c5071a2f3fc16cfb2606",
+      "bytes": 1110
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/YU0-8DuqljMQPZVgb171l/oauthlib-4.0.0.dist-info/licenses/LICENSE",
+      "sha256": "0028aa4763a8a0b09ca4c68d585263474cf9aaa6ec69ffbef3a31a9eccdd3b91",
+      "bytes": 1534
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/brJOQ2UYbhFZ2owWP-JA9/pwdlib-0.3.1.dist-info/licenses/LICENSE",
+      "sha256": "4bdaaafc879717d95eddd23b1ba1c3eccdf1092071805cc515171488f7ff43eb",
+      "bytes": 1074
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/cDcZzuN4qO5-BtO89Gc2W/click-8.5.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d",
+      "bytes": 1475
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/cZsR8JaIaEN134-oW2V2z/python_dateutil-2.9.0.post0.dist-info/LICENSE",
+      "sha256": "ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e",
+      "bytes": 2889
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/g-g6QA5uXRGbidk9s82R3/lxml-6.1.3.dist-info/licenses/LICENSE.txt",
+      "sha256": "8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855",
+      "bytes": 1507
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/g-g6QA5uXRGbidk9s82R3/lxml-6.1.3.dist-info/licenses/LICENSES.txt",
+      "sha256": "388fa99f3bde4447cd5a4cbb114037be026854db6cfe89e112691c1d8abdcf3c",
+      "bytes": 6221
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/g8nExrlea4VuWH-TOlgjq/typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+      "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+      "bytes": 13936
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/h50RVVmAdIWeh36maj2nq/beautifulsoup4-4.15.0.dist-info/licenses/AUTHORS",
+      "sha256": "b989238918e1fdac1e46717cb405b63e92497a272413af0d989c1df6c8abcb6f",
+      "bytes": 2201
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/h50RVVmAdIWeh36maj2nq/beautifulsoup4-4.15.0.dist-info/licenses/LICENSE",
+      "sha256": "55b4d8d4b1e5bc86d10efac91b74c87bcb77526b0f5b9edaf8b9cd2adc7397b2",
+      "bytes": 1441
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/hlRcUXdj4-5UqdwctUES0/cryptography-46.0.7.dist-info/licenses/LICENSE",
+      "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb",
+      "bytes": 197
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/hlRcUXdj4-5UqdwctUES0/cryptography-46.0.7.dist-info/licenses/LICENSE.APACHE",
+      "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe",
+      "bytes": 11360
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/hlRcUXdj4-5UqdwctUES0/cryptography-46.0.7.dist-info/licenses/LICENSE.BSD",
+      "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb",
+      "bytes": 1532
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/k_bY2sDKJg74972ZrOMN2/certifi-2026.7.22.dist-info/licenses/LICENSE",
+      "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+      "bytes": 989
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/mc0eQWwF-mqV1v5mixiTx/curl_cffi-0.16.3.dist-info/licenses/LICENSE",
+      "sha256": "3e88b029b50b6afd36d6b18642ce4c8b6eee4c903f1cfabef5b811f61e07050b",
+      "bytes": 1106
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/obZuZuMf5IgTfK0RsgWF-/packaging-26.3.dist-info/licenses/LICENSE",
+      "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48",
+      "bytes": 197
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/obZuZuMf5IgTfK0RsgWF-/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/obZuZuMf5IgTfK0RsgWF-/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+      "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5",
+      "bytes": 1344
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/of0MAjDRhFutJE5LWEoEz/ats_scrapers-0.3.0.dist-info/licenses/LICENSE",
+      "sha256": "25c62e6693fe87debecf37cc6c820ae42246adb0792189617e6bf418a3102fba",
+      "bytes": 1072
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/r55z478-jVa_qRs3y6fPN/annotated_doc-0.0.5.dist-info/licenses/LICENSE",
+      "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf",
+      "bytes": 1086
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/sX8xmE8gPoeUG99R5-8Gp/pyasn1-0.6.4.dist-info/licenses/LICENSE.rst",
+      "sha256": "2aad5fc00f705c4a1addb83eed10a6a75d286a3779f0cf8519d87e62bc4735fd",
+      "bytes": 1334
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/t17B89-Kv1xA96SRAAK2E/urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+      "bytes": 1093
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/tG5ZUJsiAMAcpq30XCXf3/uvicorn-0.54.0.dist-info/licenses/LICENSE.md",
+      "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371",
+      "bytes": 1526
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/tR_4nN9Ze-DxZAeEamzlG/requests_oauthlib-2.0.0.dist-info/LICENSE",
+      "sha256": "ae01846afad8a8291fe6a08966f3015af9a8ff675d84b981f9793c122f7876e8",
+      "bytes": 745
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/tv_HmymO9Q0bga2Lgf0ps/pycparser-3.0.dist-info/licenses/LICENSE",
+      "sha256": "0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1",
+      "bytes": 1543
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/uY46m6za4XruetnioB4ww/python_docx-1.2.0.dist-info/licenses/LICENSE",
+      "sha256": "7652f271e46d0d533e9dc463f3b5fcbdcacf4d6a9c8d6b554d15efd0f37f6132",
+      "bytes": 1104
+    },
+    {
+      "path": "root/.cache/uv/archive-v0/vAuDqOL3Fo11D-fl180HM/soupsieve-2.10.dist-info/licenses/LICENSE.md",
+      "sha256": "76a0acdb98c3a63681e20b6f096699ef8cad5fb35d56eef8387e0fa71d797a9a",
+      "bytes": 1096
+    },
+    {
+      "path": "usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info/LICENSE.txt",
+      "sha256": "634300a669d49aeae65b12c6c48c924c51a4cdf3d1ff086dc3456dc8bcaa2104",
+      "bytes": 1093
+    },
+    {
+      "path": "usr/share/doc/adduser/copyright",
+      "sha256": "b143053a4862ab354831487b5f8bd31dc9ffdc589d15de9d9c764332a0209796",
+      "bytes": 12432
+    },
+    {
+      "path": "usr/share/doc/apt/copyright",
+      "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12",
+      "bytes": 7668
+    },
+    {
+      "path": "usr/share/doc/base-files/copyright",
+      "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23",
+      "bytes": 1208
+    },
+    {
+      "path": "usr/share/doc/base-passwd/copyright",
+      "sha256": "0f1cde79bd80a75f9029ae9a8c252b642223027ef36f6989c63a8230aae576a7",
+      "bytes": 798
+    },
+    {
+      "path": "usr/share/doc/bash/copyright",
+      "sha256": "06319d84c3e5ed096036f6a9310a030c7e84e50dff2b8a6792285c83ec0ada73",
+      "bytes": 9764
+    },
+    {
+      "path": "usr/share/doc/bsdutils/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/ca-certificates/copyright",
+      "sha256": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c",
+      "bytes": 18940
+    },
+    {
+      "path": "usr/share/doc/ca-certificates/examples/ca-certificates-local/debian/copyright",
+      "sha256": "ccfe62f0f73541f1c76a6d33aed26290391685c43f914a5e24c6b1f72cddcdff",
+      "bytes": 164
+    },
+    {
+      "path": "usr/share/doc/coreutils/copyright",
+      "sha256": "24e86c5ca53d6bfd8e0c47988160daa62d10a74997fe11f651e1d9533c78bff6",
+      "bytes": 5552
+    },
+    {
+      "path": "usr/share/doc/dash/copyright",
+      "sha256": "d98c53f281321baad38164aa9ae6e368a9253be6ec51bd26a759b5e72b326f4a",
+      "bytes": 3878
+    },
+    {
+      "path": "usr/share/doc/debconf/copyright",
+      "sha256": "57163c71bd8a5289660892827dd0dfaa7fef47f89deedc9dc6711ced7d0a28d7",
+      "bytes": 2764
+    },
+    {
+      "path": "usr/share/doc/debian-archive-keyring/copyright",
+      "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732",
+      "bytes": 1243
+    },
+    {
+      "path": "usr/share/doc/debianutils/copyright",
+      "sha256": "fd2d797e208bcfb713510e47a89867191180943e1167d44c2acd8ff1b88e5c10",
+      "bytes": 9055
+    },
+    {
+      "path": "usr/share/doc/diffutils/copyright",
+      "sha256": "8654d7cc7cdae1f31bb67a3ce5bf35d512c0bdfffd071df757edc54153cc7930",
+      "bytes": 16112
+    },
+    {
+      "path": "usr/share/doc/dpkg/copyright",
+      "sha256": "7442bdadcd44e818fddd786057db07639cc68225c389c7c240d3bb3984b05173",
+      "bytes": 7943
+    },
+    {
+      "path": "usr/share/doc/e2fsprogs/copyright",
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+      "bytes": 15209
+    },
+    {
+      "path": "usr/share/doc/findutils/copyright",
+      "sha256": "8fbcc77ed31f480a85654e9b6d1d25cbb95b62e9dc5159ae1565bca684c3e1dc",
+      "bytes": 24782
+    },
+    {
+      "path": "usr/share/doc/fontconfig-config/copyright",
+      "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db",
+      "bytes": 1301
+    },
+    {
+      "path": "usr/share/doc/fonts-dejavu-core/copyright",
+      "sha256": "63d3ba759d12804c5b31a9d5940d855c1820d1f5999e6b0872eb1c7ff045fbc9",
+      "bytes": 3859
+    },
+    {
+      "path": "usr/share/doc/fonts-lmodern/copyright",
+      "sha256": "5e385a99d447892ae5e2010e60b3cd45fe395d4fc93394b643f1b5591b53fd50",
+      "bytes": 7335
+    },
+    {
+      "path": "usr/share/doc/gcc-12-base/copyright",
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+      "bytes": 68194
+    },
+    {
+      "path": "usr/share/doc/gpgv/copyright",
+      "sha256": "84dab06b5c1baf3a7a45c3cdc5f98fb121234e98fdd6266c3f773d54fcdc4f54",
+      "bytes": 10555
+    },
+    {
+      "path": "usr/share/doc/grep/copyright",
+      "sha256": "42d9b4d610396b1e8d1303dcb9487af3f5a2d2709623cf03a04cf76acdf6c5e3",
+      "bytes": 1807
+    },
+    {
+      "path": "usr/share/doc/gzip/copyright",
+      "sha256": "1ca5dd5098fe2e1c0f0d05196f5b3da8b414a807702e6ca8b536eb5fd3059130",
+      "bytes": 2895
+    },
+    {
+      "path": "usr/share/doc/hostname/copyright",
+      "sha256": "94189fc5a9a7b7224d96e1a0cfdfe9be0df2018b04bf21d591627ab96b30cad1",
+      "bytes": 1273
+    },
+    {
+      "path": "usr/share/doc/init-system-helpers/copyright",
+      "sha256": "7534601cc4fa513804d16490359f5831e7b6a1212da3bbf948bebdd4c8799783",
+      "bytes": 3133
+    },
+    {
+      "path": "usr/share/doc/libacl1/copyright",
+      "sha256": "9a2dfb4a5abc7e84be2cc41f1089be665519c9409549296f6c19de57ab1d37c2",
+      "bytes": 2048
+    },
+    {
+      "path": "usr/share/doc/libapache-pom-java/copyright",
+      "sha256": "a132a7603f25a0999066ab9ca4e6975cf23822790f87b1718d7f90ff5ab70c2d",
+      "bytes": 631
+    },
+    {
+      "path": "usr/share/doc/libapt-pkg6.0/copyright",
+      "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12",
+      "bytes": 7668
+    },
+    {
+      "path": "usr/share/doc/libattr1/copyright",
+      "sha256": "0cbec745d85ea775450b2d54fac55277197f429e52d611f72852ed420450620e",
+      "bytes": 1947
+    },
+    {
+      "path": "usr/share/doc/libaudit-common/copyright",
+      "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc",
+      "bytes": 1596
+    },
+    {
+      "path": "usr/share/doc/libaudit1/copyright",
+      "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc",
+      "bytes": 1596
+    },
+    {
+      "path": "usr/share/doc/libblkid1/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/libbrotli1/copyright",
+      "sha256": "24a64e5bb83d0960d1835696a1e23c0896ad6055b0ca47c66ab0eb9a766324b1",
+      "bytes": 1354
+    },
+    {
+      "path": "usr/share/doc/libbsd0/copyright",
+      "sha256": "00fd7be5d907a6bcc409a80f2d565f508673db4761d54623691f89ae3aa20fc7",
+      "bytes": 23960
+    },
+    {
+      "path": "usr/share/doc/libbz2-1.0/copyright",
+      "sha256": "832ed535ff3c3d025a8d2348eb1b697b89addcf2eaadbc17650262040b9145e2",
+      "bytes": 2228
+    },
+    {
+      "path": "usr/share/doc/libc-bin/copyright",
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+      "bytes": 25467
+    },
+    {
+      "path": "usr/share/doc/libc6/copyright",
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+      "bytes": 25467
+    },
+    {
+      "path": "usr/share/doc/libcairo2/copyright",
+      "sha256": "408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574",
+      "bytes": 28461
+    },
+    {
+      "path": "usr/share/doc/libcap-ng0/copyright",
+      "sha256": "49b5db19990a3e3cc1a9ed716aed231f6f3c1c217e58f62ae4dc2818c6d3e9cc",
+      "bytes": 2035
+    },
+    {
+      "path": "usr/share/doc/libcap2/copyright",
+      "sha256": "e60a5642e12e340060e4e519a65b2eb0330be2917854841c644e36268f607d54",
+      "bytes": 4631
+    },
+    {
+      "path": "usr/share/doc/libcom-err2/copyright",
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+      "bytes": 15209
+    },
+    {
+      "path": "usr/share/doc/libcommons-logging-java/copyright",
+      "sha256": "8106c1562549d7839c25b627f865cf32517838dd202659bd20b0347baf971854",
+      "bytes": 2222
+    },
+    {
+      "path": "usr/share/doc/libcommons-parent-java/copyright",
+      "sha256": "e19921092aa02fde6c83b8db717faa35920a84468c9263e91386f3a36a70482d",
+      "bytes": 526
+    },
+    {
+      "path": "usr/share/doc/libcrypt1/copyright",
+      "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16",
+      "bytes": 6010
+    },
+    {
+      "path": "usr/share/doc/libdb5.3/copyright",
+      "sha256": "8b53da37d73289d9df7317b3a2dbe16491f1fa9fec8b77b86d69704b40ce2c26",
+      "bytes": 17177
+    },
+    {
+      "path": "usr/share/doc/libdebconfclient0/copyright",
+      "sha256": "cf63099896d1c0f6529c41b8d95738e6fea342ffba609187d339c4f38ce36ecc",
+      "bytes": 5856
+    },
+    {
+      "path": "usr/share/doc/libexpat1/copyright",
+      "sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292",
+      "bytes": 1756
+    },
+    {
+      "path": "usr/share/doc/libext2fs2/copyright",
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+      "bytes": 15209
+    },
+    {
+      "path": "usr/share/doc/libffi8/copyright",
+      "sha256": "f83d2ecba1ea4d99957e81c50bebbd076a128194288a3ec22cc8ccdb77c43087",
+      "bytes": 10165
+    },
+    {
+      "path": "usr/share/doc/libfontbox-java/copyright",
+      "sha256": "6099bdb1641ce9c5f106fed47209af58b214c5109879f0661fb1131077a5a10a",
+      "bytes": 4659
+    },
+    {
+      "path": "usr/share/doc/libfontconfig1/copyright",
+      "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db",
+      "bytes": 1301
+    },
+    {
+      "path": "usr/share/doc/libfontenc1/copyright",
+      "sha256": "a7cb43c56c51407bc6539032a47c5351cd03962ed6a30b4f52dec6ed7db54383",
+      "bytes": 1158
+    },
+    {
+      "path": "usr/share/doc/libfreetype6/copyright",
+      "sha256": "70a7a0a06e6440777417f6875476cb712b03943010abed1c32297798c8cc8ed8",
+      "bytes": 25069
+    },
+    {
+      "path": "usr/share/doc/libgcrypt20/copyright",
+      "sha256": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d",
+      "bytes": 24896
+    },
+    {
+      "path": "usr/share/doc/libgdbm-compat4/copyright",
+      "sha256": "8bea8cf2f94cd8b37a0b8b3a2b974122b9194c1165e6ad508e366c74679e8817",
+      "bytes": 2701
+    },
+    {
+      "path": "usr/share/doc/libgdbm6/copyright",
+      "sha256": "8bea8cf2f94cd8b37a0b8b3a2b974122b9194c1165e6ad508e366c74679e8817",
+      "bytes": 2701
+    },
+    {
+      "path": "usr/share/doc/libglib2.0-0/copyright",
+      "sha256": "03cbcd6142c92bb14c997af557b8c73b1534710c34fe7f69788f8e8fc5fd941d",
+      "bytes": 51488
+    },
+    {
+      "path": "usr/share/doc/libgmp10/copyright",
+      "sha256": "7d366aef5ba325150246de1d7820c4c9926cd27ca61a69948492b26cd3b61601",
+      "bytes": 4153
+    },
+    {
+      "path": "usr/share/doc/libgnutls30/copyright",
+      "sha256": "bb7e5c24b3e27bbba5671dd710d159a0066833bda4caa1d55d8027ffed539337",
+      "bytes": 51588
+    },
+    {
+      "path": "usr/share/doc/libgpg-error0/copyright",
+      "sha256": "8760fd36efa1d7186f8769d4e76a3e678045b94d54465bf6f2db5eb871c7c27f",
+      "bytes": 4903
+    },
+    {
+      "path": "usr/share/doc/libgraphite2-3/copyright",
+      "sha256": "a33017ba0308c41bdbde4751bff349ab7b26af45fadbb1e3e7ac67c372985572",
+      "bytes": 9348
+    },
+    {
+      "path": "usr/share/doc/libgssapi-krb5-2/copyright",
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
+      "bytes": 63047
+    },
+    {
+      "path": "usr/share/doc/libharfbuzz0b/copyright",
+      "sha256": "31cfabe2acdcc9cc9dcda6b93185cffc50424d817ae20dd8efd8bcdac5396148",
+      "bytes": 31787
+    },
+    {
+      "path": "usr/share/doc/libhogweed6/copyright",
+      "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93",
+      "bytes": 24923
+    },
+    {
+      "path": "usr/share/doc/libice6/copyright",
+      "sha256": "fc16500a74acc2d0a7bb2fa1005956a52551abdce2afe0642a9a8dc2b6af53c6",
+      "bytes": 1256
+    },
+    {
+      "path": "usr/share/doc/libicu72/copyright",
+      "sha256": "5bbff5f646ce750ac0a347e7f91793279b7422a1119820b5f75d98879c201c68",
+      "bytes": 2214
+    },
+    {
+      "path": "usr/share/doc/libidn2-0/copyright",
+      "sha256": "41702469f28e8ff406345e3d1dd0c741f11bdfca319264f67036efd6aaa79e4b",
+      "bytes": 5348
+    },
+    {
+      "path": "usr/share/doc/libk5crypto3/copyright",
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
+      "bytes": 63047
+    },
+    {
+      "path": "usr/share/doc/libkeyutils1/copyright",
+      "sha256": "c62fe37d22203046611112bc10a9e03a39a7f73bec1b061e7c615326166d9ff5",
+      "bytes": 2104
+    },
+    {
+      "path": "usr/share/doc/libkpathsea6/copyright",
+      "sha256": "8a35ca91b6332fe77d27c7c4e14d491bd5ea64c504d07774ca2639dbfbb1c344",
+      "bytes": 25397
+    },
+    {
+      "path": "usr/share/doc/libkrb5-3/copyright",
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
+      "bytes": 63047
+    },
+    {
+      "path": "usr/share/doc/libkrb5support0/copyright",
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
+      "bytes": 63047
+    },
+    {
+      "path": "usr/share/doc/liblz4-1/copyright",
+      "sha256": "d3be0f43fe14da244f97c451bbae789c0acf868612598a69f5f22a289abeca40",
+      "bytes": 3275
+    },
+    {
+      "path": "usr/share/doc/liblzma5/copyright",
+      "sha256": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8",
+      "bytes": 15465
+    },
+    {
+      "path": "usr/share/doc/libmd0/copyright",
+      "sha256": "4365ef6255ad553fce69dd4bc0e093472c5d0e41b8ea493a545cc926ce171aa6",
+      "bytes": 8018
+    },
+    {
+      "path": "usr/share/doc/libmount1/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/libmpfr6/copyright",
+      "sha256": "c434a44e656a89e72b5cee13bba6719011e0899bfc626ab9c08205010ab2dbbe",
+      "bytes": 953
+    },
+    {
+      "path": "usr/share/doc/libnettle8/copyright",
+      "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93",
+      "bytes": 24923
+    },
+    {
+      "path": "usr/share/doc/libnsl2/copyright",
+      "sha256": "7d9c79b73fd956319a90cd210441498b225e00960352c4c6d447436481bb0eec",
+      "bytes": 13646
+    },
+    {
+      "path": "usr/share/doc/libp11-kit0/copyright",
+      "sha256": "ed139379f7c874f0ee75f3ddcc2e01091dd828d84ee1a0bdff6a1c5673ee6e58",
+      "bytes": 8646
+    },
+    {
+      "path": "usr/share/doc/libpam-modules-bin/copyright",
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+      "bytes": 9477
+    },
+    {
+      "path": "usr/share/doc/libpam-modules/copyright",
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+      "bytes": 9477
+    },
+    {
+      "path": "usr/share/doc/libpam-runtime/copyright",
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+      "bytes": 9477
+    },
+    {
+      "path": "usr/share/doc/libpam0g/copyright",
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+      "bytes": 9477
+    },
+    {
+      "path": "usr/share/doc/libpaper-utils/copyright",
+      "sha256": "cad3983751aa8b828cc68d8d4080f1ad164cbf78ed896c73fe94abd50e697d8a",
+      "bytes": 501
+    },
+    {
+      "path": "usr/share/doc/libpaper1/copyright",
+      "sha256": "cad3983751aa8b828cc68d8d4080f1ad164cbf78ed896c73fe94abd50e697d8a",
+      "bytes": 501
+    },
+    {
+      "path": "usr/share/doc/libpcre2-8-0/copyright",
+      "sha256": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38",
+      "bytes": 6626
+    },
+    {
+      "path": "usr/share/doc/libpdfbox-java/copyright",
+      "sha256": "6099bdb1641ce9c5f106fed47209af58b214c5109879f0661fb1131077a5a10a",
+      "bytes": 4659
+    },
+    {
+      "path": "usr/share/doc/libperl5.36/copyright",
+      "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+      "bytes": 109772
+    },
+    {
+      "path": "usr/share/doc/libpixman-1-0/copyright",
+      "sha256": "1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da",
+      "bytes": 2247
+    },
+    {
+      "path": "usr/share/doc/libpng16-16/copyright",
+      "sha256": "68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a",
+      "bytes": 12976
+    },
+    {
+      "path": "usr/share/doc/libptexenc1/copyright",
+      "sha256": "8a35ca91b6332fe77d27c7c4e14d491bd5ea64c504d07774ca2639dbfbb1c344",
+      "bytes": 25397
+    },
+    {
+      "path": "usr/share/doc/libpython3-stdlib/copyright",
+      "sha256": "5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d",
+      "bytes": 16122
+    },
+    {
+      "path": "usr/share/doc/libpython3.11-minimal/copyright",
+      "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+      "bytes": 49855
+    },
+    {
+      "path": "usr/share/doc/libreadline8/copyright",
+      "sha256": "3591a8e4de849d910c5ee9045388344ef151c23b10cf8c6b1950f89f1ba1569c",
+      "bytes": 4414
+    },
+    {
+      "path": "usr/share/doc/libseccomp2/copyright",
+      "sha256": "6da0653a365b80ab31478dbfe9e7c358e80d58b6d2b52b4e16b4dbb42d7d9f5c",
+      "bytes": 1429
+    },
+    {
+      "path": "usr/share/doc/libselinux1/copyright",
+      "sha256": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b",
+      "bytes": 3131
+    },
+    {
+      "path": "usr/share/doc/libsemanage-common/copyright",
+      "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+      "bytes": 1830
+    },
+    {
+      "path": "usr/share/doc/libsemanage2/copyright",
+      "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+      "bytes": 1830
+    },
+    {
+      "path": "usr/share/doc/libsepol2/copyright",
+      "sha256": "78d2a34606a0302057ec499a3b3c07bcbc43ca334064ce4c80891a0f69c8f6c6",
+      "bytes": 3750
+    },
+    {
+      "path": "usr/share/doc/libsm6/copyright",
+      "sha256": "333d829128c80619625f7e43a0ff0e79f36812b2b7ba12696eec9b4b42ce729b",
+      "bytes": 1224
+    },
+    {
+      "path": "usr/share/doc/libsmartcols1/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/libsqlite3-0/copyright",
+      "sha256": "78e9df8f8153c91c762ec970b82d224ac4d30f05aa7773e7e17e268141e53873",
+      "bytes": 1833
+    },
+    {
+      "path": "usr/share/doc/libss2/copyright",
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+      "bytes": 15209
+    },
+    {
+      "path": "usr/share/doc/libssl3/copyright",
+      "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+      "bytes": 2543
+    },
+    {
+      "path": "usr/share/doc/libsynctex2/copyright",
+      "sha256": "8a35ca91b6332fe77d27c7c4e14d491bd5ea64c504d07774ca2639dbfbb1c344",
+      "bytes": 25397
+    },
+    {
+      "path": "usr/share/doc/libsystemd0/copyright",
+      "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3",
+      "bytes": 12776
+    },
+    {
+      "path": "usr/share/doc/libtasn1-6/copyright",
+      "sha256": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65",
+      "bytes": 3451
+    },
+    {
+      "path": "usr/share/doc/libteckit0/copyright",
+      "sha256": "9d35520f4a9ca086f4e79ead6346cc5d941497eb9074bba80cb1db060bad9d1f",
+      "bytes": 14916
+    },
+    {
+      "path": "usr/share/doc/libtexlua53-5/copyright",
+      "sha256": "8a35ca91b6332fe77d27c7c4e14d491bd5ea64c504d07774ca2639dbfbb1c344",
+      "bytes": 25397
+    },
+    {
+      "path": "usr/share/doc/libtexluajit2/copyright",
+      "sha256": "8a35ca91b6332fe77d27c7c4e14d491bd5ea64c504d07774ca2639dbfbb1c344",
+      "bytes": 25397
+    },
+    {
+      "path": "usr/share/doc/libtinfo6/copyright",
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+      "bytes": 4670
+    },
+    {
+      "path": "usr/share/doc/libtirpc-common/copyright",
+      "sha256": "401dcf98d8ef2b712ec6ab310dbf727fc2cdce290bfde5b6d0b609a927530217",
+      "bytes": 13121
+    },
+    {
+      "path": "usr/share/doc/libtirpc3/copyright",
+      "sha256": "401dcf98d8ef2b712ec6ab310dbf727fc2cdce290bfde5b6d0b609a927530217",
+      "bytes": 13121
+    },
+    {
+      "path": "usr/share/doc/libudev1/copyright",
+      "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3",
+      "bytes": 12776
+    },
+    {
+      "path": "usr/share/doc/libunistring2/copyright",
+      "sha256": "0035f89e5317f3cec389383e8727788521b0fde3e75cea881fa0e92e1d48cb57",
+      "bytes": 6068
+    },
+    {
+      "path": "usr/share/doc/libuuid1/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/libx11-6/copyright",
+      "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e",
+      "bytes": 47102
+    },
+    {
+      "path": "usr/share/doc/libx11-data/copyright",
+      "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e",
+      "bytes": 47102
+    },
+    {
+      "path": "usr/share/doc/libxau6/copyright",
+      "sha256": "118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a",
+      "bytes": 1224
+    },
+    {
+      "path": "usr/share/doc/libxaw7/copyright",
+      "sha256": "b04f7dd56d0e88bf2dd5aafd138bb4b3631401898480c46c94ee7fbf865ffde5",
+      "bytes": 8843
+    },
+    {
+      "path": "usr/share/doc/libxcb-render0/copyright",
+      "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+      "bytes": 1781
+    },
+    {
+      "path": "usr/share/doc/libxcb-shm0/copyright",
+      "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+      "bytes": 1781
+    },
+    {
+      "path": "usr/share/doc/libxcb1/copyright",
+      "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+      "bytes": 1781
+    },
+    {
+      "path": "usr/share/doc/libxdmcp6/copyright",
+      "sha256": "1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e",
+      "bytes": 1265
+    },
+    {
+      "path": "usr/share/doc/libxext6/copyright",
+      "sha256": "bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124",
+      "bytes": 10421
+    },
+    {
+      "path": "usr/share/doc/libxi6/copyright",
+      "sha256": "c812f9c54513ae593aab9580b54a4b18219648df7068d49ca1daa47f522ba3fa",
+      "bytes": 4435
+    },
+    {
+      "path": "usr/share/doc/libxmu6/copyright",
+      "sha256": "15a3a4d6627af76c0649067260debca0eb66248b96e5fda4f564aac38593e06f",
+      "bytes": 3636
+    },
+    {
+      "path": "usr/share/doc/libxpm4/copyright",
+      "sha256": "60ff44bf6ae8fdc03aa67f4ebbc6e4bba30ac96938e55bc84b1777387a58992c",
+      "bytes": 3879
+    },
+    {
+      "path": "usr/share/doc/libxrender1/copyright",
+      "sha256": "ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704",
+      "bytes": 2252
+    },
+    {
+      "path": "usr/share/doc/libxt6/copyright",
+      "sha256": "294382fd73d07b7b086c4829366bad834fc25cdf094400ec6ca4ff3b9ab73665",
+      "bytes": 6829
+    },
+    {
+      "path": "usr/share/doc/libxxhash0/copyright",
+      "sha256": "a123c93b07e781919ae996276ac02bb1c8b19dfde88176cd1240ab277c14a4ce",
+      "bytes": 2579
+    },
+    {
+      "path": "usr/share/doc/libzstd1/copyright",
+      "sha256": "35e85e8e9bbb71492c5f5dddf39ed65b68775a02ad8d710c25d097b497f06c49",
+      "bytes": 5389
+    },
+    {
+      "path": "usr/share/doc/libzzip-0-13/copyright",
+      "sha256": "6c6c88351b94386d1edc2f0a46374e71a2c299b4c8bb396be42848977f28ee5b",
+      "bytes": 5900
+    },
+    {
+      "path": "usr/share/doc/lmodern/copyright",
+      "sha256": "5e385a99d447892ae5e2010e60b3cd45fe395d4fc93394b643f1b5591b53fd50",
+      "bytes": 7335
+    },
+    {
+      "path": "usr/share/doc/login/copyright",
+      "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5",
+      "bytes": 7044
+    },
+    {
+      "path": "usr/share/doc/logsave/copyright",
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+      "bytes": 15209
+    },
+    {
+      "path": "usr/share/doc/mawk/copyright",
+      "sha256": "167d04422f2fdf76ab565878c23be8ba0c2ebb2c57a5dac0a5a59ccd27e747a5",
+      "bytes": 22591
+    },
+    {
+      "path": "usr/share/doc/media-types/copyright",
+      "sha256": "5ded7c53199b6a1d089b0b7e231d77e5c84081c7156b372b3f11ad9c1c2c5cc7",
+      "bytes": 268
+    },
+    {
+      "path": "usr/share/doc/mount/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/ncurses-base/copyright",
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+      "bytes": 4670
+    },
+    {
+      "path": "usr/share/doc/ncurses-bin/copyright",
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+      "bytes": 4670
+    },
+    {
+      "path": "usr/share/doc/netbase/copyright",
+      "sha256": "795b66147ea5ad692991caa7008ece551fb0fa88b9c53656223bd1518dc58ab2",
+      "bytes": 1234
+    },
+    {
+      "path": "usr/share/doc/openssl/copyright",
+      "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+      "bytes": 2543
+    },
+    {
+      "path": "usr/share/doc/passwd/copyright",
+      "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5",
+      "bytes": 7044
+    },
+    {
+      "path": "usr/share/doc/perl-base/copyright",
+      "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+      "bytes": 109772
+    },
+    {
+      "path": "usr/share/doc/perl-modules-5.36/copyright",
+      "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+      "bytes": 109772
+    },
+    {
+      "path": "usr/share/doc/perl/copyright",
+      "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+      "bytes": 109772
+    },
+    {
+      "path": "usr/share/doc/preview-latex-style/copyright",
+      "sha256": "e964ee69dc7ce05d42c592f59939294cf594cb8971768a61108508de096079ff",
+      "bytes": 4830
+    },
+    {
+      "path": "usr/share/doc/python3-minimal/copyright",
+      "sha256": "5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d",
+      "bytes": 16122
+    },
+    {
+      "path": "usr/share/doc/python3.11-minimal/copyright",
+      "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+      "bytes": 49855
+    },
+    {
+      "path": "usr/share/doc/python3.11/copyright",
+      "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+      "bytes": 49855
+    },
+    {
+      "path": "usr/share/doc/python3/copyright",
+      "sha256": "5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d",
+      "bytes": 16122
+    },
+    {
+      "path": "usr/share/doc/readline-common/copyright",
+      "sha256": "3591a8e4de849d910c5ee9045388344ef151c23b10cf8c6b1950f89f1ba1569c",
+      "bytes": 4414
+    },
+    {
+      "path": "usr/share/doc/sed/copyright",
+      "sha256": "719320e425e8e6da53a55e0fcfa2f2ed9b1332cea16abd65321bd651b2a88568",
+      "bytes": 8618
+    },
+    {
+      "path": "usr/share/doc/sensible-utils/copyright",
+      "sha256": "a3f046d279b767f56f9bfbd7bdc66561be99da2c52a4d78cda108c58f975f1b5",
+      "bytes": 5427
+    },
+    {
+      "path": "usr/share/doc/sysvinit-utils/copyright",
+      "sha256": "ad7cb339e58a88918a883d553ca236795191f027e158788a8b33f747ff502fb2",
+      "bytes": 4689
+    },
+    {
+      "path": "usr/share/doc/t1utils/copyright",
+      "sha256": "909dfc48c461fe870f31af4ca07fee29aedac47ea10ad29e5129796751a45e19",
+      "bytes": 3021
+    },
+    {
+      "path": "usr/share/doc/tar/copyright",
+      "sha256": "bea61e0c172868e07845cf50423f97f093a9a46de167dbbe333a38be610c8e00",
+      "bytes": 3798
+    },
+    {
+      "path": "usr/share/doc/tex-common/copyright",
+      "sha256": "86ad2c88447a71cfe74944c89b8908b40a85d0e181d037f91d2db78e76d688f7",
+      "bytes": 3163
+    },
+    {
+      "path": "usr/share/doc/texlive-base/copyright",
+      "sha256": "d7f9a14c6f223e71df0329ad164351d2188291cc20a385a30c83f21eaa42de61",
+      "bytes": 33443
+    },
+    {
+      "path": "usr/share/doc/texlive-binaries/copyright",
+      "sha256": "8a35ca91b6332fe77d27c7c4e14d491bd5ea64c504d07774ca2639dbfbb1c344",
+      "bytes": 25397
+    },
+    {
+      "path": "usr/share/doc/texlive-fonts-recommended/copyright",
+      "sha256": "d7f9a14c6f223e71df0329ad164351d2188291cc20a385a30c83f21eaa42de61",
+      "bytes": 33443
+    },
+    {
+      "path": "usr/share/doc/texlive-latex-base/copyright",
+      "sha256": "d7f9a14c6f223e71df0329ad164351d2188291cc20a385a30c83f21eaa42de61",
+      "bytes": 33443
+    },
+    {
+      "path": "usr/share/doc/texlive-latex-extra/copyright",
+      "sha256": "d7f9a14c6f223e71df0329ad164351d2188291cc20a385a30c83f21eaa42de61",
+      "bytes": 33443
+    },
+    {
+      "path": "usr/share/doc/texlive-latex-recommended/copyright",
+      "sha256": "d7f9a14c6f223e71df0329ad164351d2188291cc20a385a30c83f21eaa42de61",
+      "bytes": 33443
+    },
+    {
+      "path": "usr/share/doc/texlive-pictures/copyright",
+      "sha256": "d7f9a14c6f223e71df0329ad164351d2188291cc20a385a30c83f21eaa42de61",
+      "bytes": 33443
+    },
+    {
+      "path": "usr/share/doc/tzdata/copyright",
+      "sha256": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a",
+      "bytes": 375
+    },
+    {
+      "path": "usr/share/doc/ucf/copyright",
+      "sha256": "67dd4031ca283ba2f0def195329740f237e7ba30ef26e3dce3afa7f73cb62c8b",
+      "bytes": 4161
+    },
+    {
+      "path": "usr/share/doc/usr-is-merged/copyright",
+      "sha256": "9836bfe2ef94505bbf29701e8c90799ab1a5fd966d26d60d019a822cdbf3d61a",
+      "bytes": 987
+    },
+    {
+      "path": "usr/share/doc/util-linux-extra/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/util-linux/copyright",
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+      "bytes": 23237
+    },
+    {
+      "path": "usr/share/doc/x11-common/copyright",
+      "sha256": "2badb73e6e70d0bd2e0b85d39ce18d3c66cfebc3e301720374fa20e6539c947d",
+      "bytes": 5004
+    },
+    {
+      "path": "usr/share/doc/xdg-utils/copyright",
+      "sha256": "11731682e81d0d3de1aa60d9436554b2106252f090a2a6134c44999a1a1e019f",
+      "bytes": 1889
+    },
+    {
+      "path": "usr/share/doc/xfonts-encodings/copyright",
+      "sha256": "7eb990b2914b0e2c2c9493c2511bff3d0b20ced9fb7416d6e74bf79876484811",
+      "bytes": 641
+    },
+    {
+      "path": "usr/share/doc/xfonts-utils/copyright",
+      "sha256": "4d404116525a133581918c1ad7d32456b49b599f501f1f4ff12d8202e6694a59",
+      "bytes": 13386
+    },
+    {
+      "path": "usr/share/doc/zlib1g/copyright",
+      "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+      "bytes": 2927
+    },
+    {
+      "path": "usr/share/texlive/LICENSE.CTAN",
+      "sha256": "380d83c62ec2ae91617b42739699676f23446039f2f88fa092da47e0c49f1eae",
+      "bytes": 2098
+    },
+    {
+      "path": "usr/share/texlive/LICENSE.TL",
+      "sha256": "e8f070b2d1a9bad00af9d6cb94e687f2120591d092c8dab8727249b70adc96d0",
+      "bytes": 5267
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/beamertheme-npbt/images/LICENSE.md",
+      "sha256": "4a42f4007bcdd59a34720c93989e45aaec27a6638ce4839dd268ddd8932a0c55",
+      "bytes": 406
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/cclicenses/cclicenses.sty",
+      "sha256": "3172ff78303e514dbdff93942dd146f6471a5d54c2c37ff8937e3f43ddbbcb6a",
+      "bytes": 4225
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/copyrightbox/copyrightbox.sty",
+      "sha256": "d18abc15e566dc754d54ff5ae61d4c6e5f57eaf34e84cde0b34bdf68170dc359",
+      "bytes": 2580
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-UKenglish.ldf",
+      "sha256": "2e16002cf182b02adcb4198758e70046b8d1636f43c135794c6ac5011e140767",
+      "bytes": 306
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-USenglish.ldf",
+      "sha256": "7f354803eb1441fc8759a1f17a853924aafe09caa09ad13c52a2a88cea8ad630",
+      "bytes": 306
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-acadian.ldf",
+      "sha256": "56f04943fb98a5b7b33934d17abffcf396d7ed0e5aef57d73f0c2312e186d3e0",
+      "bytes": 307
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-american.ldf",
+      "sha256": "b98978303274abd746638ca158018e209b81b7ce162551c6ca95f91a20a7f9b3",
+      "bytes": 305
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-australian.ldf",
+      "sha256": "2fd71da3990224b581776ebaa618d153ec7672626e46f5de3003c9d53b0bc7c5",
+      "bytes": 307
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-brazilian.ldf",
+      "sha256": "3d7d76390e104951c226880358d0cff5cd3d30b1dffc6ea436e3909febc9a133",
+      "bytes": 1637
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-british.ldf",
+      "sha256": "8095ae58b05996a15cc7f62ea8714d637a91cd56d6a47df30ed4a68e1e1d0e9b",
+      "bytes": 421
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-bulgarian.ldf",
+      "sha256": "4044a2fef6f9782d12530e7b5c13e17cea5ef896a11e6c9ed843ac0a2594170c",
+      "bytes": 2293
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-canadian.ldf",
+      "sha256": "aeecfb43888e32cd33d82b60e3dbd2aba72d0e65ce37cdb58bc77791cdf3cb44",
+      "bytes": 305
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-canadien.ldf",
+      "sha256": "51ced59274fa6bb51e1c748dc9842c261fd1944497a04cc5d79546701339d193",
+      "bytes": 308
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-catalan.ldf",
+      "sha256": "a746ac51843a8df9f375c8e7f58f918838c505e301c3c184ad063a8d6d8de390",
+      "bytes": 1702
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-chinese-gbk.ldf",
+      "sha256": "d30dac4420c6154b603d423d0428a92292c2894d47e806a7929894e321915dcc",
+      "bytes": 1445
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-chinese-tw.ldf",
+      "sha256": "0c1b1da5bac67a86c200aa74cb079b985531dfb0d730b38b82b03998c00f48d6",
+      "bytes": 1620
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-chinese-utf8.ldf",
+      "sha256": "eecef6118ecf147797dac87b580a3d341cfb13300c10d5f37ff8cbd192d00105",
+      "bytes": 1597
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-croatian.ldf",
+      "sha256": "b2f22b9f0d2582dc332daa6bddfb78ef33c0d9eca67101a441568d87d145e993",
+      "bytes": 1669
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-english.ldf",
+      "sha256": "fa3021d449c9a279dec95b6f021e9d25442bba1fc4c1500d69e060bf9062481d",
+      "bytes": 1613
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-esperanto.ldf",
+      "sha256": "4743cb83a93d9d49b5edd29aad63ca25acc893c5e59aae4b11606735eadf3ea9",
+      "bytes": 2391
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-french.ldf",
+      "sha256": "61f3b5b672c4db81d30db4541aa77c6d6f40719b9e62a96c6c038bd1597a051e",
+      "bytes": 2246
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-galician.ldf",
+      "sha256": "f7c533dd5d412bfac8cd07986b74e57af729d4215d4fb72d6e4159735f780f8b",
+      "bytes": 1991
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-german.ldf",
+      "sha256": "94c427a9ad9ab201c537ab05d4da061c4cd16e84f36536371e06b888219f23a0",
+      "bytes": 2057
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-italian.ldf",
+      "sha256": "96375af5078b9e38b0550efc96c58a19d98b54e16180c101ca1316c0e2f8ae03",
+      "bytes": 2004
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-japanese.ldf",
+      "sha256": "c3ec3097beb3eba053fea9f12d9b84338ad6f850a92b36abeba47236377a21a2",
+      "bytes": 1397
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-marathi.ldf",
+      "sha256": "e2891f200330135565e8f5de193a31d69713c339faedf9afb047628fa46dc2ca",
+      "bytes": 3067
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-newzealand.ldf",
+      "sha256": "0cc1b7eacf54c363dd6a8dd95d3bfea3b2de98e3bf91d33cf279f30566186c7a",
+      "bytes": 307
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-ngerman.ldf",
+      "sha256": "a47e89724a38a4a5d7e29d17d2795343c31e75e6e74e9b09d06f1dff019b011e",
+      "bytes": 303
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-polish.ldf",
+      "sha256": "2092283c3a93e50a1ad26b8483d0b8539fbc44ff78b2b12392a29d99d70927a9",
+      "bytes": 2990
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-portuguese.ldf",
+      "sha256": "09e5d51bde914794278605daca66de5be236d7a3618f864849132789e68fc516",
+      "bytes": 1665
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-russian.ldf",
+      "sha256": "78fa305f62b1e93bce412fda7e8f08d6346a0c9ff1a314292743d4c19d119457",
+      "bytes": 2810
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-spanish.ldf",
+      "sha256": "1f6e80e949a766105e76006924e0dce87c24236e1e03d8da0a39d39a40c2756a",
+      "bytes": 1634
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-swedish.ldf",
+      "sha256": "b3f18694325a7766a020f05094583f195ca88d3d4ece5428b65d7fdb36a9ae75",
+      "bytes": 2432
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense-ukrainian.ldf",
+      "sha256": "9468ad5bfd7c847d60b9e883ff05b881bc35c413c908ee98ebef9c0d3dc83962",
+      "bytes": 3273
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/doclicense.sty",
+      "sha256": "b051c82c340359c85832279f7217e3230f69419ac75c4770e914c77ffa31378d",
+      "bytes": 14209
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-80x15.eps",
+      "sha256": "b02f88009f1029b55f0d76eb548abe63f802f1aa89f19cad6984c11925945ced",
+      "bytes": 5675
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-80x15.pdf",
+      "sha256": "eaa03d15ad1e95adc6c3e21f3d586d61a1806dd13beb72fb713075051948a692",
+      "bytes": 2727
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-88x31.eps",
+      "sha256": "642afcd0a28a5408dd2115c2ab1d2ca58466b38e52079fc5c6e2fd6adb05b759",
+      "bytes": 7819
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-88x31.pdf",
+      "sha256": "fbf127e4dd053f3a63787ca12fe722b72011f39645d6eeb1fbef582946ccd695",
+      "bytes": 3052
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-80x15.eps",
+      "sha256": "0616e30a3161685fc39170a243e7dceece13e16ac90d35bc9bd4057d1c05ed7c",
+      "bytes": 6616
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-80x15.pdf",
+      "sha256": "2928ac599fc9b2ebeb7147b180febdcfb472d45e0caaa47be3cf970725dc283b",
+      "bytes": 3064
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-88x31.eps",
+      "sha256": "9fba2689de0e6f1f3697c22a11aa30065dd49db7f18225500528db4d5f7264dd",
+      "bytes": 11261
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-88x31.pdf",
+      "sha256": "fb8b452559a9eb28c362dd8086d2176dfc3a3ada9ba95d47e3849f15a48d83bd",
+      "bytes": 4312
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-eu-88x31.eps",
+      "sha256": "ee4bf8cacef9826d541067618638fd168ae4714adb620e45a8577660bf04d97a",
+      "bytes": 11390
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-eu-88x31.pdf",
+      "sha256": "812a9ed222aa8886f901c4bd8534c22f9b554ddb5333336e636de4c48cd79ccb",
+      "bytes": 4365
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-80x15.eps",
+      "sha256": "87bd2586517920c641804109d4336a080396b3f7a6f8f7e3b357375f14d42fa9",
+      "bytes": 7473
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-80x15.pdf",
+      "sha256": "9cac0a8b1626bd867735fbfa72114f31a8a7d15b512c03c6b6ef1cc4c1d8a0c9",
+      "bytes": 3357
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-88x31.eps",
+      "sha256": "0983820657cccc01c4b3541f8edb0c5040d00a7a8e66054f2b17d2dc39716813",
+      "bytes": 13437
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-88x31.pdf",
+      "sha256": "f5b27b12ee9d59036cf13b17d958926b4ef527eee982fbba27a6fd2dd80f6156",
+      "bytes": 5058
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-eu-88x31.eps",
+      "sha256": "9d50613948b6be86fc182686929df50cccdcec050d02992c81ab3ad7fa5c927a",
+      "bytes": 13562
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-eu-88x31.pdf",
+      "sha256": "269b6e8b4a54eda36b70d1a87c830c5502a1111cd5cbb21e1d5085eeecedf221",
+      "bytes": 5116
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-unofficial-mr-80x15.eps",
+      "sha256": "7b0cdef20e23cae49769873f85e97ca7b400448f3bcedc2ee49cda5098eff0d6",
+      "bytes": 20897
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-unofficial-mr-80x15.pdf",
+      "sha256": "d2652d0e9906a2ed4b65b4e38b06ea0ae6959b827670d680c95d5530fc9ccde0",
+      "bytes": 8126
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-unofficial-mr-88x31.eps",
+      "sha256": "b91233e2ec9b0c7a584a310e4c512fee448ff1e98705d7a3b639adf4d7917e6d",
+      "bytes": 31754
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-nd-unofficial-mr-88x31.pdf",
+      "sha256": "c0127129d97dab271d3265d9010a6ed23d3b6b9d9b55fae0c7fd9ce721968c3d",
+      "bytes": 12246
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-80x15.eps",
+      "sha256": "4a3ef9d4228e8445e9b02b02c19127a1ac4897b8758fd28ef6ee5b30cdee40e8",
+      "bytes": 7940
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-80x15.pdf",
+      "sha256": "cefdf240f1f00cd7c788e98050edd6543a212857a982d1d9165530cd017da528",
+      "bytes": 3579
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-88x31.eps",
+      "sha256": "ec1851769f3c517532a8be7f1020baefe55463db006dff29c4d8a599aa8cada7",
+      "bytes": 15146
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-88x31.pdf",
+      "sha256": "c717ee9e25a757dd222ea3cc2c7bc56bebe84c4b32617e04d89af0870ad12c26",
+      "bytes": 5728
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-eu-88x31.eps",
+      "sha256": "a93f27f8a3142708b14262af9dcc2ea79d79ba734f0bb180387a2302e9348560",
+      "bytes": 15260
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-eu-88x31.pdf",
+      "sha256": "0b99c486e002f72c0ac90ad514f841d2b53904229e181d3335b9684fcd5a8515",
+      "bytes": 5775
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-unofficial-mr-80x15.eps",
+      "sha256": "0a49f046c1a4d2440b4d6bcf4c1aa32809e39866f52595719cabcb53f3e43d69",
+      "bytes": 19124
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-unofficial-mr-80x15.pdf",
+      "sha256": "d473e22e300c1e3e1a80927877017df5e54c09c8d3aa42c20ec656c214738651",
+      "bytes": 7499
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-unofficial-mr-88x31.eps",
+      "sha256": "55929a75c930b02e458a6048ec42726a0d82662997e709d39c3c4250fbb6c3e4",
+      "bytes": 30123
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-sa-unofficial-mr-88x31.pdf",
+      "sha256": "b0fd3e89af4d3726e3fe20fef450e5dcdca7adbe749d33a078569266faebce12",
+      "bytes": 11686
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-unofficial-mr-80x15.eps",
+      "sha256": "d3c8901988a21c296dd97ef21286fb72b2f01bd435bd522f361c0b78381bb786",
+      "bytes": 14115
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-unofficial-mr-80x15.pdf",
+      "sha256": "f0c48db56eba3d1b449ded8274621f122103d99acbe5c656960d649e1dfd675f",
+      "bytes": 5640
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-unofficial-mr-88x31.eps",
+      "sha256": "f4158a505b9e7c1e170cef7fe7a3f8dc58e6e08c5327e924ed7beb3cfd3082b9",
+      "bytes": 23182
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nc-unofficial-mr-88x31.pdf",
+      "sha256": "1f0225be2f3f1e9a1da0fa7902de7316f4881499bb619c6bd3e551170c2fbb50",
+      "bytes": 9229
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-80x15.eps",
+      "sha256": "a501c9333be31edd6c6212367864910def4840d9030b49ccefacd243b7d40d9d",
+      "bytes": 6526
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-80x15.pdf",
+      "sha256": "34c2d80963736606200a66f7609f2789f55006f673cb0415a7ab08c9d0ad3adb",
+      "bytes": 3022
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-88x31.eps",
+      "sha256": "dfb5880b83c9a07c71c793e2c720415f6bf0376f1f4226fe1d66a02e00565022",
+      "bytes": 10011
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-88x31.pdf",
+      "sha256": "afe69d56910182565bca186f9f7c98d5e3ef93e0c335c67853f950e6e963560d",
+      "bytes": 3837
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-unofficial-mr-80x15.eps",
+      "sha256": "3adc49a8ae2f7a49fecc62c3d310d75d36c0c40fa22009304ddc185744fe6204",
+      "bytes": 15356
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-unofficial-mr-80x15.pdf",
+      "sha256": "4345d5997a1a9aa49b53b5ea53e8a582fcc889c05914e61e76f23e7a996912df",
+      "bytes": 6129
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-unofficial-mr-88x31.eps",
+      "sha256": "9d47b503b3e2dbce2efacf272463085c8c1f69537d8f69287e2c0c1107ae2ef6",
+      "bytes": 18889
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-nd-unofficial-mr-88x31.pdf",
+      "sha256": "677f17c2a8fdbc3d40269ebe173cbe99f350b1a4353b1d688021ff20b55c2691",
+      "bytes": 6580
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-80x15.eps",
+      "sha256": "73bbbb838232b5a9c173d8f1b111920e2fa8542e178b6c8725282c3cf62eb0ec",
+      "bytes": 7002
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-80x15.pdf",
+      "sha256": "6feb87895c8df721f83b92b7d18d431bc52507751692bef4d28998b699ddee6e",
+      "bytes": 3253
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-88x31.eps",
+      "sha256": "71b20f17ba63d10b50c58bf575b10b7492f3e10b1a4cd59e51ae4da77fcb76d0",
+      "bytes": 11647
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-88x31.pdf",
+      "sha256": "e7a9f5903fd9e3764f7f7106cd3caf98d0da5321cbbcb9030a78f02bd501a3ee",
+      "bytes": 4460
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-unofficial-mr-80x15.eps",
+      "sha256": "1572b091bc9b6729401bc810ff328d5669dd43dfb7cda77bcf1a5479c1ff0bef",
+      "bytes": 13505
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-unofficial-mr-80x15.pdf",
+      "sha256": "51b81f382aff8b3e7b4ddccc2403b0c3389b46b4141cc2e08f10adb22d65ca30",
+      "bytes": 5472
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-unofficial-mr-88x31.eps",
+      "sha256": "9e62280410d9b0ba4598c7e4126955b116aacc2d349c2c602da296a24101a3eb",
+      "bytes": 17092
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-sa-unofficial-mr-88x31.pdf",
+      "sha256": "0a65d5344c50ccfbf75b0fa99821c1cb8918e1e3af4fb0d1a032dac66086be42",
+      "bytes": 5965
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-unofficial-mr-80x15.eps",
+      "sha256": "5c976445d081a8f6fd3565386646825170eb5196d2e903dceaaa6bd76a1d9d00",
+      "bytes": 8473
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-unofficial-mr-80x15.pdf",
+      "sha256": "4634a08c301cef31e5c93c081b7cf3309500e81e95fae743dae5867d6057ce65",
+      "bytes": 3638
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-unofficial-mr-88x31.eps",
+      "sha256": "9c12bf93ab69817a0de18fab1db87deb23cfa850b96b1084336ef03aff08097a",
+      "bytes": 10917
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-by-unofficial-mr-88x31.pdf",
+      "sha256": "bf3767da7541b51bbf3ddf1bba1a537ec5f574be2a962f8d0b7fe99f0b0dc199",
+      "bytes": 3812
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-cc-zero-unofficial-mr-80x15.eps",
+      "sha256": "0f17341631d7b13e60178cf4608f32775e1b5c32168a8312cde781c15a1a0e61",
+      "bytes": 14916
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-cc-zero-unofficial-mr-80x15.pdf",
+      "sha256": "fa83d30dbfe222cc0d8cab456402d8d2442e2958eafe301f5cd6161fe64db5bc",
+      "bytes": 5530
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-zero-80x15.eps",
+      "sha256": "5d2251ffed760d16bc92db31d47aa91df9d43f4b9a9f3c09e77de845603b7989",
+      "bytes": 9114
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-zero-80x15.pdf",
+      "sha256": "079d75b1e64571f0a3a67149a8859753f2a765f98cd70077fa3875591ddfe914",
+      "bytes": 3538
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-zero-88x31.eps",
+      "sha256": "a9269a633fc499123b788bc21974dcae29b01a8b6f2980a5030942a250e44266",
+      "bytes": 12331
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-zero-88x31.pdf",
+      "sha256": "cf1498145b892fd32edf629a5d7315a6126aa93c7f73db5148dc71792b5970a3",
+      "bytes": 4697
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-zero-unofficial-mr-88x31.eps",
+      "sha256": "1a2a647f452889782b99e3f48aa1bac73e25847432b59fc3af39c0d0c6e0c5bc",
+      "bytes": 16411
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/images/doclicense-CC-zero-unofficial-mr-88x31.pdf",
+      "sha256": "4ad8a2da8301a422eb0e8b948a7ee110bbb46b67adb5a1d1579751329ca99385",
+      "bytes": 5920
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-3.0-latex.html",
+      "sha256": "e824764219a50b3e2e8e4bb476a68d0004033297bc7d34120c6968270fb2c2c7",
+      "bytes": 20781
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-3.0-latex.tex",
+      "sha256": "b9544297ffd281801dc37cda336f2d015a4ec4c78b1b02fcb7fef2531c194f08",
+      "bytes": 19416
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-3.0-plaintext.tex",
+      "sha256": "8e54d724fa22dccb05971fd377b53ddadd3c3ebb69a6e2ee10b0a088277cfb94",
+      "bytes": 19466
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-4.0-latex.html",
+      "sha256": "9f1c8006e943fc88b00cc02442ad3d9003c09e699222778a4ec234fb160e2279",
+      "bytes": 38132
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-4.0-latex.tex",
+      "sha256": "0cd18564902a1d0b58738f8d4f5080fb6cab1c2a3229fd83c6f78e6cda38bdc1",
+      "bytes": 18374
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-4.0-plaintext.tex",
+      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "bytes": 18657
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-3.0-latex.html",
+      "sha256": "004916f57c65facc235cd4e2135a74cf17d16e4ee048071a8d760eef5d040f06",
+      "bytes": 21724
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-3.0-latex.tex",
+      "sha256": "f36681f972deb1956fa495430a8da6a89e4b64f3cd6e8aa473d5f6283c002e3d",
+      "bytes": 20356
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-3.0-plaintext.tex",
+      "sha256": "45526cb7a15234d8d686a3ba5f11b607516f90662d125d5423eb2b57f474e5e4",
+      "bytes": 20479
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-4.0-latex.html",
+      "sha256": "aaf79a2a55b2457368a858766089411fc004de671daa94836dff58aeb6f7be1f",
+      "bytes": 38979
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-4.0-latex.tex",
+      "sha256": "fd89e83aabe8bd1f744502eadd14d157563e9d65b68b14522b1783c083c93f5d",
+      "bytes": 19004
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-4.0-plaintext.tex",
+      "sha256": "41003d4a74749c0220e33dd415042164b5a1093ed401f36277234f772d22d3d0",
+      "bytes": 19347
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-nd-3.0-latex.html",
+      "sha256": "e45cb0d5d0a6c0b5a037732933a94ebab7c83206061c7ca191eb85e79e08831d",
+      "bytes": 19976
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-nd-3.0-latex.tex",
+      "sha256": "8105d8cdecf6f2606831d6b95fc37d92eb32b7955ddb9ca5aa51b8f8eb738d3d",
+      "bytes": 18609
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-nd-3.0-plaintext.tex",
+      "sha256": "d74e67958cad1ae4cb585402ef66ae41958ba546e6c5e80a93920013cb81bc2a",
+      "bytes": 18650
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-nd-4.0-latex.html",
+      "sha256": "b65c79eeac4395a2881b82e415066dfb95eab8001ca8027face1db2be1e44b52",
+      "bytes": 38937
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-nd-4.0-latex.tex",
+      "sha256": "633cda42dcbc43bae08b9d81eaf4898c27cb30678b9acc75c294f3560a97d617",
+      "bytes": 18797
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-nd-4.0-plaintext.tex",
+      "sha256": "38762e3777f4ec00a6f769062a7c3f704fb78ce08303ecff88558da4c49cf9ea",
+      "bytes": 19127
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-sa-3.0-latex.html",
+      "sha256": "16bc8b3faf9127b7e9d96da5997f74821a12535ff1b92ed3d7f6396e0a3f0e0e",
+      "bytes": 23486
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-sa-3.0-latex.tex",
+      "sha256": "5bb1bf1b8fbba798a6caa9f03e5ed118dfe6c540ef3b3b05a16e521c444f1a09",
+      "bytes": 22108
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-sa-3.0-plaintext.tex",
+      "sha256": "8812f83442fd0eca14eb0208988e190fdcbfebec58fa5459d3218edfdfdc5a32",
+      "bytes": 22306
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-sa-4.0-latex.html",
+      "sha256": "4ccda6aa867a28c885cf048fd2166bbbc721d6f24c54ad7b8db34676e3c30f8b",
+      "bytes": 40787
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-sa-4.0-latex.tex",
+      "sha256": "53ecc7dcee2324cbe038390b8d58a35988d0f9a7106cc4d22ff21f9da065d8bd",
+      "bytes": 20426
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nc-sa-4.0-plaintext.tex",
+      "sha256": "e66c269d4819aaab34b49ef5220c4ddab6756f21bb5180761a4eb8561f2b7bbd",
+      "bytes": 20850
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nd-3.0-latex.html",
+      "sha256": "705c59bfc705ef1b0a8eab9ad57d0cd6288c28653568c6e3ac20dfccc2465dd9",
+      "bytes": 19048
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nd-3.0-latex.tex",
+      "sha256": "bac09f903b13f9d3c2580c13a0994ae3a84d3a2a5c7de386848d949198faac74",
+      "bytes": 17684
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nd-3.0-plaintext.tex",
+      "sha256": "b9d9816260e23b4bdb71e0edc453497273f4cfc1fdf61207ee6cc1c7075a2479",
+      "bytes": 17650
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nd-4.0-latex.html",
+      "sha256": "2c679434d506867f8e77d0666084d532a89de3c301c307e28d80b4a623ddd72d",
+      "bytes": 38078
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nd-4.0-latex.tex",
+      "sha256": "7aa625e8433781a62487519e3bed7105920cb1cf968fd7202d505bc6f4cbf87f",
+      "bytes": 18164
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-nd-4.0-plaintext.tex",
+      "sha256": "6e4efcb1952c7976d3fae93b802c591384c4f50949225a802adf41bc266fa3e6",
+      "bytes": 18436
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-sa-3.0-latex.html",
+      "sha256": "bef99a010aefe51eac0e034bfa7309a880d3250705eb0d3a9467997a181b76ea",
+      "bytes": 23457
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-sa-3.0-latex.tex",
+      "sha256": "7eda4aa7fbffe3dfd5e806b6d8b0d46e2d40df4ac14ff8690407f347e84ccf3d",
+      "bytes": 22078
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-sa-3.0-plaintext.tex",
+      "sha256": "5f72b67b2b3b0a9c9628408d9be60a53e8b557bdcb02b66769f70da239fa07e9",
+      "bytes": 22239
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-sa-4.0-latex.html",
+      "sha256": "abd5a73ac2e393601e7f8a6c418edf4884b03902b98648e0819daa210165969d",
+      "bytes": 39915
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-sa-4.0-latex.tex",
+      "sha256": "14cce267b2a699bdaffce354e735b53851211f0700257540f2ad0003ccede8f3",
+      "bytes": 19772
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-by-sa-4.0-plaintext.tex",
+      "sha256": "3b2890eacd851373001c4a14623458e3adaf1b1967939aa9c38a318e28d61c00",
+      "bytes": 20138
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-zero-1.0-latex.html",
+      "sha256": "6274f8899b111e768f7a780a616d5fec7da462a807b68553bf7893bbac42b241",
+      "bytes": 9934
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-zero-1.0-latex.tex",
+      "sha256": "cb45ef88c0e674339ad31a94059b69b477f10f9d69387e39b1a48be9ae3ea2ce",
+      "bytes": 7497
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/doclicense/license-texts/doclicense-CC-zero-1.0-plaintext.tex",
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "bytes": 7048
+    },
+    {
+      "path": "usr/share/texlive/texmf-dist/tex/latex/lwarp/lwarp-copyrightbox.sty",
+      "sha256": "d503a3b5db3fa52f67458279ef6733aac26326f695524cbb986a14bf56d343cc",
+      "bytes": 1063
+    },
+    {
+      "path": "usr/share/texlive/tlpkg/installer/COPYING.MinGW-runtime.txt",
+      "sha256": "e4c894a028db28c6ccfde8216d63344e97a5276d85233131f828d1595e04df37",
+      "bytes": 11651
+    }
+  ]
+}
