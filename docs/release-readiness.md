@@ -1,5 +1,9 @@
 # Release readiness — T21 preparation
 
+Execution plan: [Defect repair and release completion](../agents/release-repair-subtasks.md) maps all 16 independent review findings to repairs, regression tests and owners, then sequences the remaining image, provider, distribution and installation gates. That plan is not evidence that any open gate has passed.
+
+**October 8 repair update:** [Combined repair verification](repairs/combined-verification.md) records the current 692-pass native candidate, 35 browser cases and independent closure of all 16 original defects plus additional review findings. [GitHub Actions preparation](repairs/github-actions-candidate.md) replaces the blocked local build as the selected next image-acceptance environment; its source gates and native Docker/Podman matrix are prepared and statically reviewed, but not dispatched. The older evidence below remains historical; it does not certify the repaired candidate or close external gates.
+
 October 7, 2026. **Documentation/readiness preparation is complete for its bounded scope; T21 release acceptance is not complete.** This checkout is not a published release, an accepted hosted installer or a certified portable deployment. T18's real build paused on Colima disk `nospace` before producing an image, T19/T20 local implementation/docs and synthetic checks are prepared, and several live/provider/accessibility measurements remain missing. No runtime/disk cleanup, paid request, external email, remote Sheet mutation, commit, push or publication belongs to this documentation task.
 
 ## Evidence that can be used

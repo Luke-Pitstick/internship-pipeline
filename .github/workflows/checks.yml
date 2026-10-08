@@ -2,6 +2,7 @@ name: Offline checks
 on:
   push:
   pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -9,20 +10,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install application PDF compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended
+          pdflatex --version
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.9.14"
       - run: uv sync --python 3.12 --frozen
       - run: uv run --frozen ruff check src tests deploy
-      - run: uv run --frozen mypy src/internship_pipeline
+      - run: uv run --frozen mypy --strict src/internship_pipeline
       - run: uv run --frozen pytest -q
       - run: uv build
+      - name: Verify distributable contents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tarfile, zipfile
+          archives = [*Path('dist').glob('*.tar.gz'), *Path('dist').glob('*.whl')]
+          assert len(archives) == 2, 'Expected exactly one source archive and one wheel'
+          for path in archives:
+              with zipfile.ZipFile(path) if path.suffix == '.whl' else tarfile.open(path) as archive:
+                  names = archive.namelist() if path.suffix == '.whl' else archive.getnames()
+              forbidden = [name for name in names if any(
+                  part in {'node_modules', '.svelte-kit', 'playwright-report', '.env'}
+                  or part.startswith('test-results') for part in Path(name).parts)]
+              assert not forbidden, f'{path}: generated/private files: {forbidden}'
+          PY
       - run: docker compose config --quiet
   frontend:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Install application PDF compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended
+          pdflatex --version
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -41,4 +67,12 @@ jobs:
       - run: npm test
         working-directory: web
       - run: npx playwright test --config playwright.setup.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.web-security.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.email.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.sheets.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.generation-policy.config.ts
         working-directory: web
