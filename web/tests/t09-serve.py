@@ -21,7 +21,12 @@ with tempfile.TemporaryDirectory(prefix="t09-stored-browser-") as directory:
     app = create_app(Path(directory), origin="http://127.0.0.1:4189", static_dir=Path("build").resolve(), settings=settings)
     seed(DashboardAPI(settings), 10000)
     with sqlite3.connect(settings.database_path) as db:
-        db.execute("INSERT INTO search_runs(id,config,target_id,stage,created) VALUES('synthetic-progress','{}','synthetic','collecting',?)",(time.time(),))
+        db.execute(
+            "INSERT INTO search_runs(id,search_id,config,target_id,stage,created,"
+            "max_jobs,max_calls,max_tokens) VALUES(?,?,?,?,?,?,?,?,?)",
+            ("synthetic-progress", "synthetic-source", '{"name":"Synthetic progress"}',
+             "synthetic", "collecting", time.time(), 0, 0, 0),
+        )
         db.executemany("INSERT INTO search_run_jobs VALUES('synthetic-progress',?)",[(f"synthetic-{i:05d}",) for i in range(100)])
     stop=threading.Event()
     def progress():

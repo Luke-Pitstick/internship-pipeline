@@ -44,12 +44,15 @@ test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API t
   await expect(page.getByRole('status').filter({hasText:'Page 400 of 400'})).toBeVisible();
   await expect(page).toHaveURL(/page=400/); await page.reload();
   await expect(page.getByRole('status').filter({hasText:'Page 400 of 400'})).toBeVisible();
-  await page.setViewportSize({width:390,height:844});
-  await page.locator('[data-job]').first().click();
-  await expect(page.locator('.job-detail h2')).toBeFocused();
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.keyboard.press('Escape'); await expect(page.locator('[data-job]').first()).toBeFocused();
-  await page.screenshot({path:'test-results-t09/t09-mobile.png',fullPage:true});
+  for (const width of [320, 390]) {
+    await page.setViewportSize({width,height:844});
+    await page.keyboard.press('Escape');
+    await page.locator('[data-job]').first().click();
+    await expect(page.locator('.job-detail h2')).toBeFocused();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.keyboard.press('Escape'); await expect(page.locator('[data-job]').first()).toBeFocused();
+    await page.screenshot({path:`test-results-t09/t09-mobile-${width}.png`,fullPage:true});
+  }
   await page.setViewportSize({width:1440,height:1000});
   const report=await page.evaluate(async()=>{
     const samples:Record<string,number[]>={}; const progress:number[]=[];
@@ -65,7 +68,7 @@ test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API t
     return {samples,progress};
   });
   expect(Math.max(...report.progress)).toBeGreaterThan(Math.min(...report.progress));
-  const summary=Object.fromEntries(Object.entries(report.samples).map(([sort,values])=>{const sorted=[...values].sort((a,b)=>a-b); return [sort,{median_ms:sorted[5],p95_ms:sorted[9]}]}));
+  const summary=Object.fromEntries(Object.entries(report.samples).map(([sort,values])=>{const sorted=[...values].sort((a,b)=>a-b); return [sort,{median_ms:(sorted[4]+sorted[5])/2,p95_ms:sorted[9]}]}));
   await writeFile('test-results-t09/t09-real-api.json',JSON.stringify({...report,summary},null,2));
   expect(errors).toEqual([]);
 });

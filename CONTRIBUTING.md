@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is preparing a release, and the project license is not yet selected. Review [redistribution readiness](docs/redistribution-review.md) before relying on a redistribution grant. Changes should keep the smallest complete workflow working and record which acceptance boundary they actually verify.
+This repository is preparing a release under the [MIT license](LICENSE). Review [redistribution readiness](docs/redistribution-review.md) for third-party notices and outstanding artifact review. Changes should keep the smallest complete workflow working and record which acceptance boundary they actually verify.
 
 ## Development setup
 
@@ -50,4 +50,4 @@ For container changes, use the [T18 isolated smoke/recovery runner](docs/t18-por
 
 ## Reporting issues
 
-Include the source/image version, host OS/architecture, runtime, affected workflow, sanitized status/error code and a synthetic reproduction. [Support](docs/support.md) explains which diagnostics are safe to share. The repository has no published private security-reporting contact yet; establishing that contact is a release requirement. Keep exploitable security details and personal installation data out of public reports until an appropriate private reporting route exists.
+Include the source/image version, host OS/architecture, runtime, affected workflow, sanitized status/error code and a synthetic reproduction. [Support](docs/support.md) explains which diagnostics are safe to share. [SECURITY.md](SECURITY.md) describes the proposed GitHub private-reporting route and its outstanding enablement check. Keep exploitable security details and personal installation data out of public reports until that private route is verified.

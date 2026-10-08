@@ -1,10 +1,10 @@
 # Redistribution review — release preparation
 
-October 7, 2026. This is a local metadata/template/asset inventory, **not legal clearance or an open-source license grant**. No root `LICENSE`/`NOTICE`, Python project license declaration or agreed project-license choice exists in this checkout. The earlier [repository audit](open-source-step-1.md) identified the same unresolved decision.
+Updated October 8, 2026. The owner selected MIT for release preparation; the root [LICENSE](../LICENSE) and Python package metadata now declare it, and built wheel/source archives retain the notice. This inventory is not a completed third-party/image redistribution review. The dependency metadata below was collected October 7 and must be reconciled with the exact released artifacts.
 
 ## Required owner decision
 
-The project owner must select the intended license, confirm authority over the contributed source/template/assets and supply the applicable copyright holder/year before publication. Then add the chosen license text and matching package metadata, establish contribution terms/private security contact, and review redistributed third-party notices against the actual artifacts. This preparation does not select a license on the owner's behalf or silently license existing work. Until those inputs exist, **open-source release remains blocked**.
+The MIT notice uses Luke Pitstick, 2026. Before publication, confirm authority over contributed source/templates/assets and review redistributed third-party notices against the actual artifacts. [Distribution preparation](release/distribution.md) records the installer/package notice checks, and [SECURITY.md](../SECURITY.md) records the private reporting route awaiting enablement. These remaining artifact and reporting gates still block public release; adding the project license does not close them.
 
 ## Locked dependency metadata
 
@@ -35,17 +35,17 @@ Direct frontend/build packages declare MIT for Svelte, SvelteKit, adapter-static
 
 ## Template, fonts and image assets
 
-The active master template is an inline literal in `src/internship_pipeline/resumes/master_template.py` with its own version/hash. It uses article, fontenc, inputenc, Latin Modern (`lmodern`), textcomp, geometry, enumitem, needspace and `glyphtounicode`. The code labels it application-owned, but provenance/ownership and the selected project license still require the owner's confirmation; that label is not legal evidence. No arbitrary uploaded template or former personal LaTeX source-edit path is shipped as the current generation workflow.
+The active master template is an inline literal in `src/internship_pipeline/resumes/master_template.py` with its own version/hash. It uses article, fontenc, inputenc, Latin Modern (`lmodern`), textcomp, geometry, enumitem, needspace and `glyphtounicode`. The code labels it application-owned, but provenance/ownership still requires the owner's confirmation; that label is not evidence of authority. No arbitrary uploaded template or former personal LaTeX source-edit path is shipped as the current generation workflow.
 
 The frontend declares Inter/system fonts in CSS and has no `@font-face` declaration or bundled web-font file in the application source. Declaring a font name does not redistribute that font. `web/design/` contains generated concepts and synthetic browser reference screenshots documented in its README; the frontend build does not ship those design images. Their provenance/distribution choice still belongs in a source-release review. The committed PDF/DOCX fixtures are identified as synthetic and need the same final provenance review before redistribution.
 
-Docker uses Python/Node Bookworm base images, the uv build-stage binary and Debian `texlive-latex-extra`/`texlive-fonts-recommended`. The resulting Debian/TeX/font/system dependency set has **not** been inspected because no actual image finished building. Retain the relevant package license/copyright/notice files, inspect font embedding/redistribution terms and generated PDF contents, and reconcile a full image SBOM before publishing. Metadata from the macOS Python environment cannot clear those Linux image components.
+Docker uses Python/Node Bookworm base images, the uv build-stage binary and Debian `texlive-latex-extra`/`texlive-fonts-recommended`. No image had finished building at the October 7 inventory snapshot, so that inventory did not inspect the resulting Debian/TeX/font/system dependency set. Reconcile the accepted CI image's full SBOM, retained package license/copyright/notice files, font embedding/redistribution terms and generated PDF contents before publishing. Metadata from the macOS Python environment cannot establish those Linux image contents.
 
 ## Remaining artifact gates
 
 | Missing input or evidence | Required action |
 | --- | --- |
-| Owner-selected project license and source/template/asset authority | Obtain explicit owner decision, add license/package metadata and identify required copyright/contribution terms. |
+| Source/template/asset authority and contribution terms | MIT notice/package metadata are prepared; confirm the recorded copyright and authority for contributed assets before publication. |
 | Complete runtime/build dependency notice review | Review actual dependency license texts and applicable notices, including absent conditional packages; generate an artifact-scoped notice bundle after choosing the project license. |
 | Built image and package/font inventory | Finish T18 on a healthy runtime, retain SBOM/provenance and review Debian/TeX/base-image content and embedded fonts before registry publication. |
 | Source-release privacy/provenance | Review tracked source, historical references, synthetic fixtures and design assets at the exact release revision; exclude personal runtime inputs and unapproved assets. |

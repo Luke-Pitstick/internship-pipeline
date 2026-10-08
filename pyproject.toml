@@ -3,6 +3,8 @@ name = "internship-pipeline"
 version = "0.1.0"
 description = "Fast internship discovery, grounded resume tailoring, and alerts"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "pydantic>=2,<3",
     "httpx>=0.28,<1",

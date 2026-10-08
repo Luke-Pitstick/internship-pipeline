@@ -19,6 +19,7 @@ from internship_pipeline.providers.connections import (
     Kind,
     ProbeResult,
 )
+from internship_pipeline.providers.structured import GENERAL_ENDPOINTS
 
 
 class ConnectionError(ValueError):
@@ -115,7 +116,12 @@ class ModelConnectionStore:
             return result
 
     def save(self, kind: Kind, body: ConnectionInput) -> dict[str, Any]:
-        if body.endpoint != ENDPOINTS[kind]:
+        supported = (
+            body.endpoint in GENERAL_ENDPOINTS.values()
+            if kind == "general"
+            else (body.endpoint == ENDPOINTS["jev"])
+        )
+        if not supported:
             raise ConnectionError("Only the documented official provider endpoint is supported.")
         key = body.api_key.get_secret_value() if body.api_key is not None else None
         if key is not None and (not key.isascii() or any(c.isspace() for c in key)):
@@ -128,6 +134,13 @@ class ModelConnectionStore:
             if (row["revision"] if row else 0) != body.expected_revision:
                 raise ConnectionError("This connection changed. Reload settings before saving.")
             secret = db.execute("SELECT encrypted FROM model_credentials WHERE kind=?", (kind,))
+            changing_provider = bool(
+                row
+                and not row["deleted"]
+                and json.loads(row["config"])["endpoint"] != body.endpoint
+            )
+            if changing_provider and key is None:
+                raise ConnectionError("Enter an API key for the newly selected provider.")
             if key is None and not secret.fetchone():
                 raise ConnectionError("Enter an API key to create this connection.")
             config = body.model_dump(exclude={"api_key", "expected_revision"})
@@ -221,7 +234,7 @@ class ModelConnectionStore:
             config = ConnectionInput(**json.loads(row["config"]), expected_revision=row["revision"])
             request_size = len(
                 json.dumps(
-                    probe_body(kind, config.model, config.max_output_tokens),
+                    probe_body(kind, config),
                     ensure_ascii=False,
                     separators=(",", ":"),
                 ).encode()

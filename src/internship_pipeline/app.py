@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import re
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,8 +18,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.datastructures import Headers
 from starlette.middleware.base import RequestResponseEndpoint
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import Message, Receive, Scope, Send
 
 from internship_pipeline.config import load_settings
 from internship_pipeline.dashboard_api import DashboardAPI, DashboardUnavailable
@@ -28,6 +32,71 @@ from internship_pipeline.model_connections import ModelConnectionStore
 from internship_pipeline.models import Settings
 from internship_pipeline.profile_settings import ProfileSettings, profile_settings_router
 from internship_pipeline.storage import Store
+
+
+class _StaticGZipMiddleware(GZipMiddleware):
+    """Negotiate the static mount's gzip/identity choices before Starlette compresses."""
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await super().__call__(scope, receive, send)
+            return
+        qualities: dict[str, float] = {}
+        for header in Headers(scope=scope).getlist("accept-encoding"):
+            for item in header.split(","):
+                parts = [part.strip().lower() for part in item.split(";")]
+                coding = parts[0]
+                if coding not in {"gzip", "identity", "*"}:
+                    continue
+                quality = 1.0
+                if len(parts) > 1:
+                    # Invalid weights never opt a client into compression.
+                    quality = (
+                        float(parts[1][2:])
+                        if len(parts) == 2
+                        and re.fullmatch(r"q=(?:0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?)", parts[1])
+                        else 0.0
+                    )
+                # Conflicting duplicate tokens cannot erase an explicit refusal.
+                qualities[coding] = min(quality, qualities.get(coding, 1.0))
+        gzip_quality = qualities.get("gzip", qualities.get("*", 0.0))
+        identity_quality = qualities.get("identity", 0.0 if qualities.get("*") == 0 else 1.0)
+        if gzip_quality == 0 and identity_quality == 0:
+            await Response(status_code=406, headers={"Vary": "Accept-Encoding"})(
+                scope, receive, send
+            )
+            return
+        encoding = (
+            b"gzip"
+            if gzip_quality > 0
+            and ("identity" not in qualities or gzip_quality >= identity_quality)
+            else b"identity"
+        )
+        # Starlette handles response compression, ranges and Vary; only its
+        # substring-based request selection needs normalized coding tokens.
+        normalized = dict(scope)
+        normalized["headers"] = [
+            (key, value) for key, value in scope["headers"] if key.lower() != b"accept-encoding"
+        ] + [(b"accept-encoding", encoding)]
+        refused = False
+
+        async def send_acceptable(message: Message) -> None:
+            nonlocal refused
+            if (
+                message["type"] == "http.response.start"
+                and identity_quality == 0
+                and Headers(raw=message["headers"]).get("content-encoding") != "gzip"
+            ):
+                # Starlette deliberately leaves small/excluded/ranged responses
+                # uncompressed. Don't send that representation after identity refusal.
+                refused = True
+                await Response(status_code=406, headers={"Vary": "Accept-Encoding"})(
+                    scope, receive, send
+                )
+            elif not refused:
+                await send(message)
+
+        await super().__call__(normalized, receive, send_acceptable)
 
 
 def runtime_settings(root: Path, config: Path | None) -> Settings:
@@ -402,5 +471,11 @@ def create_app(
             owner(request)
             raise HTTPException(404, "Not found")
 
-        app.mount("/", StaticFiles(directory=static_dir, html=True, check_dir=False), name="web")
+        app.mount(
+            "/",
+            _StaticGZipMiddleware(
+                StaticFiles(directory=static_dir, html=True, check_dir=False), minimum_size=500
+            ),
+            name="web",
+        )
         return app

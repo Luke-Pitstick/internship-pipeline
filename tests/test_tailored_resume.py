@@ -349,3 +349,38 @@ def test_observation_refresh_preserves_cache_identity(service):
     with service.store.transaction() as db:
         db.execute("UPDATE jobs SET last_seen=last_seen+5")
     assert service.latest(service.job_id)["key"] == first["key"]
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "openrouter"])
+def test_native_provider_durable_generation_and_pdf(service, provider):
+    from test_general_providers import settings, synthetic_response
+
+    current = service.connections.summary()["general"]["revision"]
+    saved = service.connections.save("general", settings(provider, current))
+    attempt, config, _ = service.connections.reserve_test("general", saved["revision"])
+    service.connections.complete_test(attempt, ProbeResult("success", config.model, 40, 20))
+    calls = []
+
+    def respond(request):
+        calls.append(str(request.url))
+        assert str(request.url) == config.endpoint
+        return httpx.Response(
+            200,
+            json=synthetic_response(
+                provider,
+                {"fact_ids": ["experience-api", "project-dashboard"]},
+            ),
+        )
+
+    service.transport = httpx.MockTransport(respond)
+    request(service)
+    assert service.process_next()
+    draft = service.latest(service.job_id)
+    assert draft["state"] == "draft", draft
+    assert service.pdf(draft["key"]).startswith(b"%PDF-")
+    assert service.review(draft["key"])["state"] == "reviewed"
+    assert request(service)["key"] == draft["key"] and len(calls) == 1
+    with service.store.connection() as db:
+        row = db.execute("SELECT * FROM tailored_attempts ORDER BY id DESC LIMIT 1").fetchone()
+        assert row["effective_model"] == config.model
+        assert (row["input_tokens"], row["output_tokens"]) == (40, 20)
