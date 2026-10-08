@@ -45,8 +45,9 @@ class Queue:
         with self.store.transaction() as connection:
             connection.execute(
                 "UPDATE tasks SET status='failed',error='LeaseExpired',updated=? "
-                "WHERE status='running' AND lease_until<=? AND attempts>=?",
-                (now, now, self.max_attempts),
+                f"WHERE kind IN ({placeholders}) AND status='running' "
+                "AND lease_until<=? AND attempts>=?",
+                (now, *kinds, now, self.max_attempts),
             )
             while True:
                 row = connection.execute(
@@ -127,6 +128,25 @@ class Queue:
                 (utcnow().timestamp(), task.id, task.token),
             )
             return cursor.rowcount == 1
+
+    def checkpoint(
+        self,
+        connection: sqlite3.Connection,
+        task: Task,
+        status: str,
+        error: str | None = None,
+    ) -> bool:
+        """Transition owned work inside its outcome transaction, under a live lease."""
+        if status not in {"done", "pending", "failed"}:
+            raise ValueError("Invalid queue checkpoint status")
+        now = utcnow().timestamp()
+        available = now + min(3600, 5 * 2 ** (task.attempts - 1)) if status == "pending" else now
+        cursor = connection.execute(
+            "UPDATE tasks SET status=?,available_at=?,lease_until=NULL,error=?,updated=? "
+            "WHERE id=? AND token=? AND status='running' AND lease_until>?",
+            (status, available, error, now, task.id, task.token, now),
+        )
+        return cursor.rowcount == 1
 
     def fail(self, task: Task, error: str, now: float | None = None) -> None:
         now = utcnow().timestamp() if now is None else now

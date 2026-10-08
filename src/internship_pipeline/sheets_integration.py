@@ -7,9 +7,11 @@ import hashlib
 import io
 import json
 import re
+import sqlite3
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import closing
 from typing import Any
 
 from cryptography.fernet import InvalidToken
@@ -35,6 +37,7 @@ FIELDS = [
     "source_status",
 ]
 DEFAULT_MAPPING = dict(zip(FIELDS, "ABCDEFGHIJ", strict=True))
+MAX_SHEETS_JOBS = 10000
 
 
 def column_index(column: str) -> int:
@@ -245,57 +248,83 @@ class SheetsIntegration:
         finally:
             provider.close()
 
-    def facts(self) -> list[dict[str, Any]]:
-        output = []
-        with self.store.connection() as db:
-            for row in db.execute("SELECT data FROM jobs ORDER BY id LIMIT 10000"):
+    def _facts(self) -> Generator[dict[str, Any], None, None]:
+        # A cursor keeps the source inventory bounded in memory and in stable ID order.
+        # StreamingResponse awaits next() serially but may use different pool threads.
+        # This iterator owns one read-only connection; no other operation shares it.
+        with closing(
+            sqlite3.connect(
+                self.store.path.resolve().as_uri() + "?mode=ro",
+                uri=True,
+                check_same_thread=False,
+                timeout=30,
+            )
+        ) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("BEGIN")
+            for row in db.execute("SELECT data FROM jobs ORDER BY id"):
                 job = Job.model_validate_json(row[0])
                 result = stored_view(db, job)["result"]
                 notes = db.execute(
                     "SELECT notes FROM job_workspace WHERE job_id=?", (job.id,)
                 ).fetchone()
-                output.append(
-                    {
-                        "job_id": job.id,
-                        "company": job.posting.company,
-                        "title": job.posting.title,
-                        "location": "; ".join(job.posting.locations),
-                        "score": result["normalized_fit"] if result else "",
-                        "posted_at": job.posting.published_at.isoformat()
-                        if job.posting.published_at
-                        else "",
-                        "first_observed_at": job.first_seen_at.isoformat(),
-                        "deadline": job.posting.deadline or "",
-                        "apply_url": job.posting.apply_url,
-                        "source_status": job.status,
-                        "application_status": "applied" if job.applied_at else "not_applied",
-                        "notes": notes[0] if notes else "",
-                    }
+                yield {
+                    "job_id": job.id,
+                    "company": job.posting.company,
+                    "title": job.posting.title,
+                    "location": "; ".join(job.posting.locations),
+                    "score": result["normalized_fit"] if result else "",
+                    "posted_at": job.posting.published_at.isoformat()
+                    if job.posting.published_at
+                    else "",
+                    "first_observed_at": job.first_seen_at.isoformat(),
+                    "deadline": job.posting.deadline or "",
+                    "apply_url": job.posting.apply_url,
+                    "source_status": job.status,
+                    "application_status": "applied" if job.applied_at else "not_applied",
+                    "notes": notes[0] if notes else "",
+                }
+
+    def facts(self) -> list[dict[str, Any]]:
+        output: list[dict[str, Any]] = []
+        for record in self._facts():
+            if len(output) == MAX_SHEETS_JOBS:
+                raise ValueError(
+                    "Sheets supports at most 10,000 jobs. Export the complete inventory as CSV."
                 )
+            output.append(record)
         return output
 
     def csv(self) -> str:
+        return "".join(self.csv_chunks())
+
+    def csv_chunks(self) -> Generator[str, None, None]:
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=FIELDS + ["application_status", "notes"])
         writer.writeheader()
-        for record in self.facts():
-            # CSV importers may execute formula-like text; quoted CSV alone does not prevent it.
-            writer.writerow(
-                {
-                    k: (
-                        "'" + v
-                        if isinstance(v, str)
-                        and v.lstrip().startswith(("=", "+", "-", "@", "\t", "\r"))
-                        else v
-                    )
-                    for k, v in record.items()
-                }
-            )
-        return output.getvalue()
+        yield output.getvalue()
+        with closing(self._facts()) as records:
+            for record in records:
+                output.seek(0)
+                output.truncate()
+                # CSV importers may execute formula-like text; quoted CSV alone does not prevent it.
+                writer.writerow(
+                    {
+                        k: (
+                            "'" + v
+                            if isinstance(v, str)
+                            and v.lstrip().startswith(("=", "+", "-", "@", "\t", "\r"))
+                            else v
+                        )
+                        for k, v in record.items()
+                    }
+                )
+                yield output.getvalue()
 
     def preview(self, revision: int) -> dict[str, Any]:
         config, provider = self._connection(revision)
         try:
+            records = self.facts()
             if not config["tab"]:
                 raise ValueError("Choose a tab and save/test before previewing.")
             rows = provider.rows(config["tab"])
@@ -331,7 +360,6 @@ class SheetsIntegration:
                             }
                         )
                     ids[identifier] = row_number
-            records = self.facts()
             changes = []
             next_row = max(2, len(rows) + 1)
             with self.store.connection() as db:
@@ -344,11 +372,11 @@ class SheetsIntegration:
             for record in records:
                 identifier = record["job_id"]
                 row_number = ids.get(identifier, next_row)
-                if row_number > 10001:
-                    conflicts.append(
-                        {"job_id": identifier, "reason": "Destination exceeds 10,000 job rows"}
+                if row_number > MAX_SHEETS_JOBS + 1:
+                    raise ValueError(
+                        "Destination exceeds 10,000 job rows. Export the complete inventory "
+                        "as CSV or choose a destination with capacity."
                     )
-                    continue
                 if identifier not in ids:
                     next_row += 1
                 expected = {column: cell(rows, row_number, column) for column in mapping.values()}
@@ -419,6 +447,10 @@ class SheetsIntegration:
             if plan["conflicts"]:
                 raise ValueError(
                     "Resolve destination conflicts or remap columns, then preview again."
+                )
+            if db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] > MAX_SHEETS_JOBS:
+                raise ValueError(
+                    "Sheets supports at most 10,000 jobs. Export the complete inventory as CSV."
                 )
             db.execute("UPDATE sheets_runs SET state='queued' WHERE id=?", (run,))
             enqueue(db, "sheets_sync", "sheets:" + run, {"id": run}, time.time())

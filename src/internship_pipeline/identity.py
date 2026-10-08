@@ -14,6 +14,11 @@ from typing import Any
 
 from pwdlib import PasswordHash
 
+ANONYMOUS_WINDOW = 300
+ANONYMOUS_ADDRESS_LIMIT = 20
+ANONYMOUS_GLOBAL_LIMIT = 100
+ANONYMOUS_SESSION_CAP = 128
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS owner (
     id INTEGER PRIMARY KEY CHECK(id=1), username TEXT NOT NULL, password_hash TEXT NOT NULL
@@ -22,6 +27,9 @@ CREATE TABLE IF NOT EXISTS owner_setup (id INTEGER PRIMARY KEY CHECK(id=1), toke
 CREATE TABLE IF NOT EXISTS owner_sessions (
     token_hash TEXT PRIMARY KEY, csrf TEXT NOT NULL, authenticated INTEGER NOT NULL,
     expires REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS anonymous_admission (
+    key TEXT PRIMARY KEY, started REAL NOT NULL, count INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS owner_attempts (
     key TEXT PRIMARY KEY, started REAL NOT NULL, count INTEGER NOT NULL
@@ -148,9 +156,49 @@ class Identity:
             ).fetchone()
             return dict(row) if row else None
 
-    def new_session(self, authenticated: bool, previous: str = "") -> tuple[str, str, int]:
+    def anonymous_session(self, address: str, previous: str = "") -> tuple[str, str, int]:
+        """Reuse valid sessions; atomically bound new guests across clients and restarts."""
+        now = time.time()
+        admitted: tuple[str, str, int] | None = None
         with self.connection() as connection:
-            return self._new_session(connection, authenticated, previous)
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM owner_sessions WHERE expires<=?", (now,))
+            connection.execute(
+                "DELETE FROM anonymous_admission WHERE started<=?", (now - ANONYMOUS_WINDOW,)
+            )
+            if previous and len(previous) <= 100:
+                row = connection.execute(
+                    "SELECT csrf,expires FROM owner_sessions WHERE token_hash=?",
+                    (digest(previous),),
+                ).fetchone()
+                if row:
+                    return previous, row["csrf"], max(1, int(row["expires"] - now))
+            keys = (("global", ANONYMOUS_GLOBAL_LIMIT), (digest(address), ANONYMOUS_ADDRESS_LIMIT))
+            limited = any(
+                (
+                    row := connection.execute(
+                        "SELECT count FROM anonymous_admission WHERE key=?", (key,)
+                    ).fetchone()
+                )
+                is not None
+                and row[0] >= limit
+                for key, limit in keys
+            )
+            active = connection.execute(
+                "SELECT COUNT(*) FROM owner_sessions WHERE authenticated=0"
+            ).fetchone()[0]
+            if not limited and active < ANONYMOUS_SESSION_CAP:
+                for key, _ in keys:
+                    connection.execute(
+                        "INSERT INTO anonymous_admission VALUES(?,?,1) "
+                        "ON CONFLICT(key) DO UPDATE SET count=count+1",
+                        (key, now),
+                    )
+                admitted = self._new_session(connection, False)
+        # Commit expiration cleanup even when admission is denied.
+        if admitted is None:
+            raise Throttled("Too many new browser sessions. Try again in five minutes.")
+        return admitted
 
     @staticmethod
     def _new_session(

@@ -145,3 +145,25 @@ def test_generic_apply_url_cannot_merge_different_requisitions(tmp_path: Path) -
         NOW,
     )
     assert len(store.list_jobs()) == 2
+
+
+def test_closure_requires_all_direct_aliases_to_disappear(tmp_path: Path) -> None:
+    store = setup_store(tmp_path / "db.sqlite")
+    store.register_target("other", "company", "{}", "lever")
+    job = store.ingest("acme", FetchResult(jobs=[posting()]), "p1", NOW)[0]
+    alias = posting(source="lever", board_id="other")
+    store.ingest("other", FetchResult(jobs=[alias]), "p1", NOW)
+    store.ingest("acme", FetchResult(), "p1", NOW + timedelta(hours=1))
+    store.ingest("other", FetchResult(jobs=[alias]), "p1", NOW + timedelta(hours=2))
+    store.ingest("acme", FetchResult(), "p1", NOW + timedelta(hours=3))
+    current = store.get_job(job.id)
+    assert current.status == "open"
+    assert current.opening_revision == 0
+    assert current.first_seen_at == NOW
+    assert current.last_verified_at == NOW + timedelta(hours=2)
+    store.ingest("other", FetchResult(complete=False), "p1", NOW + timedelta(hours=4))
+    assert store.get_job(job.id).status == "open"
+    store.ingest("other", FetchResult(), "p1", NOW + timedelta(hours=5))
+    assert store.get_job(job.id).status == "open"
+    store.ingest("other", FetchResult(), "p1", NOW + timedelta(hours=6))
+    assert store.get_job(job.id).status == "closed"

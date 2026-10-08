@@ -18,19 +18,53 @@ The container runs as UID 10001, with a read-only root filesystem and temporary 
 
 ## Account recovery
 
-If a fresh instance's setup token was lost, rotate it locally:
+Recovery is offline: stop the application and every separately launched worker first,
+preserving the data volume. Use a private interactive terminal. Capture the exact image
+ID of the current container and pin it in a temporary Compose override. Run these commands
+from the directory containing the same Compose files/project used to start the app:
 
 ```sh
-docker compose exec app internship-pipeline setup-token
+export PIPELINE_RECOVERY_IMAGE=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q app)")
+cat > /tmp/pipeline-recovery-image.yaml <<'YAML'
+services:
+  app:
+    image: ${PIPELINE_RECOVERY_IMAGE:?Capture the current image ID first}
+    network_mode: none
+YAML
+docker compose stop app
+docker compose -f compose.yaml -f /tmp/pipeline-recovery-image.yaml run --rm --no-deps \
+  --pull never --entrypoint internship-pipeline app setup-token --data-dir /var/data &&
+  docker compose start app
 ```
 
-After the instance is claimed, setup-token refuses to reopen it. Recover its account interactively:
+The one-off container inherits the existing volume and image user, disables networking,
+and cannot pull a replacement image. Stop any separate workers before the maintenance
+command; keep the same project name and any existing Compose override files in every
+invocation so the data volume remains the same. This operation does not build an image.
+
+After claim, substitute `recover-owner` for `setup-token` in that maintenance command.
+It prompts for the owner username and a new password twice without putting passwords
+in arguments, revokes sessions and clears login throttles. Run `docker compose start app`
+only after maintenance succeeds, then verify sign-in. The exclusive installation lock
+still refuses recovery if any supported writer remains active. Neither recovery command
+has a public endpoint, and setup-token cannot reopen a claimed instance. A native
+installation uses the same stop/recover/start sequence with `--data-dir` set to its
+absolute persistent directory.
+
+For a host-command installation, the saved manifest supplies the runtime endpoint and
+preserved volume, and inspection pins maintenance to the stopped container's exact image ID:
 
 ```sh
-docker compose exec app internship-pipeline recover-owner
+internship-pipeline stop
+# On a claimed installation use: internship-pipeline recover-owner
+internship-pipeline setup-token && internship-pipeline start
 ```
 
-The command prompts for the owner username and a new password twice without putting passwords in command arguments or logs. It revokes all sessions and clears login throttles, preserving jobs, documents, and the single account. These commands are local operator operations, with no public recovery endpoint. Outside the container, use `--data-dir /absolute/persistent/directory` after the recovery command name.
+Stop separately launched writers too. The installed recovery command requires a private
+terminal, rejects a running application container, disables networking and image pulls in
+the one-off maintenance container, and leaves the application stopped until the explicit start.
+These commands are prepared and covered by native/fake-engine tests; actual container
+recovery remains an open acceptance gate.
 
 ## Setup mode and existing worker configuration
 
@@ -40,7 +74,11 @@ Default job storage is `/var/data/state.sqlite3`; accounts live separately in `/
 
 Owner claim activates the independent saved-search, email-delivery and Sheets workers; each processes only its explicitly configured, queued work. Valid operational source configuration additionally enables collection/discovery. A confirmed profile enables master/tailored résumé workers, and a tested current Jev connection enables matching. The supervisor detects newly ready roles while running, so saving setup needs no restart. Collection remains independent of candidate, model and notification readiness. Workers freeze a profile/settings snapshot for each task and read the latest revision before the next task; stale model results cannot publish downstream work after a profile change. Saving credentials does not test them or send notifications. Fresh setup makes no model calls or external notifications.
 
-The browser offers account access, stored jobs, Profile and Job Filters with explicit Save, revision labels and conflict detection, and independent AI Model connection forms. Unknown fields remain unknown; only confirmed facts enter candidate evidence. Saved filters do not yet apply Jev decisions to the job board. Search-run controls and document imports remain later tasks.
+The browser offers account access, stored jobs, Profile and Job Filters with explicit Save,
+revision labels and conflict detection, document import review, saved-search run controls,
+and independent AI Model connection forms. Unknown fields remain unknown; only confirmed
+facts enter candidate evidence. Current Jev decisions and their assessment identity remain
+inspectable in the job workspace; application submission is an explicit owner decision.
 
 ## Optional email and Google Sheets
 

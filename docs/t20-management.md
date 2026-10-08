@@ -14,6 +14,10 @@ internship-pipeline stop
 internship-pipeline logs --lines 100
 internship-pipeline status --diagnostics
 internship-pipeline logs --diagnostics
+internship-pipeline stop
+internship-pipeline setup-token
+# For a claimed instance: internship-pipeline recover-owner
+internship-pipeline start
 internship-pipeline url
 internship-pipeline open
 ```
@@ -28,6 +32,7 @@ internship-pipeline open
 | `logs` | Captures a bounded runtime tail of 1–200 lines and prints recognized worker-exit/start-failure events plus a count of omitted lines. Unknown lines, exception text, setup tokens and credentials are omitted. It is a sanitized summary rather than a raw engine-log pass-through. |
 | `status --diagnostics` | Prompts for the owner username/password in an interactive terminal, then shows bounded source freshness, queue/activity, worker health, failed-work and model-status summaries from the authenticated application API. |
 | `logs --diagnostics` | Uses the same explicit owner login and prints the application's sanitized work-failure event view. |
+| `setup-token` / `recover-owner` | Require a stopped owned application container and private interactive terminal. Pin maintenance to the inspected container image ID, saved endpoint and preserved volume, with networking and image pulls disabled. They leave the application stopped, and the exclusive installation lock still rejects any separately running writers. |
 
 The schema-1 `installation.json` records the installation UUID, explicit image version/digest, engine executable, captured local endpoint (and Podman SSH identity where needed), container/volume names, port and origin. The shared runtime helper validates its owner and write permissions and refuses incompatible resource labels, image, data mount or loopback port mapping. Commands use literal argument vectors and the saved endpoint; inherited Docker/Podman connection variables cannot redirect them. They never change a global engine context or start runtime software. Missing runtime, manifest, container or volume produces an actionable failure. Missing data is never treated as permission to create a second installation.
 
@@ -35,7 +40,15 @@ Owner diagnostics perform `/api/session` → CSRF-protected `/api/login` → `/a
 
 ## Private backup and recovery
 
-The host command manages lifecycle. The **image's** `internship-pipeline` command is the existing application-maintenance CLI with `backup`, `restore` and `recover-owner`; use `--entrypoint` to invoke it instead of the normal application entrypoint. Read the complete [T17 stopped-instance backup and recovery contract](t17-operations.md) before recovery. Both databases, the exact encryption key, retained upload provenance/files, configuration and artifacts are required. Copying only a database, key or named-volume directory is insufficient.
+The host command manages lifecycle and has explicit stopped-only token/owner recovery
+commands. They delegate to the **image's** maintenance CLI using the saved installation
+contract. In a private terminal, run host `stop`, stop separately launched writers, run
+host `setup-token` (unclaimed) or `recover-owner` (claimed), then run host `start` only
+after success and verify sign-in. The maintenance CLI also supports `backup` and `restore`;
+use `--entrypoint` to invoke those instead of the normal application entrypoint. Read
+the complete [T17 stopped-instance backup and recovery contract](t17-operations.md).
+Both databases, the exact encryption key, retained upload provenance/files,
+configuration and artifacts are required. Copying a subset is insufficient.
 
 1. **Stop supported writers.** Run the host `stop` command and stop any separately launched workers or maintenance processes. Preserve the existing volume and manifest. T17's exclusive offline installation lock refuses backup/recovery while supported writers remain active.
 2. **Create a new private backup.** Use the saved engine endpoint, exact saved image and saved volume. Invoke the image maintenance CLI in a one-off container with networking disabled and a separate owner-only backup mount. The destination must be new; preserve the complete output as secret recovery material, because it contains the key and encrypted connections together.

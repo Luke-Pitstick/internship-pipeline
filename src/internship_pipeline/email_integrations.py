@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import tempfile
 import time
 import uuid
@@ -20,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from internship_pipeline.assessments import current_identity, stored_view
 from internship_pipeline.model_connections import ModelConnectionStore
 from internship_pipeline.models import Job
-from internship_pipeline.queue import Queue
+from internship_pipeline.queue import Queue, Task
 from internship_pipeline.storage import Store, enqueue
 
 
@@ -237,19 +238,8 @@ class EmailIntegrations:
             candidates = []
             for row_job in db.execute("SELECT data FROM jobs WHERE status='open'"):
                 job = Job.model_validate_json(row_job[0])
-                if job.applied_at:
-                    continue
-                workspace = db.execute(
-                    "SELECT dismissed,decision FROM job_workspace WHERE job_id=?", (job.id,)
-                ).fetchone()
-                if workspace and (workspace["dismissed"] or workspace["decision"] == "rejected"):
-                    continue
-                result = stored_view(db, job)["result"]
-                if (
-                    not result
-                    or result["recommendation"] != "recommended"
-                    or result["normalized_fit"] < config["minimum_score"]
-                ):
+                result = self._eligible(db, job, config)
+                if result is None:
                     continue
                 identity = current_identity(db, job)
                 if db.execute(
@@ -311,98 +301,177 @@ class EmailIntegrations:
                 (time.time(), "email:" + delivery),
             )
 
+    def _prepare(
+        self,
+        db: sqlite3.Connection,
+        task: Task,
+    ) -> tuple[sqlite3.Row, sqlite3.Row, dict[str, Any], list[str]] | None:
+        """Revalidate the current members at the fenced transport admission boundary."""
+        if not db.execute(
+            "SELECT 1 FROM tasks WHERE id=? AND token=? AND status='running' AND lease_until>?",
+            (task.id, task.token, time.time()),
+        ).fetchone():
+            return None
+        delivery = task.payload["id"]
+        row = db.execute("SELECT * FROM email_deliveries WHERE id=?", (delivery,)).fetchone()
+        if row is None:
+            self.queue.checkpoint(db, task, "done")
+            return None
+        if row["status"] in {"accepted", "cancelled", "uncertain", "failed"}:
+            self.queue.checkpoint(
+                db,
+                task,
+                "done" if row["status"] in {"accepted", "cancelled"} else "failed",
+                None if row["status"] in {"accepted", "cancelled"} else "Delivery requires review",
+            )
+            return None
+        if db.execute(
+            "SELECT 1 FROM email_attempts WHERE delivery_id=? AND status='pending'",
+            (delivery,),
+        ).fetchone():
+            db.execute(
+                "UPDATE email_attempts SET status='uncertain',completed=? "
+                "WHERE delivery_id=? AND status='pending'",
+                (time.time(), delivery),
+            )
+            db.execute(
+                "UPDATE email_deliveries SET status='uncertain',error='Acceptance "
+                "unknown after interruption' WHERE id=?",
+                (delivery,),
+            )
+            if not self.queue.checkpoint(
+                db, task, "failed", "Acceptance unknown; explicit retry required"
+            ):
+                raise ValueError("Email lease changed")
+            return None
+        config_row = db.execute("SELECT * FROM email_config WHERE id=1").fetchone()
+        config = json.loads(config_row["config"]) if config_row else {}
+        is_test = row["title"] == "Internship Pipeline test"
+        valid_config = config_row is not None and row["revision"] == config_row["revision"]
+        messages, jobs = [], []
+        if valid_config and (config.get("enabled") or is_test):
+            members = db.execute(
+                "SELECT identity,job_id FROM email_members WHERE delivery_id=? ORDER BY job_id",
+                (delivery,),
+            ).fetchall()
+            for member in members:
+                job_row = db.execute(
+                    "SELECT data FROM jobs WHERE id=?", (member["job_id"],)
+                ).fetchone()
+                job = Job.model_validate_json(job_row[0]) if job_row else None
+                result = self._eligible(db, job, config) if job else None
+                if job is not None and result and current_identity(db, job) == member["identity"]:
+                    jobs.append(job.id)
+                    messages.append(self._message(job, result))
+                else:
+                    db.execute("DELETE FROM email_members WHERE identity=?", (member["identity"],))
+        if not valid_config or not (config.get("enabled") or is_test) or (not jobs and not is_test):
+            db.execute("DELETE FROM email_members WHERE delivery_id=?", (delivery,))
+            db.execute(
+                "UPDATE email_deliveries SET status='cancelled',error='Settings changed "
+                "or no current eligible members' WHERE id=?",
+                (delivery,),
+            )
+            if not self.queue.checkpoint(db, task, "done"):
+                raise ValueError("Email lease changed")
+            return None
+        if not is_test:
+            db.execute(
+                "UPDATE email_deliveries SET body=? WHERE id=?", ("\n\n".join(messages), delivery)
+            )
+            row = db.execute("SELECT * FROM email_deliveries WHERE id=?", (delivery,)).fetchone()
+        return row, config_row, config, jobs
+
+    @staticmethod
+    def _eligible(
+        db: sqlite3.Connection, job: Job, config: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        if job.status != "open" or job.applied_at:
+            return None
+        workspace = db.execute(
+            "SELECT dismissed,decision FROM job_workspace WHERE job_id=?",
+            (job.id,),
+        ).fetchone()
+        if workspace and (workspace["dismissed"] or workspace["decision"] == "rejected"):
+            return None
+        result = stored_view(db, job)["result"]
+        if (
+            not result
+            or result["recommendation"] != "recommended"
+            or result["normalized_fit"] < config["minimum_score"]
+        ):
+            return None
+        return dict(result)
+
     def process_next(self) -> bool:
+        # The final exhausted lease cannot be claimed. Preserve its interrupted transport
+        # uncertainty and its terminal task together before ordinary queue admission.
         with self.store.transaction() as db:
-            interrupted = [
-                r[0]
-                for r in db.execute(
-                    "SELECT d.id FROM email_deliveries d JOIN tasks t "
-                    "ON t.key='email:' || d.id WHERE d.status IN ('queued','sending','retrying') "
-                    "AND (t.status='failed' OR (t.status='running' AND t.lease_until<=? "
-                    "AND t.attempts>=3)) AND EXISTS (SELECT 1 FROM email_attempts a "
-                    "WHERE a.delivery_id=d.id AND a.status='pending')",
-                    (time.time(),),
-                )
-            ]
-            for delivery in interrupted:
+            interrupted = db.execute(
+                "SELECT d.id,t.id AS task_id FROM email_deliveries d JOIN tasks t "
+                "ON t.key='email:' || d.id WHERE d.status IN ('queued','sending','retrying') "
+                "AND (t.status='failed' OR (t.status='running' AND t.lease_until<=? "
+                "AND t.attempts>=?)) AND EXISTS (SELECT 1 FROM email_attempts a "
+                "WHERE a.delivery_id=d.id AND a.status='pending')",
+                (time.time(), self.queue.max_attempts),
+            ).fetchall()
+            for row in interrupted:
                 db.execute(
-                    "UPDATE email_deliveries SET status='uncertain', "
-                    "error='Interrupted delivery: remote acceptance unknown' WHERE id=?",
-                    (delivery,),
+                    "UPDATE email_deliveries SET status='uncertain',error='Interrupted "
+                    "delivery: remote acceptance unknown' WHERE id=?",
+                    (row["id"],),
                 )
                 db.execute(
                     "UPDATE email_attempts SET status='uncertain',completed=? "
                     "WHERE delivery_id=? AND status='pending'",
-                    (time.time(), delivery),
+                    (time.time(), row["id"]),
+                )
+                db.execute(
+                    "UPDATE tasks SET status='failed',lease_until=NULL,error='Acceptance unknown; "
+                    "explicit retry required',updated=? WHERE id=?",
+                    (time.time(), row["task_id"]),
                 )
         task = self.queue.claim(["email_delivery"])
         if task is None:
             return False
-        delivery = task.payload["id"]
         with self.store.transaction() as db:
-            row = db.execute("SELECT * FROM email_deliveries WHERE id=?", (delivery,)).fetchone()
-            config_row = db.execute("SELECT * FROM email_config WHERE id=1").fetchone()
-            config = json.loads(config_row["config"]) if config_row else {}
-            if (
-                not config_row
-                or row["revision"] != config_row["revision"]
-                or (not config.get("enabled") and row["title"] != "Internship Pipeline test")
-            ):
-                db.execute(
-                    "UPDATE email_deliveries SET status='cancelled',error='Settings changed "
-                    "or disabled' WHERE id=?",
-                    (delivery,),
-                )
-                db.execute(
-                    "UPDATE tasks SET status='done',lease_until=NULL WHERE id=? AND token=?",
-                    (task.id, task.token),
-                )
-                return True
-            active = db.execute(
-                "SELECT 1 FROM email_attempts WHERE delivery_id=? AND status='pending'", (delivery,)
-            ).fetchone()
-            if active:
-                db.execute(
-                    "UPDATE email_attempts SET status='uncertain',completed=? WHERE "
-                    "delivery_id=? AND status='pending'",
-                    (time.time(), delivery),
-                )
-                db.execute(
-                    "UPDATE email_deliveries SET status='uncertain',error='Acceptance "
-                    "unknown after interruption' WHERE id=?",
-                    (delivery,),
-                )
-                # Finish below after committing; never replay ambiguous SMTP automatically.
-                attempt = None
-            else:
-                cursor = db.execute(
-                    "INSERT INTO email_attempts(delivery_id,started,status) VALUES(?,?,'pending')",
-                    (delivery, time.time()),
-                )
-                attempt = cursor.lastrowid
-                db.execute("UPDATE email_deliveries SET status='sending' WHERE id=?", (delivery,))
-            jobs = [
-                r[0]
-                for r in db.execute(
-                    "SELECT job_id FROM email_members WHERE delivery_id=?", (delivery,)
-                )
-            ]
-        if attempt is None:
-            self.queue.needs_attention(task, "Acceptance unknown; retry may duplicate email")
+            prepared = self._prepare(db, task)
+        if prepared is None:
             return True
-        attachments = []
+        _, _, config, jobs = prepared
+        attachments: dict[str, bytes] = {}
         if config["attach_pdf"] and self.pdf_provider:
             for job_id in jobs[:10]:
                 try:
                     content = self.pdf_provider(job_id)
                     if content and content.startswith(b"%PDF-") and len(content) <= 5_000_000:
-                        attachments.append(content)
+                        attachments[job_id] = content
                 except (ValueError, OSError):
-                    pass  # Missing/stale drafts never block the opening alert.
+                    pass
+        # Reading a supported draft can take time. Admit again afterwards so a changed
+        # assessment/member/config or a lost lease cannot reach transport with an old body.
+        with self.store.transaction() as db:
+            prepared = self._prepare(db, task)
+            if prepared is None:
+                return True
+            row, config_row, config, jobs = prepared
+            attempt = db.execute(
+                "INSERT INTO email_attempts(delivery_id,started,status) VALUES(?,?,'pending')",
+                (task.payload["id"], time.time()),
+            ).lastrowid
+            db.execute(
+                "UPDATE email_deliveries SET status='sending' WHERE id=?", (task.payload["id"],)
+            )
         try:
             password = self.connections.cipher.decrypt(config_row["encrypted"]).decode()
             with self.queue.heartbeat(task):
-                result = self.transport(config, password, row["title"], row["body"], attachments)
+                result = self.transport(
+                    config,
+                    password,
+                    row["title"],
+                    row["body"],
+                    [attachments[job] for job in jobs if job in attachments],
+                )
         except InvalidToken:
             result = "credential_unavailable"
         except Exception:
@@ -411,16 +480,22 @@ class EmailIntegrations:
             result = "uncertain"
         status = {
             "accepted": "accepted",
-            "rejected": "failed" if task.attempts >= 3 else "retrying",
+            "rejected": "failed" if task.attempts >= self.queue.max_attempts else "retrying",
             "uncertain": "uncertain",
             "credential_unavailable": "failed",
         }[result]
+        queue_status = (
+            "done" if result == "accepted" else "pending" if status == "retrying" else "failed"
+        )
+        error = (
+            None
+            if result == "accepted"
+            else "Transport rejected; retry scheduled"
+            if status == "retrying"
+            else "Transport requires attention"
+        )
         with self.store.transaction() as db:
-            owned = db.execute(
-                "SELECT 1 FROM tasks WHERE id=? AND token=? AND status='running'",
-                (task.id, task.token),
-            ).fetchone()
-            if owned:
+            if self.queue.checkpoint(db, task, queue_status, error):
                 db.execute(
                     "UPDATE email_attempts SET completed=?,status=? WHERE id=?",
                     (time.time(), result, attempt),
@@ -430,20 +505,8 @@ class EmailIntegrations:
                     (
                         status,
                         time.time() if result == "accepted" else None,
-                        None
-                        if result == "accepted"
-                        else "Transport requires attention"
-                        if status in {"uncertain", "failed"}
-                        else "Transport rejected; retry scheduled",
-                        delivery,
+                        error,
+                        task.payload["id"],
                     ),
                 )
-        if result == "accepted":
-            self.queue.complete(task)
-        elif result == "rejected":
-            self.queue.fail(task, "Transport rejected")
-        else:
-            self.queue.needs_attention(
-                task, "Acceptance unknown" if result == "uncertain" else "Credential unavailable"
-            )
         return True

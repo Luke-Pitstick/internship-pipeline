@@ -19,7 +19,9 @@ import yaml
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, Depends, HTTPException
 
+from internship_pipeline.identity import SCHEMA as IDENTITY_SCHEMA
 from internship_pipeline.models import Settings
+from internship_pipeline.storage import SCHEMA as STATE_SCHEMA
 from internship_pipeline.storage import Store
 
 
@@ -75,14 +77,29 @@ def _copy_tree(source: Path, destination: Path) -> None:
         target.chmod(0o600)
 
 
+def _verify_database(db: sqlite3.Connection, name: str) -> None:
+    if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+        raise OperationError("Database integrity check failed.")
+    # Validate against the same base schemas that initialize each distinct database.
+    # Optional feature tables may be absent on a fresh installation.
+    with sqlite3.connect(":memory:") as expected:
+        expected.executescript(STATE_SCHEMA if name == "state.sqlite3" else IDENTITY_SCHEMA)
+        for row in expected.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+            table = row[0]
+            columns = {column[1] for column in expected.execute(f"PRAGMA table_info({table})")}
+            actual = {column[1] for column in db.execute(f"PRAGMA table_info({table})")}
+            if not columns <= actual:
+                raise OperationError("Database does not contain the required application schema.")
+
+
 def _snapshot(source: Path, destination: Path) -> None:
     if not source.is_file() or source.is_symlink():
         raise OperationError("Both application databases are required for backup.")
-    with sqlite3.connect(f"file:{source}?mode=ro", uri=True) as live:
+    with sqlite3.connect(source.resolve().as_uri() + "?mode=ro", uri=True) as live:
+        _verify_database(live, destination.name)
         with sqlite3.connect(destination) as target:
             live.backup(target)
-            if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                raise OperationError("Database integrity check failed.")
+            _verify_database(target, destination.name)
             target.execute("PRAGMA journal_mode=DELETE")
     destination.chmod(0o600)
 
@@ -90,7 +107,9 @@ def _snapshot(source: Path, destination: Path) -> None:
 def _credentials(root: Path) -> None:
     try:
         cipher = Fernet((root / "model-credentials.key").read_bytes())
-        with sqlite3.connect(root / "state.sqlite3") as db:
+        with sqlite3.connect(
+            (root / "state.sqlite3").resolve().as_uri() + "?mode=ro", uri=True
+        ) as db:
             tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             for table, column in [
                 ("model_credentials", "encrypted"),
@@ -209,9 +228,8 @@ def verify_backup(source: Path) -> dict[str, Any]:
         ):
             raise ValueError
         for name in ["state.sqlite3", "identity.sqlite3"]:
-            with sqlite3.connect(f"file:{source / name}?mode=ro", uri=True) as db:
-                if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                    raise ValueError
+            with sqlite3.connect((source / name).resolve().as_uri() + "?mode=ro", uri=True) as db:
+                _verify_database(db, name)
         _credentials(source)
         return manifest
     except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):

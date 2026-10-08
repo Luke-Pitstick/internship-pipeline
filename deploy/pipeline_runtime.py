@@ -186,7 +186,7 @@ class Runtime:
             prefix += ["--remote=false"]
         return prefix + list(args)
 
-    def run(self, *args: str, timeout: float = 15) -> str:
+    def run(self, *args: str, timeout: float = 15, include_stderr: bool = False) -> str:
         try:
             result = subprocess.run(
                 self.argv(*args),
@@ -206,11 +206,51 @@ class Runtime:
                 f"{self.spec.name} {args[0]} failed; check the saved "
                 f"runtime, image access and installation resources."
             )
-        if len(result.stdout) > 2 * 1024 * 1024:
+        if len(result.stdout) + len(result.stderr) > 2 * 1024 * 1024:
             raise Failure(
                 "Runtime output exceeded the inspection limit; narrow the request and retry."
             )
+        if include_stderr:
+            return "\n".join(stream.strip() for stream in (result.stdout, result.stderr) if stream)
         return result.stdout.strip()
+
+    def maintenance(self, manifest: Manifest, command: str, image_id: str) -> None:
+        """Run explicit local recovery with private terminal IO and the saved image."""
+        if command not in {"setup-token", "recover-owner"}:
+            raise Failure("Unsupported maintenance operation.")
+        if not re.fullmatch(r"(?:sha256:)?[a-f0-9]{64}", image_id):
+            raise Failure("Exact installed image identity is unavailable; preserve the volume.")
+        try:
+            result = subprocess.run(
+                self.argv(
+                    "run",
+                    "--rm",
+                    "--pull",
+                    "never",
+                    "--network",
+                    "none",
+                    "-it",
+                    "--entrypoint",
+                    "internship-pipeline",
+                    "--mount",
+                    f"type=volume,src={manifest.volume_name},dst=/var/data",
+                    image_id,
+                    command,
+                    "--data-dir",
+                    "/var/data",
+                ),
+                env=self.environment,
+                timeout=600,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise Failure(
+                "Recovery did not complete; preserve the volume and inspect locally."
+            ) from exc
+        if result.returncode:
+            raise Failure(
+                "Recovery failed; preserve the volume and inspect locally before restart."
+            )
 
     def check(self) -> None:
         try:

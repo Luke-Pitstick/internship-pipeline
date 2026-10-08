@@ -68,7 +68,9 @@ for (const narrow of [false, true]) {
     await page.getByRole('button', {name: 'All jobs', exact: true}).click();
     if (narrow) await page.getByRole('button', {name: '← Back to results', exact: true}).click();
     await page.locator('[data-job]').click();
-    state = 'error'; await page.reload(); await page.locator('[data-job]').click();
+    state = 'error'; await page.reload();
+    if (narrow) await expect(page.locator('.job-detail')).toBeVisible();
+    else await page.locator('[data-job]').click();
     await expect(page.getByText('error · provider unavailable', {exact: true})).toBeVisible();
     await page.getByText('Evaluation attempts', {exact: true}).click();
     await expect(page.getByText('Input tokens unknown; output tokens unknown.', {exact: false})).toBeVisible();

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS targets (
     enabled INTEGER NOT NULL DEFAULT 1, baselined INTEGER NOT NULL DEFAULT 0,
     next_due REAL NOT NULL DEFAULT 0, lease_until REAL NOT NULL DEFAULT 0,
     last_success REAL, last_attempt REAL, failures INTEGER NOT NULL DEFAULT 0,
-    error TEXT, complete INTEGER NOT NULL DEFAULT 0
+    error TEXT, complete INTEGER NOT NULL DEFAULT 0,
+    collection_owner TEXT NOT NULL DEFAULT 'registry'
 );
 CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY, data TEXT NOT NULL, canonical_url TEXT NOT NULL,
@@ -128,7 +129,14 @@ class Store:
                 connection.commit()
 
     def register_target(
-        self, target_id: str, kind: str, config: str, provider: str, enabled: bool = True
+        self,
+        target_id: str,
+        kind: str,
+        config: str,
+        provider: str,
+        enabled: bool = True,
+        *,
+        collection_owner: str = "registry",
     ) -> None:
         with self.transaction() as connection:
             old = connection.execute(
@@ -138,10 +146,12 @@ class Store:
                 # A changed board/query starts a new baseline, without deleting job history.
                 connection.execute("UPDATE targets SET baselined=0 WHERE id=?", (target_id,))
             connection.execute(
-                "INSERT INTO targets(id,kind,config,provider,enabled) VALUES(?,?,?,?,?) "
+                "INSERT INTO targets(id,kind,config,provider,enabled,collection_owner) "
+                "VALUES(?,?,?,?,?,?) "
                 "ON CONFLICT(id) DO UPDATE SET config=excluded.config, "
-                "provider=excluded.provider, enabled=excluded.enabled",
-                (target_id, kind, config, provider, int(enabled)),
+                "provider=excluded.provider, enabled=excluded.enabled, "
+                "collection_owner=excluded.collection_owner",
+                (target_id, kind, config, provider, int(enabled), collection_owner),
             )
 
     def targets(self) -> list[dict[str, Any]]:
@@ -372,6 +382,16 @@ class Store:
                             identity,
                         )
                         if observed["misses"] + 1 >= 2:
+                            # Only full direct-board inventories prove absence. Every direct
+                            # alias must independently accumulate that evidence.
+                            present = connection.execute(
+                                "SELECT 1 FROM observations o JOIN targets t ON t.id=o.target_id "
+                                "WHERE o.job_id=? AND o.source NOT LIKE 'jobspy%' "
+                                "AND (t.kind!='company' OR o.misses<2) LIMIT 1",
+                                (observed["job_id"],),
+                            ).fetchone()
+                            if present is not None:
+                                continue
                             existing = connection.execute(
                                 "SELECT * FROM jobs WHERE id=?", (observed["job_id"],)
                             ).fetchone()

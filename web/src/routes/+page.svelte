@@ -18,18 +18,22 @@
   let searchDraft = $state('');
   let selected = $state<Job | null>(null);
   let detailOpen = $state(false);
+  let focusRestoredDetail = false;
   let detailHeading = $state<HTMLHeadingElement>();
   let selectedButton: HTMLButtonElement | undefined;
   let pageDraft = $state(1);
   let pageError = $state('');
 
-  function writeUrl() {
+  function writeUrl(push = false) {
     const params = new URLSearchParams({page: String(query.page), page_size: String(query.pageSize), search: query.search, view: query.status, sort: query.sort, direction: query.direction});
-    if (selected) params.set('selected', selected.id);
-    history.replaceState(null, '', `/?${params}`);
+    if (detailOpen && selected) params.set('selected', selected.id);
+    const url = `/?${params}`;
+    if (push) history.pushState(history.state, '', url);
+    else history.replaceState(history.state, '', url);
   }
   function readUrl() {
     const params = new URLSearchParams(location.search);
+    detailOpen = !!params.get('selected'); focusRestoredDetail = detailOpen;
     const positive = (value: string | null, fallback: number) => Number.isInteger(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
     query.page = positive(params.get('page'), 1); pageDraft = query.page;
     const size = positive(params.get('page_size'), 25); query.pageSize = [25,50,100].includes(size) ? size : 25;
@@ -48,10 +52,10 @@
   async function select(job: Job, event: MouseEvent) {
     ++requestSequence; loading = false;
     selectedButton = event.currentTarget as HTMLButtonElement;
-    selected = job; notesDraft = job.workspace?.notes ?? ''; detailOpen = true; writeUrl();
+    selected = job; notesDraft = job.workspace?.notes ?? ''; detailOpen = true; writeUrl(true);
     await tick(); detailHeading?.focus(); void refresh();
   }
-  async function closeDetail() { detailOpen = false; await tick(); if (selectedButton?.isConnected) selectedButton.focus(); else document.querySelector<HTMLButtonElement>('[data-job]')?.focus(); }
+  async function closeDetail() { detailOpen = false; writeUrl(true); await tick(); if (selectedButton?.isConnected) selectedButton.focus(); else document.querySelector<HTMLButtonElement>('[data-job]')?.focus(); }
   async function status(value: JobStatus) {
     if (!selected || updating) return;
     const job = selected;
@@ -86,7 +90,7 @@
     const sequence = ++requestSequence;
     loading = true;
     const params = new URLSearchParams({page: String(query.page), page_size: String(query.pageSize), search: query.search, view: query.status, sort: query.sort, direction: query.direction});
-    const selectedId = selected?.id ?? new URLSearchParams(location.search).get('selected');
+    const selectedId = detailOpen ? selected?.id ?? new URLSearchParams(location.search).get('selected') : null;
     if (selectedId) params.set('selected', selectedId);
     try {
       const data = await api.request<{jobs: StoredJob[]; selected: StoredJob | null; pagination: {total: number; page: number; pages: number}}>(`/api/jobs?${params}`);
@@ -97,13 +101,15 @@
       const next = data.selected ? mapJob(data.selected) : !selectedId ? result.rows[0] ?? null : null;
       if (selected?.id !== next?.id) notesDraft = next?.workspace?.notes ?? '';
       selected = next;
+      if (!next) detailOpen = false;
       writeUrl();
+      if (focusRestoredDetail) {focusRestoredDetail = false;await tick();if (detailOpen) detailHeading?.focus();}
     } catch (reason) { if (sequence === requestSequence) error = (reason as Error).message; }
     finally { if (sequence === requestSequence) loading = false; }
   }
   onMount(() => {
     readUrl(); refresh();
-    const restore = () => {selected = null; readUrl(); void refresh();};
+    const restore = async () => {selected = null; readUrl(); await refresh();if (!detailOpen) {await tick();if (selectedButton?.isConnected) selectedButton.focus();else document.querySelector<HTMLButtonElement>('[data-job]')?.focus();}};
     window.addEventListener('popstate', restore);
     const interval = setInterval(() => { if (!updating && !loading) refresh(); }, 5000);
     return () => {requestSequence++; clearInterval(interval); window.removeEventListener('popstate', restore);};

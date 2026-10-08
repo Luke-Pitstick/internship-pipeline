@@ -239,3 +239,112 @@ def test_unconfigured_worker_capabilities_remain_inactive(tmp_path: Path) -> Non
     assert configured_roles(
         Settings(database_path=tmp_path / "state.db", companies_path=tmp_path / "absent")
     ) == ["search-runs", "email-delivery", "sheets-sync"]
+
+
+def test_cookie_free_session_burst_is_bounded_and_survives_restart(client: TestClient) -> None:
+    statuses = []
+    for number in range(35):
+        client.cookies.clear()
+        response = client.get("/api/session", headers={"X-Forwarded-For": f"192.0.2.{number}"})
+        statuses.append(response.status_code)
+    assert statuses[:20] == [200] * 20
+    assert statuses[20:] == [429] * 15
+    assert response.headers["retry-after"] == "300"
+    with client.app.state.identity.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM owner_sessions").fetchone()[0] == 20
+    restarted = create_app(client.app.state.identity.path.parent, origin="http://localhost:8080")
+    with TestClient(restarted, base_url="http://localhost:8080") as other:
+        assert other.get("/api/session").status_code == 429
+
+
+def test_concurrent_cookie_free_http_admission_is_atomic(client: TestClient) -> None:
+    def request(number: int) -> int:
+        with TestClient(client.app, base_url="http://localhost:8080") as caller:
+            return caller.get("/api/session", headers={"X-Forwarded-For": str(number)}).status_code
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        statuses = list(pool.map(request, range(32)))
+    assert statuses.count(200) == 20
+    assert statuses.count(429) == 12
+    with client.app.state.identity.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM owner_sessions").fetchone()[0] == 20
+
+
+def test_anonymous_global_cap_cleanup_and_session_reuse(tmp_path: Path, monkeypatch) -> None:
+    from internship_pipeline.identity import Throttled
+
+    now = [10000.0]
+    monkeypatch.setattr("internship_pipeline.identity.time.time", lambda: now[0])
+    identity = Identity(tmp_path / "admission.sqlite3")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+
+        def admit(number: int) -> bool:
+            try:
+                identity.anonymous_session(f"client-{number}")
+                return True
+            except Throttled:
+                return False
+
+        assert sum(pool.map(admit, range(120))) == 100
+    # The global admission limit persists; another address does not evade it.
+    restarted = Identity(identity.path)
+    with pytest.raises(Throttled):
+        restarted.anonymous_session("other")
+    now[0] += 301
+    guests = [restarted.anonymous_session(f"next-{n}") for n in range(28)]
+    with pytest.raises(Throttled):
+        restarted.anonymous_session("cap-overflow")
+    token, csrf_value, _ = guests[0]
+    assert restarted.anonymous_session("next-0", token)[:2] == (token, csrf_value)
+    with restarted.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM owner_sessions").fetchone()[0] == 128
+        assert db.execute("SELECT COUNT(*) FROM anonymous_admission").fetchone()[0] == 29
+    # Expiration frees capacity and removes expired admission keys without a restart.
+    now[0] += 1201
+    restarted.anonymous_session("after-expiration")
+    with restarted.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM owner_sessions").fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM anonymous_admission").fetchone()[0] == 2
+
+
+def test_valid_guest_and_owner_reuse_work_when_new_session_admission_is_full(
+    client: TestClient,
+) -> None:
+    guest = client.get("/api/session")
+    token = client.cookies.get("pipeline_session")
+    csrf_value = guest.json()["csrf"]
+    with client.app.state.identity.connection() as db:
+        db.execute("UPDATE anonymous_admission SET count=100 WHERE key='global'")
+    for _ in range(3):
+        response = client.get("/api/session")
+        assert response.status_code == 200 and "set-cookie" not in response.headers
+        assert client.cookies.get("pipeline_session") == token
+        assert response.json()["csrf"] == csrf_value
+    claim(client)
+    for _ in range(3):
+        response = client.get("/api/session")
+        assert response.status_code == 200 and response.json()["authenticated"]
+        assert "set-cookie" not in response.headers
+    assert client.get("/api/jobs").status_code == 200
+
+
+def test_csv_stream_uses_complete_iterator_with_owner_admission(
+    client: TestClient, monkeypatch
+) -> None:
+    service = client.app.state.sheets_integration
+
+    def chunks():
+        yield "job_id,title\n"
+        for number in range(10005):
+            yield f"id-{number},Synthetic {number}\n"
+
+    monkeypatch.setattr(service, "csv_chunks", chunks)
+    monkeypatch.setattr(service, "csv", lambda: pytest.fail("CSV response must use the iterator"))
+    assert client.get("/api/sheets/export.csv").status_code == 401
+    claim(client)
+    response = client.get("/api/sheets/export.csv")
+    assert response.status_code == 200
+    assert len(response.text.splitlines()) == 10006
+    assert response.text.endswith("id-10004,Synthetic 10004\n")
+    assert response.headers["cache-control"] == "no-store"
+    assert "attachment" in response.headers["content-disposition"]
