@@ -2,9 +2,9 @@
   "method": "Sum each independently compressed static JavaScript asset, including both routes. Conservative upper bound on initial JS; excludes maps, CSS, HTML, design assets.",
   "budgetBytes": 200000,
   "total": {
-    "rawBytes": 220380,
-    "gzipBytes": 80006,
-    "brotliBytes": 69888
+    "rawBytes": 221434,
+    "gzipBytes": 80309,
+    "brotliBytes": 70187
   },
   "underBudget": true,
   "assets": [
@@ -51,16 +51,16 @@
       "brotliBytes": 1719
     },
     {
+      "path": "build/_app/immutable/chunks/DXM1rM3l.js",
+      "rawBytes": 75263,
+      "gzipBytes": 23580,
+      "brotliBytes": 20095
+    },
+    {
       "path": "build/_app/immutable/chunks/DilLNkzN.js",
       "rawBytes": 1023,
       "gzipBytes": 486,
       "brotliBytes": 407
-    },
-    {
-      "path": "build/_app/immutable/chunks/DtOj9vUp.js",
-      "rawBytes": 74209,
-      "gzipBytes": 23278,
-      "brotliBytes": 19790
     },
     {
       "path": "build/_app/immutable/chunks/vMjsGHU9.js",
@@ -69,10 +69,10 @@
       "brotliBytes": 26
     },
     {
-      "path": "build/_app/immutable/entry/app.DyBJWeg8.js",
+      "path": "build/_app/immutable/entry/app.59ZGEUL6.js",
       "rawBytes": 1659,
-      "gzipBytes": 753,
-      "brotliBytes": 702
+      "gzipBytes": 754,
+      "brotliBytes": 701
     },
     {
       "path": "build/_app/immutable/entry/payload.DSmR2FwN.js",
@@ -105,16 +105,16 @@
       "brotliBytes": 7419
     },
     {
-      "path": "build/_app/immutable/nodes/3.CN8lZiYw.js",
+      "path": "build/_app/immutable/nodes/3.COYeQBYh.js",
       "rawBytes": 673,
       "gzipBytes": 456,
-      "brotliBytes": 390
+      "brotliBytes": 388
     },
     {
-      "path": "build/_app/immutable/nodes/4.CPxQNkHe.js",
+      "path": "build/_app/immutable/nodes/4.D5xAY0I9.js",
       "rawBytes": 14924,
       "gzipBytes": 5675,
-      "brotliBytes": 4774
+      "brotliBytes": 4771
     }
   ]
 }

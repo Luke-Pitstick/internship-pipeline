@@ -15,11 +15,11 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from internship_pipeline.providers.connections import (
     ENDPOINTS,
-    GENERAL_ENDPOINTS,
     ConnectionInput,
     Kind,
     ProbeResult,
 )
+from internship_pipeline.providers.structured import GENERAL_ENDPOINTS
 
 
 class ConnectionError(ValueError):
