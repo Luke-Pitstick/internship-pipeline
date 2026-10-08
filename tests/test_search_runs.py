@@ -7,10 +7,108 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from internship_pipeline.models import FetchResult, Settings, SourceJob
+from internship_pipeline.collection import collect_due, register_targets
+from internship_pipeline.models import CandidateProfile, Company, FetchResult, Settings, SourceJob
 from internship_pipeline.run_limits import RunLimitError, finish, reserve
-from internship_pipeline.search_runs import Pause, SearchRuns, SourceConfig, SourceSave, next_due
+from internship_pipeline.search_runs import (
+    Pause,
+    Revision,
+    SearchRuns,
+    SourceConfig,
+    SourceSave,
+    next_due,
+)
 from internship_pipeline.storage import Store
+
+
+@pytest.mark.parametrize("source", ["greenhouse", "lever", "ashby", "jobspy"])
+@pytest.mark.parametrize("state", ["paused", "deleted", "outside_schedule"])
+def test_registry_collector_never_owns_saved_sources(tmp_path, monkeypatch, source, state):
+    changes = {"source": source, "max_jobs": 0, "max_calls": 0, "max_tokens": 0}
+    if source == "jobspy":
+        changes.update(search_term="Python internship", board="")
+    store = Store(tmp_path / "jobs.sqlite3")
+    runs = SearchRuns(store)
+    saved = runs.save(
+        SourceSave(name="Synthetic", expected_revision=0, **({"board": "example"} | changes))
+    )["searches"][0]
+    calls = []
+
+    def result(target):
+        calls.append(target.id)
+        number = str(len(calls))
+        return FetchResult(
+            jobs=[
+                posting().model_copy(
+                    update={
+                        "source": "jobspy:indeed" if source == "jobspy" else source,
+                        "source_id": number,
+                        "board_id": target.id,
+                        "apply_url": f"https://example.test/{target.id}/{number}",
+                    }
+                )
+            ]
+        )
+
+    async def fetch(target, timeout):
+        return result(target)
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    monkeypatch.setattr("internship_pipeline.sources.jobspy.fetch_search", lambda q, t: result(q))
+    run = runs.start(saved["id"], True)["run"]
+    settings = Settings(database_path=store.path)
+    assert asyncio.run(runs.process_next(settings))
+    assert len(calls) == 1
+    job = store.list_jobs()[0]
+    with store.transaction() as db:
+        with pytest.raises(RunLimitError, match="run_work_limit"):
+            reserve(db, job.id, "assessment", 999999)
+        assert (
+            db.execute("SELECT run_id FROM search_run_jobs WHERE job_id=?", (job.id,)).fetchone()[0]
+            == run["id"]
+        )
+        db.execute("UPDATE providers SET next_allowed=0")
+    if state == "paused":
+        runs.pause(saved["id"], Pause(expected_revision=1, paused=True))
+    elif state == "deleted":
+        runs.delete(saved["id"], Revision(expected_revision=1))
+    assert asyncio.run(collect_due(store, CandidateProfile(), settings, force=True)) == 0
+    assert len(calls) == 1
+    assert len(store.list_jobs()) == 1
+    company = Company(
+        id="operator",
+        name="Operator",
+        provider="lever",
+        careers_url="https://jobs.lever.co/operator",
+    )
+    register_targets(store, [company], [])
+    assert asyncio.run(collect_due(store, CandidateProfile(), settings, force=True)) == 1
+    assert calls == [calls[0], "operator"]
+
+
+@pytest.mark.parametrize(
+    "budget,code",
+    [
+        ("max_jobs", "run_work_limit"),
+        ("max_calls", "run_call_limit"),
+        ("max_tokens", "run_token_limit"),
+    ],
+)
+def test_saved_source_preserves_each_zero_budget(tmp_path, monkeypatch, budget, code):
+    store, runs, saved = setup(tmp_path, **{budget: 0})
+
+    async def fetch(*args):
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    run = runs.start(saved["id"], True)["run"]
+    assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    job = store.list_jobs()[0]
+    restarted = SearchRuns(Store(store.path))
+    assert restarted.history()["runs"][0]["id"] == run["id"]
+    with store.transaction() as db:
+        with pytest.raises(RunLimitError, match=code):
+            reserve(db, job.id, "assessment", 1)
 
 
 def setup(tmp_path, **changes):

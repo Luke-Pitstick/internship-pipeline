@@ -468,6 +468,7 @@ class SearchRuns:
             "search" if provider == "jobspy" else "company",
             target.model_dump_json(),
             provider,
+            collection_owner="saved_search",
         )
         if row["stage"] == "fetched":
             result = FetchResult.model_validate_json(row["result"])

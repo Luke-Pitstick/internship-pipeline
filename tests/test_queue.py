@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from internship_pipeline.queue import Queue
@@ -52,3 +53,30 @@ def test_provider_reservations_survive_restart(tmp_path: Path) -> None:
     store.cooldown_provider("ashby", 150)
     assert not store.reserve_provider("ashby", 149)
     assert store.reserve_provider("ashby", 150)
+
+
+def test_foreign_worker_cannot_exhaust_master_retry_policy(tmp_path: Path) -> None:
+    store = Store(tmp_path / "db.sqlite")
+    with store.transaction() as db:
+        enqueue(db, "master_resume", "master", {}, 100)
+        enqueue(db, "email_delivery", "email", {}, 100)
+    master = Queue(store, lease_seconds=10, max_attempts=5)
+    email = Queue(store, lease_seconds=10, max_attempts=3)
+    for now in [100, 111, 122]:
+        assert master.claim(["master_resume"], now=now) is not None
+        assert email.claim(["email_delivery"], now=now) is not None
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        assert (
+            list(pool.map(lambda _: email.claim(["email_delivery"], now=133), range(4)))
+            == [None] * 4
+        )
+    with store.connection() as db:
+        states = {r["kind"]: r["status"] for r in db.execute("SELECT * FROM tasks")}
+    assert states == {"master_resume": "running", "email_delivery": "failed"}
+    restarted = Queue(Store(store.path), lease_seconds=10, max_attempts=5)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        claims = list(pool.map(lambda _: restarted.claim(["master_resume"], now=133), range(4)))
+    assert sum(task is not None for task in claims) == 1
+    assert next(task for task in claims if task is not None).attempts == 4
+    assert restarted.claim(["master_resume"], now=144).attempts == 5
+    assert restarted.claim(["master_resume"], now=155) is None

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext, onMount, tick } from 'svelte';
+  import { getContext, onMount, tick, untrack } from 'svelte';
   import { beforeNavigate } from '$app/navigation';
   import { page } from '$app/state';
   import { Api, ApiError } from '#lib/api.ts';
@@ -27,15 +27,22 @@
   let conflict = $state(false);
   let workerMessage = $state('');
   let importPending = $state(false);
+  let mounted = $state<Category[]>(['Profile']);
+  let childDirty = $state({models:false,sources:false,generation:false,email:false,sheets:false});
+    $effect(() => { if (!mounted.includes(category)) mounted = [...mounted, category]; });
   const dirty = $derived(!!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved));
-  $effect(() => { ondirty(dirty || importPending); });
+  const anyDirty = $derived(dirty || importPending || Object.values(childDirty).some(Boolean));
+  $effect(() => { ondirty(anyDirty); });
   $effect(() => {
     if (!guided) {
-      const chosen = decodeURIComponent(page.url.hash.slice(1));
-      if (categories.includes(chosen as Category)) category = chosen as Category;
+      let chosen = '';
+      try { chosen = decodeURIComponent(page.url.hash.slice(1)); } catch { /* Malformed bookmarks use Profile. */ }
+      const target = categories.includes(chosen as Category) ? chosen as Category : 'Profile';
+      untrack(()=>{void navigate(target);});
     }
   });
   async function navigate(value: Category) {
+    if(value===category)return;
     if (importPending && !confirm('Discard the unconfirmed résumé import and change category?')) return;
     importPending = false; category = value; await tick(); heading?.focus();
   }
@@ -70,14 +77,14 @@
       }
     } finally { saving = false; }
   }
-  beforeNavigate(({cancel}) => { if ((dirty || importPending) && !confirm('You have unsaved profile, filter or import changes. Leave without saving?')) cancel(); });
+  beforeNavigate(({cancel}) => { if (!guided && anyDirty && !confirm('You have unsaved settings or import changes. Leave without saving?')) cancel(); });
   onMount(() => {
     if (guided) category = initialCategory;
     void load();
     void api.request<{worker_roles: string[]}>('/api/status').then(status => {
       workerMessage = status.worker_roles.length ? `Active worker roles: ${status.worker_roles.join(', ')}.` : 'Setup mode is healthy. Collection starts when a source is configured; evaluation and generation are not active yet.';
     }).catch(() => {});
-    const warn = (event: BeforeUnloadEvent) => { if (dirty || importPending) event.preventDefault(); };
+    const warn = (event: BeforeUnloadEvent) => { if (!guided && anyDirty) event.preventDefault(); };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   });
@@ -105,10 +112,10 @@
         {/if}
       </form>
       {#if category === 'Diagnostics'}<Diagnostics />{/if}
-      {#if category === 'Sources'}<SourceSettings allowRun={!guided} />{/if}
-      {#if category === 'AI Models'}<AiModelSettings />{/if}
-      {#if category === 'Resume Generation'}<MasterResume profileRevision={saved?.revision ?? 0} dirty={dirty || importPending} /><GenerationPolicySettings />{/if}
-      {#if category === 'Notifications & Integrations'}<EmailSettings /><SheetsSettings />{/if}
+      {#if mounted.includes('Sources')}<div hidden={category !== 'Sources'}><SourceSettings allowRun={!guided} ondirty={value=>{childDirty.sources=value;}} /></div>{/if}
+      {#if mounted.includes('AI Models')}<div hidden={category !== 'AI Models'}><AiModelSettings ondirty={value=>{childDirty.models=value;}} /></div>{/if}
+      {#if mounted.includes('Resume Generation')}<div hidden={category !== 'Resume Generation'}><MasterResume profileRevision={saved?.revision ?? 0} dirty={dirty || importPending} /><GenerationPolicySettings ondirty={value=>{childDirty.generation=value;}} /></div>{/if}
+      {#if mounted.includes('Notifications & Integrations')}<div hidden={category !== 'Notifications & Integrations'}><EmailSettings ondirty={value=>{childDirty.email=value;}} /><SheetsSettings ondirty={value=>{childDirty.sheets=value;}} /></div>{/if}
     {:else}<p role={failure ? 'alert' : 'status'}>{feedback}</p>{#if failure}<button class="secondary" onclick={load}>Retry loading settings</button>{/if}{/if}
   </section>
 </div>

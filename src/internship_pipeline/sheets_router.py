@@ -1,13 +1,29 @@
 """Owner-only Google connection, preview, queue, CSV and inward review API."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
+from starlette.types import Receive, Scope, Send
 
 from internship_pipeline.model_connection_router import RevisionInput
 from internship_pipeline.sheets_integration import SheetsInput, SheetsIntegration
+
+
+class CsvResponse(StreamingResponse):
+    """Close the CSV read snapshot after completion, transport error or disconnect."""
+
+    def __init__(self, chunks: Generator[str, None, None], **kwargs: Any):
+        super().__init__(chunks, **kwargs)
+        self.chunks = chunks
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            self.chunks.close()
 
 
 class ReviewInput(BaseModel):
@@ -28,9 +44,9 @@ def build_sheets_router(
         return service.summary()
 
     @router.get("/export.csv")
-    def export() -> Response:
-        return Response(
-            service.csv(),
+    def export() -> CsvResponse:
+        return CsvResponse(
+            service.csv_chunks(),
             media_type="text/csv",
             headers={
                 "Content-Disposition": 'attachment; filename="internship-opportunities.csv"',

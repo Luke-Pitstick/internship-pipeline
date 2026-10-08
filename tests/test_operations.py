@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +16,7 @@ from test_tailored_resume import service as tailored_fixture
 from internship_pipeline.app import create_app, runtime_settings
 from internship_pipeline.identity import Identity
 from internship_pipeline.model_connections import ModelConnectionStore
+from internship_pipeline.models import Settings
 from internship_pipeline.operations import (
     OperationError,
     backup_installation,
@@ -34,6 +37,74 @@ def identity(root):
     token = service.setup_token()
     service.claim(token, "owner", PASSWORD)
     return service
+
+
+@pytest.mark.parametrize("name", ["persistent?synthetic", "persistent#synthetic", "space ünicode"])
+def test_backup_restore_reserved_paths_preserves_both_database_identities(tmp_path, name):
+    root = tmp_path / name
+    settings = Settings(database_path=root / "state.sqlite3", artifact_dir=root / "artifacts")
+    store = Store(settings.database_path)
+    account = identity(root)
+    with store.connection() as db:
+        enqueue(db, "match", "synthetic-job", {"job_id": "synthetic"}, 1)
+    ModelConnectionStore(store.path, root / "model-credentials.key")
+    backup = tmp_path / (name + "-backup")
+    restored = tmp_path / (name + "-restored")
+    backup_installation(root, settings, backup)
+    verify_backup(backup)
+    with sqlite3.connect(backup / "state.sqlite3") as db:
+        assert db.execute("SELECT key FROM tasks").fetchone()[0] == "synthetic-job"
+    restore_installation(backup, restored)
+    with Store(restored / "state.sqlite3").connection() as db:
+        assert db.execute("SELECT key FROM tasks").fetchone()[0] == "synthetic-job"
+    assert Identity(restored / "identity.sqlite3").login("owner", PASSWORD)
+    assert account.claimed()
+    assert sorted(path.name for path in tmp_path.iterdir()) == sorted(
+        [name, name + "-backup", name + "-restored"]
+    )
+
+
+@pytest.mark.parametrize("database", ["state.sqlite3", "identity.sqlite3"])
+@pytest.mark.parametrize("wrong", ["empty", "unrelated", "swapped"])
+def test_backup_verification_refuses_hash_valid_wrong_database(service, tmp_path, database, wrong):
+    identity(tmp_path)
+    backup = tmp_path.parent / (tmp_path.name + "-backup")
+    backup_installation(tmp_path, service.settings, backup)
+    target = backup / database
+    target.unlink()
+    with sqlite3.connect(target) as db:
+        if wrong == "unrelated":
+            db.execute("CREATE TABLE unrelated(value TEXT)")
+        elif wrong == "swapped":
+            other = "identity.sqlite3" if database == "state.sqlite3" else "state.sqlite3"
+            with sqlite3.connect(backup / other) as source:
+                source.backup(db)
+    manifest_path = backup / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["files"][database] = {
+        "size": target.stat().st_size,
+        "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+    }
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(OperationError, match="verification"):
+        verify_backup(backup)
+
+
+@pytest.mark.parametrize("database", ["state.sqlite3", "identity.sqlite3"])
+def test_backup_refuses_wrong_source_database_before_publishing(tmp_path, database):
+    root = tmp_path / "synthetic"
+    settings = Settings(database_path=root / "state.sqlite3", artifact_dir=root / "artifacts")
+    store = Store(settings.database_path)
+    identity(root)
+    ModelConnectionStore(store.path, root / "model-credentials.key")
+    (root / database).unlink()
+    with sqlite3.connect(root / database) as db:
+        db.execute("CREATE TABLE unrelated(value TEXT)")
+    target = tmp_path / "backup"
+    with pytest.raises(OperationError, match="schema"):
+        backup_installation(root, settings, target)
+    assert not target.exists()
+    assert not list(tmp_path.glob(".pipeline-backup-*"))
 
 
 def test_full_restore_preserves_encryption_provenance_documents_auth_and_no_replay(

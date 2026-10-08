@@ -1,12 +1,15 @@
 name: Container image candidates
 on:
   pull_request:
-    paths: ["Dockerfile", ".dockerignore", "compose.yaml", "deploy/**", "src/**", "web/**", "pyproject.toml", "uv.lock", ".github/workflows/**"]
+    paths: ["Dockerfile", ".dockerignore", "compose.yaml", "deploy/**", "src/**", "tests/**", "web/**", "pyproject.toml", "uv.lock", ".github/workflows/**"]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
   native-platform:
+    needs: checks
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +24,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Record candidate source and runner
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-revision.txt
+          uname -sm > evidence/runner.txt
+          df -h . /tmp > evidence/disk-before.txt
       - name: Read package version
         id: version
         run: |
@@ -47,11 +56,14 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
       - name: Docker lifecycle and fresh restore
-        run: >-
-          python3 deploy/container-smoke.py
-          --image internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }}
-          --platform ${{ matrix.platform }} --recovery
-          --report evidence/docker-${{ matrix.arch }}.json
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 deploy/container-smoke.py \
+            --image internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }} \
+            --platform ${{ matrix.platform }} --recovery \
+            --report evidence/docker-${{ matrix.arch }}.json \
+            2>&1 | tee evidence/docker-${{ matrix.arch }}.log
       - name: Prepare rootless Podman on the isolated runner
         run: |
           if ! command -v podman >/dev/null; then
@@ -59,14 +71,18 @@ jobs:
             sudo apt-get install -y podman
           fi
           docker save internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }} -o /tmp/pipeline-image.tar
-          podman load -i /tmp/pipeline-image.tar >/dev/null
+          # Explicit transport preserves Docker health metadata in mixed-format archives.
+          podman pull docker-archive:/tmp/pipeline-image.tar >/dev/null
           rm /tmp/pipeline-image.tar
       - name: Podman lifecycle and fresh restore
-        run: >-
-          python3 deploy/container-smoke.py --engine podman
-          --image internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }}
-          --platform ${{ matrix.platform }} --recovery
-          --report evidence/podman-${{ matrix.arch }}.json
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 deploy/container-smoke.py --engine podman \
+            --image internship-pipeline:${{ steps.version.outputs.version }}-${{ matrix.arch }} \
+            --platform ${{ matrix.platform }} --recovery \
+            --report evidence/podman-${{ matrix.arch }}.json \
+            2>&1 | tee evidence/podman-${{ matrix.arch }}.log
       - name: Export versioned OCI candidate with dependency attestations
         uses: docker/build-push-action@v6
         with:
@@ -109,4 +125,12 @@ jobs:
           path: |
             /tmp/pipeline-${{ matrix.arch }}.tar
             evidence/
+          retention-days: 7
+      - name: Retain platform evidence even after failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-evidence-${{ matrix.arch }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: warn
           retention-days: 7

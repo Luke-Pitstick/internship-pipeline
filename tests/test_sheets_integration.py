@@ -1,7 +1,10 @@
 """Synthetic Google auth/API and durable stable-ID/inward ownership acceptance."""
 
 import copy
+import csv
+import io
 import json
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import unquote
 
 import httpx
@@ -118,6 +121,105 @@ def sync(service):
     service.request(preview["id"])
     assert service.process_next()
     return preview
+
+
+def inventory(service, job, count):
+    with service.store.connection() as db:
+        original = db.execute("SELECT * FROM jobs WHERE id=?", (job.id,)).fetchone()
+        db.executemany(
+            "INSERT INTO jobs VALUES(?,?,?,?,?,?,?,?,?)",
+            [
+                (
+                    f"synthetic-{index:05d}",
+                    job.model_copy(update={"id": f"synthetic-{index:05d}"}).model_dump_json(),
+                    *tuple(original)[2:],
+                )
+                for index in range(count - 1)
+            ],
+        )
+
+
+def test_csv_complete_stable_inventory_over_sheets_capacity(tmp_path):
+    service, _, job, _ = make(tmp_path)
+    inventory(service, job, 10003)
+    records = list(csv.DictReader(io.StringIO(service.csv())))
+    with service.store.connection() as db:
+        expected = [row[0] for row in db.execute("SELECT id FROM jobs ORDER BY id")]
+    assert [record["job_id"] for record in records] == expected
+    assert len(set(record["job_id"] for record in records)) == 10003
+
+
+@pytest.mark.parametrize("count", [10000, 10001])
+def test_sheets_inventory_capacity_explicit_before_plan_or_write(tmp_path, count):
+    service, provider, job, _ = make(tmp_path)
+    inventory(service, job, count)
+    if count == 10000:
+        preview = service.preview(1)
+        assert preview["rows"] == count and not preview["conflicts"]
+    else:
+        with pytest.raises(ValueError, match="10,000"):
+            service.preview(1)
+        with service.store.connection() as db:
+            assert db.execute("SELECT COUNT(*) FROM sheets_runs").fetchone()[0] == 0
+    assert not provider.writes
+
+
+def test_sheets_destination_over_capacity_does_not_accept_partial_plan(tmp_path):
+    service, provider, _, _ = make(tmp_path)
+    provider.values.extend([["foreign-job"] for _ in range(10000)])
+    with pytest.raises(ValueError, match="10,000"):
+        service.preview(1)
+    with service.store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM sheets_runs").fetchone()[0] == 0
+    assert not provider.writes
+
+
+def test_sheets_capacity_growth_after_preview_is_rejected_before_queue_admission(tmp_path):
+    service, provider, job, _ = make(tmp_path)
+    preview = service.preview(1)
+    inventory(service, job, 10001)
+    with pytest.raises(ValueError, match="10,000"):
+        service.request(preview["id"])
+    with service.store.connection() as db:
+        assert db.execute("SELECT state FROM sheets_runs").fetchone()[0] == "preview"
+        assert db.execute("SELECT COUNT(*) FROM tasks WHERE kind='sheets_sync'").fetchone()[0] == 0
+    assert not provider.writes
+
+
+def test_csv_iterator_keeps_stable_read_snapshot_during_collection(tmp_path):
+    service, _, job, _ = make(tmp_path)
+    inventory(service, job, 3)
+    chunks = service.csv_chunks()
+    header = next(chunks)
+    first = next(chunks)
+    added = job.model_copy(update={"id": "zz-new-during-export"})
+    with service.store.connection() as db:
+        original = db.execute("SELECT * FROM jobs WHERE id=?", (job.id,)).fetchone()
+        db.execute(
+            "INSERT INTO jobs VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                added.id,
+                added.model_dump_json(),
+                *tuple(original)[2:],
+            ),
+        )
+    records = list(csv.DictReader(io.StringIO(header + first + "".join(chunks))))
+    assert len(records) == 3 and added.id not in [record["job_id"] for record in records]
+    assert added.id in service.csv()
+
+
+def test_csv_stream_read_snapshot_survives_sequential_threadpool_hops(tmp_path):
+    service, _, job, _ = make(tmp_path)
+    inventory(service, job, 4)
+    chunks = service.csv_chunks()
+    output = next(chunks)
+    with ThreadPoolExecutor(max_workers=1) as first, ThreadPoolExecutor(max_workers=1) as second:
+        output += first.submit(next, chunks).result()
+        output += second.submit(next, chunks).result()
+        output += "".join(chunks)
+    records = list(csv.DictReader(io.StringIO(output)))
+    assert len(records) == 4
+    assert len({record["job_id"] for record in records}) == 4
 
 
 def test_encrypted_key_dry_run_stable_id_notes_formulas_and_idempotent(tmp_path):

@@ -103,11 +103,7 @@ async def collect_due(
             store.finish_target(target_id, due.timestamp(), result, finished.timestamp())
             return len(jobs)
 
-    # Browser sources are manual runs until T08 introduces explicit schedules.
-    targets = [
-        target
-        for target in store.targets()
-        if not str(target["id"]).startswith("company:browser-greenhouse-")
-    ]
+    # Saved-search targets are collected only by their run worker and budget checkpoint.
+    targets = [target for target in store.targets() if target["collection_owner"] == "registry"]
     results = await asyncio.gather(*(collect(target) for target in targets))
     return sum(results)

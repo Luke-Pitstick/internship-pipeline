@@ -11,6 +11,7 @@
   let draft = $state<ImportDraft>();
   let preview = $state<ImportPreview>();
   let file = $state<File>();
+  let fileInput = $state<HTMLInputElement>();
   let removeIds = $state<string[]>([]);
   let confirmed = $state(false);
   let busy = $state(false);
@@ -21,7 +22,7 @@
   const blocked = $derived(dirty || busy || conflict);
   const selectedCount = $derived(draft?.suggestions.filter(item => item.selected).length ?? 0);
   function changed() { preview = undefined; confirmed = false; }
-  function cancel() { draft = undefined; preview = undefined; removeIds = []; confirmed = false; conflict = false; feedback = ''; failure = false; onpending(false); }
+  function cancel() { if(fileInput)fileInput.value='';file=undefined;draft = undefined; preview = undefined; removeIds = []; confirmed = false; conflict = false; feedback = ''; failure = false; onpending(false); }
   function report(reason: unknown) { failure = true; feedback = (reason as Error).message; conflict = reason instanceof ApiError && reason.status === 409; }
   async function history() {
     try { current = (await api.request<{import: typeof current}>('/api/resume-imports/current')).import; } catch { /* Main settings load reports authentication failures. */ }
@@ -60,7 +61,8 @@
   <h3 id="resume-import-title">Import your resume</h3>
   <p class="field-help">Upload or replace a PDF or DOCX, review its source facts, and explicitly save. Extraction happens on this instance, without a model call. The uploaded binary is discarded.</p>
   {#if !draft}
-    <label class="form-group">Resume document<input aria-label="Resume document" type="file" accept=".pdf,.docx" disabled={blocked} onchange={event => { file = event.currentTarget.files?.[0]; failure = false; feedback = ''; }} /></label>
+    <label class="form-group">Resume document<input aria-label="Resume document" bind:this={fileInput} type="file" accept=".pdf,.docx" disabled={blocked} onchange={event => { file = event.currentTarget.files?.[0];onpending(!!file); failure = false; feedback = ''; }} /></label>
+    {#if file}<button type="button" class="subtle" onclick={cancel}>Discard selected résumé file</button>{/if}
     <button type="button" class="secondary" disabled={!file || blocked} onclick={upload}>{busy ? 'Extracting…' : current ? 'Upload replacement' : 'Upload and review'}</button>
     {#if dirty}<p class="field-help">Save or discard your profile and filter changes before importing.</p>{/if}
     {#if current}<details><summary>Last reviewed {current.format.toUpperCase()} · profile revision {current.approved_revision}</summary><div class="source-text">{#each current.lines as line}<p><small>{line.location}</small><br />{line.text}</p>{/each}</div></details>{/if}

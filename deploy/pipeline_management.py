@@ -266,6 +266,16 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
     runtime.check()
     container = runtime.require_owned(manifest)
     state = _state(container)
+    if args.command in {"setup-token", "recover-owner"}:
+        if state.get("Running") is True:
+            raise Failure("Stop the application and all workers before offline recovery.")
+        if not sys.stdin.isatty():
+            raise Failure("Recovery requires a private interactive terminal.")
+        image_id = container.get("Image")
+        if not isinstance(image_id, str):
+            raise Failure("Exact installed image identity is unavailable; preserve the volume.")
+        runtime.maintenance(manifest, args.command, image_id)
+        return {"recovery_completed": True, "volume_preserved": True, "running": False}
     if args.command == "start":
         if state.get("Running") is not True:
             runtime.run("start", manifest.container_name)
@@ -280,7 +290,9 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
         return {"running": False, "volume_preserved": True}
     if args.command == "logs" and not args.diagnostics:
         return runtime_log_summary(
-            runtime.run("logs", "--tail", str(args.lines), manifest.container_name)
+            runtime.run(
+                "logs", "--tail", str(args.lines), manifest.container_name, include_stderr=True
+            )
         )
     health = state.get("Health", {})
     result: dict[str, Any] = {
@@ -349,6 +361,12 @@ def parser(install_dir: Path | None = None) -> argparse.ArgumentParser:
         "url", aliases=["show-url"], help="print the saved URL, even if runtime is stopped"
     )
     commands.add_parser("open", help="open the saved URL in your default browser")
+    commands.add_parser(
+        "setup-token", help="rotate an unclaimed setup token using the stopped image and volume"
+    )
+    commands.add_parser(
+        "recover-owner", help="recover the owner interactively using the stopped image and volume"
+    )
     return root
 
 

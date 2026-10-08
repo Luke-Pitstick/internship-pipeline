@@ -2,6 +2,7 @@
   import { getContext, onMount } from 'svelte';
   import { Api } from '#lib/api.ts';
   import { endpoints, modelConnections, type ModelConfig, type ModelConnections, type ModelKind } from '#lib/model-connections.ts';
+  let {ondirty=()=>{}}=$props<{ondirty?:(value:boolean)=>void}>();
   const client = modelConnections(getContext<Api>('api'));
   const kinds: ModelKind[] = ['jev', 'general'];
   const labels = {jev: 'Jev', general: 'General LLM'};
@@ -10,18 +11,21 @@
     jev: {model: 'jev-1.13.0', endpoint: endpoints.jev, timeout_seconds: 30, max_output_tokens: 1024},
     general: {model: '', endpoint: endpoints.general, timeout_seconds: 30, max_output_tokens: 1024}
   });
+  let savedDrafts = $state({jev:'',general:''});
+  let draftRevisions = $state({jev:0,general:0});
   let keys = $state({jev: '', general: ''});
   let busy = $state<ModelKind | null>(null);
   let message = $state('');
   let error = $state('');
   let confirmRemove = $state<ModelKind | null>(null);
   function dirty(kind: ModelKind) {
-    return !!keys[kind] || JSON.stringify(drafts[kind]) !== JSON.stringify(connections?.[kind].config);
+    return !!keys[kind] || (!!savedDrafts[kind] && JSON.stringify(drafts[kind]) !== savedDrafts[kind]);
   }
+  $effect(()=>{ondirty(kinds.some(kind=>dirty(kind)));});
   async function load() {
     try {
       connections = await client.read();
-      for (const kind of kinds) if (connections[kind].config) drafts[kind] = {...connections[kind].config!};
+      for (const kind of kinds) {if (connections[kind].config) drafts[kind] = {...connections[kind].config!};savedDrafts[kind]=JSON.stringify(drafts[kind]);draftRevisions[kind]=connections[kind].revision;keys[kind]='';}
     } catch (reason) { error = (reason as Error).message; }
   }
   onMount(load);
@@ -30,14 +34,14 @@
     busy = kind; error = ''; message = '';
     const secret = keys[kind]; keys[kind] = '';
     try {
-      const revision = connections[kind].revision;
+      const revision = draftRevisions[kind];
       if (action === 'save') {
-        connections[kind] = await client.save(kind, drafts[kind], revision, secret);
+        connections[kind] = await client.save(kind, drafts[kind], revision, secret);draftRevisions[kind]=connections[kind].revision;savedDrafts[kind]=JSON.stringify(drafts[kind]);
         message = `${labels[kind]} saved. Test this revision to verify its capabilities.`;
       } else if (action === 'remove') {
-        connections[kind] = await client.remove(kind, revision);
+        connections[kind] = await client.remove(kind, revision);draftRevisions[kind]=connections[kind].revision;
         message = `${labels[kind]} connection removed. Its credential is no longer available to the application.`;
-        confirmRemove = null;
+        confirmRemove = null;savedDrafts[kind]=JSON.stringify(drafts[kind]);
       } else {
         const result = await client.test(kind, revision);
         connections[kind] = result.connection;
@@ -53,6 +57,7 @@
 <p class="field-help">Credentials are encrypted on the server and never read back. Back up the private instance key with your database to recover them. Tests allow one request at a time and five per provider per hour, with no automatic retries or model fallback.</p>
 {#if error}<p class="model-error" role="alert">{error}</p>{/if}
 <p role="status" aria-live="polite">{message}</p>
+<button type="button" disabled={busy!==null} onclick={()=>{if(!kinds.some(kind=>dirty(kind))||confirm('Discard unsaved model changes and reload saved connections?'))void load();}}>Reload model connections</button>
 {#if connections}
   {#each kinds as kind}
     <form class="model-card" onsubmit={(event) => {event.preventDefault(); action(kind, 'save');}}>
@@ -71,6 +76,7 @@
       </fieldset>
       {#if connections[kind].configured}<p class="field-help">Connection revision {connections[kind].revision}. {#if dirty(kind)}Save changes before testing.{/if}</p>{/if}
       {#if connections[kind].last_test}<p class="field-help">Last test: {connections[kind].last_test!.status}. Effective model: {connections[kind].last_test!.effective_model ?? 'unavailable'}. Input/output tokens: {connections[kind].last_test!.input_tokens ?? 'unknown'} / {connections[kind].last_test!.output_tokens ?? 'unknown'}.</p>{/if}
+      <button type="button" disabled={busy!==null||!dirty(kind)} onclick={()=>{drafts[kind]=JSON.parse(savedDrafts[kind]);keys[kind]='';}}>Discard {labels[kind]} changes</button>
     </form>
   {/each}
 {:else if !error}<p>Loading model connections…</p>{/if}

@@ -219,7 +219,17 @@ def create_app(
         @app.get("/api/session")
         def current_session(request: Request, response: Response) -> dict[str, Any]:
             value = identity.session(request.cookies.get(cookie, ""))
-            csrf = value["csrf"] if value else set_session(response, identity.new_session(False))
+            if value:
+                csrf = value["csrf"]
+            else:
+                try:
+                    guest = identity.anonymous_session(
+                        request.client.host if request.client else "unknown",
+                        request.cookies.get(cookie, ""),
+                    )
+                except Throttled as exc:
+                    raise HTTPException(429, str(exc), headers={"Retry-After": "300"}) from None
+                csrf = set_session(response, guest)
             return {
                 "authenticated": bool(value and value["authenticated"]),
                 "claimed": identity.claimed(),

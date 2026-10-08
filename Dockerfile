@@ -15,7 +15,8 @@ LABEL org.opencontainers.image.title="Internship Pipeline" \
     org.opencontainers.image.revision=$IMAGE_REVISION \
     org.opencontainers.image.source=$IMAGE_SOURCE
 COPY --from=uv /uv /usr/local/bin/uv
-RUN apt-get update && apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended \
+RUN apt-get update && apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended lmodern \
+    && kpsewhich lmodern.sty \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1

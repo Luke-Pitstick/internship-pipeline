@@ -1,13 +1,8 @@
-database_path: /var/data/pipeline.sqlite3
+database_path: /var/data/state.sqlite3
 artifact_dir: /var/data/artifacts
-profile_path: /var/data/private/profile.yaml
 companies_path: /var/data/config/companies.yaml
 searches_path: /var/data/config/searches.yaml
-resume_model: gpt-5.6-sol
-resume_reasoning_effort: low
-notification_urls: []
-recording_notifications_path: null
-dot_outbox_path: /var/data/dot-outbox
+# Profile, models, email and Sheets are configured in authenticated browser Settings.
 priority_interval_seconds: 300
 standard_interval_seconds: 900
 search_interval_seconds: 3600

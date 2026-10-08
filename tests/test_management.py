@@ -72,6 +72,9 @@ elif command in {"start", "stop"}:
     result = state["container_name"]
 elif command == "logs":
     result = state.get("logs", "")
+    print(state.get("stderr_logs", ""), file=sys.stderr, end="")
+elif command == "run":
+    result = "maintenance completed"
 else:
     raise SystemExit("unexpected operation")
 print(result)
@@ -110,6 +113,7 @@ def installed(tmp_path, request):
         "volume_name": manifest.volume_name,
         "volume": {"Labels": {runtime_module.LABEL: install_id}},
         "container": {
+            "Image": "sha256:" + "a" * 64,
             "Config": {"Labels": {runtime_module.LABEL: install_id}, "Image": manifest.image},
             "Mounts": [{"Destination": "/var/data", "Name": manifest.volume_name}],
             "HostConfig": {
@@ -241,6 +245,93 @@ def test_runtime_logs_omit_secrets_and_arbitrary_exceptions(installed, capsys):
     data = json.loads(output)
     assert len(data["events"]) == 2 and data["omitted_lines"] == 4
     assert calls(engine_dir)[-1]["argv"][2:4] == ["logs", "--tail"]
+
+
+def test_runtime_stderr_lifecycle_events_are_preserved_and_sanitized(installed, capsys):
+    installation, _, engine_dir = installed
+    alter(
+        engine_dir,
+        lambda state: state.update(
+            logs="Worker collector exited unexpectedly: 1\nOwner setup token: stdout-secret",
+            stderr_logs="Worker matcher could not start: OSError\nBearer stderr-secret\n",
+        ),
+    )
+    assert run(installation, "logs") == 0
+    output = capsys.readouterr()
+    assert "secret" not in output.out + output.err
+    summary = json.loads(output.out)
+    assert summary["events"] == [
+        {"event": "worker_exited", "role": "collector", "exit_code": 1},
+        {"event": "worker_start_failed", "role": "matcher"},
+    ]
+    assert summary["omitted_lines"] == 2
+
+
+@pytest.mark.parametrize("command", ["setup-token", "recover-owner"])
+def test_offline_recovery_exact_image_volume_saved_endpoint(
+    installed, monkeypatch, capsys, command
+):
+    installation, manifest, engine_dir = installed
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    assert run(installation, command) == 0
+    capsys.readouterr()
+    operation = calls(engine_dir)[-1]["argv"]
+    assert (
+        operation
+        == runtime_module.Runtime(manifest.runtime).argv(
+            "run",
+            "--rm",
+            "--pull",
+            "never",
+            "--network",
+            "none",
+            "-it",
+            "--entrypoint",
+            "internship-pipeline",
+            "--mount",
+            f"type=volume,src={manifest.volume_name},dst=/var/data",
+            "sha256:" + "a" * 64,
+            command,
+            "--data-dir",
+            "/var/data",
+        )[1:]
+    )
+    assert all(entry["connection_env"] == {} for entry in calls(engine_dir))
+    alter(engine_dir, lambda state: state["container"]["State"].update(Running=True))
+    before = len(calls(engine_dir))
+    assert run(installation, command) == 1
+    assert "Stop" in capsys.readouterr().err
+    assert all(entry["argv"][2] != "run" for entry in calls(engine_dir)[before:])
+
+
+def test_json_runtime_output_ignores_bounded_stderr_and_rejects_combined_overflow(
+    installed, monkeypatch
+):
+    _, manifest, _ = installed
+    runtime = runtime_module.Runtime(manifest.runtime)
+    monkeypatch.setattr(
+        runtime_module.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess([], 0, '{"OSType":"linux"}', "notice"),
+    )
+    runtime.check()
+    monkeypatch.setattr(
+        runtime_module.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            [], 0, "x" * 1024**2, "y" * (1024**2 + 1)
+        ),
+    )
+    with pytest.raises(runtime_module.Failure, match="inspection limit"):
+        runtime.run("logs", include_stderr=True)
+
+
+@pytest.mark.parametrize("command", ["setup-token", "recover-owner"])
+def test_offline_recovery_noninteractive_refusal_preserves_volume(installed, capsys, command):
+    installation, _, engine_dir = installed
+    assert run(installation, command) == 1
+    assert "private interactive terminal" in capsys.readouterr().err
+    assert all(entry["argv"][2] != "run" for entry in calls(engine_dir))
 
 
 def test_readiness_deadline_and_runtime_timeout_are_bounded(installed, capsys):

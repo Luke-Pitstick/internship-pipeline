@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { beforeNavigate, goto } from '$app/navigation';
   import { Api } from '#lib/api.ts';
   import SettingsWorkspace from '#lib/components/SettingsWorkspace.svelte';
   import { category, correction, labels, steps, type Setup, type Step } from '#lib/onboarding.ts';
@@ -13,6 +13,10 @@
   let email = $state<'skip'|'connect'>('skip');
   let sheets = $state<'skip'|'connect'>('skip');
   let chosenSearch = $state('');
+  const choiceDirty = $derived(!!setup && ((setup.step==='models' && deferModels!==setup.defer_models) || (setup.step==='integrations' && (email!==(setup.email??'skip') || sheets!==(setup.sheets??'skip')))));
+  const anyDirty = $derived(dirty || choiceDirty);
+  let changingStep = false;
+  beforeNavigate(({cancel})=>{if(anyDirty&&!confirm('You have unsaved setup changes. Leave without saving?'))cancel();});
   function assign(value:Setup) {
     setup=value; deferModels=value.defer_models; email=value.email??'skip'; sheets=value.sheets??'skip';
     if (!value.preview.searches.some(s=>s.id===chosenSearch&&!s.paused)) chosenSearch=value.preview.searches.find(s=>!s.paused)?.id??'';
@@ -20,17 +24,17 @@
   async function load() {try {assign(await api.request<Setup>('/api/onboarding'));error='';}catch(e){error=(e as Error).message;}}
   async function action(path:string, body:unknown) {
     busy=true;error='';
-    try {assign(await api.request<Setup>(`/api/onboarding/${path}`,body));}
-    catch(e) {error=(e as Error).message;}
+    try {assign(await api.request<Setup>(`/api/onboarding/${path}`,body));return true;}
+    catch(e) {error=(e as Error).message;return false;}
     finally {busy=false;}
   }
-  async function visit(step:Step) {if (dirty && !confirm('You have unsaved changes. Leave this step without saving?')) return;dirty=false;await action('visit',{step});}
+  async function visit(step:Step) {if(step===setup?.step)return;if (anyDirty && !confirm('You have unsaved changes. Leave this step without saving?')) return;changingStep=true;const moved=await action('visit',{step});if(moved)dirty=false;changingStep=false;}
   async function next() {
     if (!setup || dirty) return;
     await action('checkpoint',{step:setup.step,...(setup.step==='models'?{defer_models:deferModels}:{}),...(setup.step==='integrations'?{email,sheets}:{})});
   }
   async function finish() {await action('finish',{});if(setup?.complete)await goto('/');}
-  onMount(()=>{void load();const timer=setInterval(()=>{if(setup?.step==='results')void load();},2000);return()=>clearInterval(timer);});
+  onMount(()=>{const warn=(event:BeforeUnloadEvent)=>{if(anyDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);void load();const timer=setInterval(()=>{if(setup?.step==='results')void load();},2000);return()=>{clearInterval(timer);window.removeEventListener('beforeunload',warn);};});
 </script>
 <svelte:head><title>Guided setup · Internship Pipeline</title></svelte:head>
 <section class="settings-heading"><p class="eyebrow">GET STARTED · ACCOUNT CLAIMED</p><h1>Guided setup</h1><p class="intro">Save your settings once, review the configuration, then discover your first jobs. Your progress survives closing this page.</p></section>
@@ -40,15 +44,15 @@
     {#each steps as step, index}<button class:chosen={setup.step===step} aria-current={setup.step===step?'step':undefined} onclick={()=>visit(step)} disabled={busy}>{index+1}. {labels[step]}{setup.reviewed.includes(step)?' ✓':''}</button>{/each}
   </nav>
   <section class="setup-context"><h2>{labels[setup.step]}</h2>
-    {#if setup.step==='models'}<p>Jev evaluates rubric fit and eligibility evidence. The general model creates tailored résumé drafts. Saving a connection does not call a provider; its test uses synthetic facts and may incur a provider charge.</p><label class="choice"><input type="checkbox" bind:checked={deferModels}/> Defer model work and collect jobs first</label><p class="field-help">You can continue with unknown fit. Résumé import extracts text locally; tailored generation needs a tested general model, and evaluation needs a tested Jev connection. A failed test remains visible even when you choose to defer.</p>
+    {#if setup.step==='models'}<p>Jev evaluates rubric fit and eligibility evidence. The general model creates tailored résumé drafts. Saving a connection does not call a provider; its test uses synthetic facts and may incur a provider charge.</p><label class="choice"><input type="checkbox" disabled={busy} bind:checked={deferModels}/> Defer model work and collect jobs first</label><p class="field-help">You can continue with unknown fit. Résumé import extracts text locally; tailored generation needs a tested general model, and evaluation needs a tested Jev connection. A failed test remains visible even when you choose to defer.</p>
     {:else if setup.step==='profile'}<p>Import a résumé and review the proposed facts, or enter facts manually below. Only confirmed supporting facts enter matching and generation. Unknown fields stay unknown, and job descriptions cannot add candidate claims.</p>
     {:else if setup.step==='filters'}<p>Hard country, location and term constraints affect eligibility filtering. Work authorization, availability and confirmed education also affect eligibility. Soft roles, locations and skills affect rubric fit, which measures alignment rather than interview probability. Unknown eligibility needs review.</p>
     {:else if setup.step==='search'}<p>Save an active source to collect its full inventory independently of models and delivery. Model jobs, calls and token limits cap review work; they do not limit stored collection. Initial backlog evaluation requires your explicit review after collection.</p>
-    {:else if setup.step==='integrations'}<p>Both integrations are optional. Skipping them permits search and leaves application status under your control. Email tests send a synthetic message; Sheets tests inspect access, and synchronization requires a separate preview.</p><div class="choices"><label class="form-group">Email during setup<select bind:value={email}><option value="skip">Skip email</option><option value="connect">Connect and test email</option></select></label><label class="form-group">Sheets during setup<select bind:value={sheets}><option value="skip">Skip Sheets</option><option value="connect">Connect and test Sheets</option></select></label></div><p>Saved service status: email {setup.preview.email.status}; Sheets {setup.preview.sheets.status}. Incomplete means not configured or not verified; failed means a recorded test or service operation needs attention.</p>
+    {:else if setup.step==='integrations'}<p>Both integrations are optional. Skipping them permits search and leaves application status under your control. Email tests send a synthetic message; Sheets tests inspect access, and synchronization requires a separate preview.</p><div class="choices"><label class="form-group">Email during setup<select disabled={busy} bind:value={email}><option value="skip">Skip email</option><option value="connect">Connect and test email</option></select></label><label class="form-group">Sheets during setup<select disabled={busy} bind:value={sheets}><option value="skip">Skip Sheets</option><option value="connect">Connect and test Sheets</option></select></label></div><p>Saved service status: email {setup.preview.email.status}; Sheets {setup.preview.sheets.status}. Incomplete means not configured or not verified; failed means a recorded test or service operation needs attention.</p>
     {/if}
   </section>
   {#if category[setup.step]}
-    {#key setup.step}<SettingsWorkspace initialCategory={category[setup.step]} guided ondirty={value=>dirty=value}/>{/key}
+    <div inert={busy}>{#key setup.step}<SettingsWorkspace initialCategory={category[setup.step]} guided ondirty={value=>{if(!changingStep)dirty=value;}}/>{/key}</div>
     <div class="setup-actions"><p role="status">{dirty?'Save or discard your changes before continuing.':'Continue uses the saved workspace settings.'}</p><button class="primary" disabled={busy||dirty} onclick={next}>{busy?'Saving progress…':'Save progress and continue'}</button></div>
   {:else if setup.step==='review'}
     <section class="settings-panel preview" aria-label="Final configuration preview">
@@ -63,7 +67,7 @@
       <p>Automatic résumé generation is {setup.preview.generation.enabled?'enabled':'off'}. Minimum fit {setup.preview.generation.minimum_fit}; recommendation {setup.preview.generation.recommendation}; eligibility {setup.preview.generation.eligibility}. Only confirmed facts support drafts, and every generated document needs review. <a href="/settings/?setup=1#Resume%20Generation">Correct generation policy</a></p>
       <p>Email: {setup.preview.email.choice||'not reviewed'} · {setup.preview.email.status} · alerts {setup.preview.email.enabled?'enabled':'off'}. Sheets: {setup.preview.sheets.choice||'not reviewed'} · {setup.preview.sheets.status} · automatic sync {setup.preview.sheets.enabled?'enabled':'off'}. <a href={correction('integrations')}>Correct integrations</a></p>
       <p>Skip removes an integration prerequisite from setup; an already enabled saved integration remains enabled. Inspect the statuses above before running.</p>
-      <label class="form-group">First search<select bind:value={chosenSearch}><option value="">Choose an active search</option>{#each setup.preview.searches.filter(s=>!s.paused) as search}<option value={search.id}>{search.name}</option>{/each}</select></label>
+      <label class="form-group">First search<select disabled={busy} bind:value={chosenSearch}><option value="">Choose an active search</option>{#each setup.preview.searches.filter(s=>!s.paused) as search}<option value={search.id}>{search.name}</option>{/each}</select></label>
       {#each setup.preview.searches as search}<p>{search.name}: {search.source} · {search.board||search.search_term} · {search.paused?'paused':'active'} · {search.daily_at?`daily ${search.daily_at} ${search.timezone}`:'manual only'} · review limits {search.max_jobs} jobs, {search.max_calls} calls, {search.max_tokens} reserved tokens.</p>{/each}
       <p><a href={correction('search')}>Correct sources and run limits</a></p>
       {#if setup.blockers.length}<ul>{#each setup.blockers as blocker}<li>{blocker.message} <button class="subtle" onclick={()=>visit(blocker.step)}>Review {labels[blocker.step]}</button></li>{/each}</ul>{/if}
