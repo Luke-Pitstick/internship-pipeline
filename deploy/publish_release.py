@@ -25,6 +25,13 @@ def require(condition: object, message: str) -> None:
         raise ValueError(message)
 
 
+def image_config_digest(value: object) -> str:
+    """Canonicalize Docker and Podman's full SHA-256 image config identities."""
+    if not isinstance(value, str) or not re.fullmatch(r"(?:sha256:)?[0-9a-f]{64}", value):
+        raise ValueError("Invalid image config digest.")
+    return "sha256:" + value.removeprefix("sha256:")
+
+
 def artifact_file(directory: Path, name: str) -> Path:
     """Actions may preserve a common ancestor; require one regular named file."""
     require(directory.is_dir() and not directory.is_symlink(), "Missing artifact directory.")
@@ -264,17 +271,18 @@ def validate_candidate(
             json.loads(artifact_file(directory, f"{engine}-{arch}.json").read_text())
             for engine in ("docker", "podman")
         ]
+        expected_digest = image_config_digest(reports[0]["image_id"])
         for engine, report in zip(("docker", "podman"), reports, strict=True):
             require(
                 report["engine"] == engine
                 and report["image_platform"] == f"linux/{arch}"
-                and report["image_id"] == reports[0]["image_id"],
+                and image_config_digest(report["image_id"]) == expected_digest,
                 "Smoke-tested platform/image mismatch.",
             )
         platforms[arch] = inspect_archive(
             archive_path,
             arch=arch,
-            image_id=reports[0]["image_id"],
+            image_id=expected_digest,
             source_commit=source_commit,
             package_version=package_version,
             repository=repository,

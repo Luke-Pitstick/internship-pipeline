@@ -97,7 +97,13 @@ def candidate_fixture(
         for engine in ("docker", "podman"):
             (directory / f"{engine}-{arch}.json").write_text(
                 json.dumps(
-                    {"engine": engine, "image_id": image_id, "image_platform": f"linux/{arch}"}
+                    {
+                        "engine": engine,
+                        "image_id": (
+                            image_id.removeprefix("sha256:") if engine == "podman" else image_id
+                        ),
+                        "image_platform": f"linux/{arch}",
+                    }
                 )
             )
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
@@ -146,6 +152,20 @@ def test_nested_candidate_archives_bind_tested_configs_and_attestations(tmp_path
     for platform in candidate["platforms"].values():
         assert len(platform["manifests"]) == 2
         assert platform["config_digest"] == platform["smoke_reports"][0]["image_id"]
+
+
+@pytest.mark.parametrize(
+    "image_id", ["a" * 12, "sha256:" + "g" * 64, "sha512:" + "a" * 64, "", None]
+)
+def test_candidate_rejects_malformed_runtime_image_ids(tmp_path: Path, image_id: object) -> None:
+    fixture = candidate_fixture(tmp_path)
+    directory = fixture[2] / fixture[4][0]["name"]
+    report = publication.artifact_file(directory, "podman-amd64.json")
+    data = json.loads(report.read_text())
+    data["image_id"] = image_id
+    report.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="Invalid image config digest"):
+        validate(fixture)
 
 
 @pytest.mark.parametrize(
