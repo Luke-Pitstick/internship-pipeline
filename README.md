@@ -2,7 +2,7 @@
 
 A self-hosted internship workspace: collect jobs, assess fit against confirmed candidate facts, review résumé drafts, and optionally receive email or sync a Google Sheet. You submit applications yourself and record Applied explicitly.
 
-This checkout is **release preparation**. The integrated native acceptance passes 525 Python tests, six default Chromium tests and one fresh guided-setup test using synthetic provider transports. No container image is published, no OS/architecture/runtime support matrix is certified, and live general-LLM, SMTP and Google Sheets acceptance remain open. Model-derived rejections go to review because the independent quality gate is unmet. See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
+This checkout is **release preparation**. The latest [downstream verification](docs/release/completion-status.md) passes 866 Python tests, six default browser tests, one fresh guided-setup test and one 10,000-job workspace test using synthetic provider transports. No container image is published, no OS/architecture/runtime support matrix is certified, and live general-LLM, SMTP and Google Sheets acceptance remain open. Model-derived rejections go to review because the independent quality gate is unmet. See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
 
 ## Start from source
 
@@ -14,6 +14,8 @@ docker compose logs app
 ```
 
 Read the one-time owner setup token privately from the log, then open [localhost:8080](http://localhost:8080). The log is sensitive until the owner is claimed. Set `PIPELINE_PORT` when choosing a different local port; Compose derives the corresponding browser origin. `docker compose stop` preserves the data volume. Follow [deployment](docs/deployment.md), [operations](docs/t17-operations.md) and [support](docs/support.md) for exact persistence and recovery constraints.
+
+For optional Compose overrides, copy [.env.example](.env.example) to the ignored `.env` file. Its values are blank and use Compose's local defaults. Enter model API keys, SMTP credentials and Google Sheets access in the app's Settings; Compose does not read those credentials from `.env`.
 
 There is no hosted one-command installer or published image URL yet. [Local explicit-image installer preparation](docs/t19-installer.md) requires Python 3.12+ and the complete reviewed deploy bundle; `sh deploy/install.sh --help` is a safe way to inspect it. [Management preparation](docs/t20-management.md) supplies lifecycle commands and authenticated diagnostics against its [saved manifest](docs/installation-manifest.md). A versioned image, healthy runtime and real acceptance evidence are prerequisites for recommending that path.
 
