@@ -35,6 +35,8 @@ Result on the final reviewed implementation: **132 passed in 15.03 seconds**; Ru
 
 Parent integration then passed the complete native suite: **944 passed in 123.96 seconds**, using `PYTHONPATH=src`, the same audit interpreter and `python -m pytest -q --basetemp=/tmp/pipeline-curl-final-20261008 --tb=short`. There were no skips; one dependency deprecation warning came from FastAPI's test client. Full Ruff and strict mypy across 66 source files passed. Documentation checks and workflow YAML/shell/embedded-Python parsing passed; actionlint was unavailable. These checks do not establish live hosted or provider acceptance.
 
+The first Linux CI run exposed an isolation defect in the missing-Docker case: removing the fake executable let the runner's real Docker resolve from `/usr/bin`, which attempted and failed a pull. The fixture now restricts `PATH` to controlled executables and explicitly allowlisted shell utilities for every case. All 21 pipe tests pass with this restriction; removing a fake client or runtime can no longer select a host executable. The earlier local pass did not reveal that runner-dependent behavior.
+
 ## Independent security review
 
 The download, extraction, installer-default, asset builder and publication paths were reviewed read-only outside the acceptance tests. The final reviewed code has no unresolved actionable finding within this scope:

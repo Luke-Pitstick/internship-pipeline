@@ -111,6 +111,12 @@ def flow(tmp_path: Path) -> dict[str, Any]:
         target = tools / name
         target.write_text(f"#!{executable}\n" + code)
         target.chmod(0o700)
+    # Allow only shell utilities the launcher needs. Host runtimes and download
+    # clients must never become fallbacks when a test removes a fake executable.
+    for name in ("cat", "dirname", "mktemp", "rm", "sh"):
+        utility = shutil.which(name)
+        assert utility is not None
+        (tools / name).symlink_to(utility)
     state = tmp_path / "engine.json"
     state.write_text(json.dumps({"calls": [], "containers": {}, "volumes": {}}))
     downloads = tmp_path / "downloads.json"
@@ -122,7 +128,7 @@ def flow(tmp_path: Path) -> dict[str, Any]:
         if key.startswith(("DOCKER_", "CONTAINER_")):
             env.pop(key)
     env.update(
-        PATH=str(tools) + os.pathsep + "/usr/bin:/bin",
+        PATH=str(tools),
         FAKE_ENGINE_STATE=str(state),
         CURL_TEST_DOWNLOADS=str(downloads),
         CURL_TEST_CURL_LOG=str(tmp_path / "curl.jsonl"),
