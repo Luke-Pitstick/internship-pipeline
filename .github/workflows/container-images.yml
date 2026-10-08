@@ -6,6 +6,34 @@ on:
 permissions:
   contents: read
 jobs:
+  health-transfer-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Compare health metadata through archive transports
+        shell: bash
+        run: |
+          set -euxo pipefail
+          podman --version
+          docker build -t pipeline-health-fixture - <<'DOCKER'
+          FROM busybox:1.37
+          HEALTHCHECK --interval=1s CMD true
+          CMD ["sleep", "300"]
+          DOCKER
+          docker save pipeline-health-fixture -o /tmp/health.tar
+          podman load -i /tmp/health.tar
+          podman run -d --name automatic-load pipeline-health-fixture
+          sleep 5
+          podman inspect automatic-load --format '{{json .State}}'
+          podman healthcheck run automatic-load || true
+          podman rm -f automatic-load
+          podman rmi pipeline-health-fixture
+          podman pull docker-archive:/tmp/health.tar
+          podman run -d --name explicit-archive pipeline-health-fixture
+          sleep 5
+          podman inspect explicit-archive --format '{{json .State}}'
+          podman healthcheck run explicit-archive
+          podman rm -f explicit-archive
   checks:
     uses: ./.github/workflows/checks.yml
   native-platform:
