@@ -8,6 +8,11 @@ export interface ModelConnection {
   last_test: { status: string; effective_model: string | null; input_tokens: number | null; output_tokens: number | null } | null;
 }
 export type ModelConnections = Record<ModelKind, ModelConnection>;
+export const generalProviders = [
+  {label: 'OpenAI', endpoint: 'https://api.openai.com/v1/responses'},
+  {label: 'Claude (Anthropic)', endpoint: 'https://api.anthropic.com/v1/messages'},
+  {label: 'OpenRouter', endpoint: 'https://openrouter.ai/api/v1/chat/completions'}
+];
 export const endpoints = { jev: 'https://api.typesafe.ai/v1/systemone', general: 'https://api.openai.com/v1/responses' };
 export const modelConnections = (api: Api) => ({
   read: () => api.request<ModelConnections>('/api/model-connections'),

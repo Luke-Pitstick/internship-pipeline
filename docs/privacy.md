@@ -15,9 +15,9 @@ Provider credentials are encrypted at rest using Fernet and the exact instance `
 | Action | Destination and data |
 | --- | --- |
 | Collect enabled sources | ATS/JobSpy source services receive network requests and configured search terms/location. Job descriptions and source timestamps return to the local database. |
-| Test a model connection | The official TypeSafe or OpenAI endpoint receives an application-owned synthetic candidate/posting or structured fact probe plus the configured authentication credential. The probe does not use your résumé/profile. |
+| Test a model connection | The selected official TypeSafe, OpenAI, Anthropic or OpenRouter endpoint receives an application-owned synthetic candidate/posting or structured fact probe plus the configured authentication credential. The probe does not use your résumé/profile. |
 | Match a job | TypeSafe receives supported candidate skills/experience/eligibility facts, preferences and untrusted job context needed for criterion/evidence/fit decisions. |
-| Generate a tailored résumé | OpenAI Responses receives confirmed selectable facts and job context. The request sets `store: false`; provider retention rules still apply. Master generation and local import need no model. |
+| Generate a tailored résumé | The selected OpenAI, Claude (Anthropic) or OpenRouter provider receives confirmed selectable facts and job context. OpenAI requests set `store: false`; each provider has its own retention rules. Switching providers requires a key for the new provider and a new capability test. Master generation and local import need no model. |
 | Test/send email | The configured SMTP server receives sender/recipient, the synthetic test or selected job alert/digest, and optional available PDF attachments when requested. Message recipients receive that content. |
 | Test/sync Sheets | Google OAuth/Sheets receives service-account authorization and spreadsheet identifiers; queued sync sends explicitly mapped job facts. Selected inward status/notes are read into owner-review proposals. Unmapped columns remain unowned by the application. |
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { Api } from '#lib/api.ts';
-  import { endpoints, modelConnections, type ModelConfig, type ModelConnections, type ModelKind } from '#lib/model-connections.ts';
+  import { generalProviders, endpoints, modelConnections, type ModelConfig, type ModelConnections, type ModelKind } from '#lib/model-connections.ts';
   let {ondirty=()=>{}}=$props<{ondirty?:(value:boolean)=>void}>();
   const client = modelConnections(getContext<Api>('api'));
   const kinds: ModelKind[] = ['jev', 'general'];
@@ -20,6 +20,14 @@
   let confirmRemove = $state<ModelKind | null>(null);
   function dirty(kind: ModelKind) {
     return !!keys[kind] || (!!savedDrafts[kind] && JSON.stringify(drafts[kind]) !== savedDrafts[kind]);
+  }
+  function needsKey(kind: ModelKind) {
+    return !connections?.[kind].configured || connections[kind].config?.endpoint !== drafts[kind].endpoint;
+  }
+  function changeProvider(endpoint: string) {
+    drafts.general = {...drafts.general, endpoint, model: ''};
+    keys.general = '';
+    message = ''; error = '';
   }
   $effect(()=>{ondirty(kinds.some(kind=>dirty(kind)));});
   async function load() {
@@ -61,13 +69,19 @@
 {#if connections}
   {#each kinds as kind}
     <form class="model-card" onsubmit={(event) => {event.preventDefault(); action(kind, 'save');}}>
-      <div class="model-heading"><h3>{labels[kind]}</h3><span>{connections[kind].ready ? 'Capability test passed' : connections[kind].configured ? 'Saved · test required' : 'Not configured'}</span></div>
-      <p>{kind === 'jev' ? 'TypeSafe System One API: typed criteria, evidence choices, and fit scores. Future matching will send confirmed candidate skills, experience, eligibility facts and preferences alongside job descriptions.' : 'OpenAI Responses API: requires strict JSON Schema output and token usage. Future extraction and résumé generation will send selected résumé text, confirmed candidate facts and job context.'}</p>
-      <p class="field-help">{kind === 'jev' ? 'A passing connection test does not validate eligibility judgments or automatic rejection. Matching is a separate implementation step.' : 'Enter an OpenAI model with Responses and structured-output support. This contract does not promise compatibility with other providers. Generation is a separate implementation step.'}</p>
+      <div class="model-heading"><h3>{labels[kind]}</h3><span>{dirty(kind) ? 'Unsaved changes' : connections[kind].ready ? 'Capability test passed' : connections[kind].configured ? 'Saved · test required' : 'Not configured'}</span></div>
+      <p>{kind === 'jev' ? 'TypeSafe System One API: typed criteria, evidence choices, and fit scores. Future matching will send confirmed candidate skills, experience, eligibility facts and preferences alongside job descriptions.' : 'Choose OpenAI, Claude, or OpenRouter for résumé generation. Requests send confirmed candidate facts and job context to the selected provider and require structured JSON output and token usage.'}</p>
+      <p class="field-help">{kind === 'jev' ? 'A passing connection test does not validate eligibility judgments or automatic rejection. Matching is a separate implementation step.' : 'Enter a model that supports structured outputs. OpenRouter model IDs include the provider prefix, in the form provider/model. Save and test the selected provider before generating a résumé.'}</p>
       <fieldset disabled={busy !== null}>
-        <label for={`${kind}-model`}>Model</label><input id={`${kind}-model`} required maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9._:\-]*" bind:value={drafts[kind].model} autocomplete="off" />
+        {#if kind === 'general'}
+          <label for="general-provider">Provider</label>
+          <select id="general-provider" value={drafts.general.endpoint} onchange={(event) => changeProvider(event.currentTarget.value)}>
+            {#each generalProviders as provider}<option value={provider.endpoint}>{provider.label}</option>{/each}
+          </select>
+        {/if}
+        <label for={`${kind}-model`}>Model</label><input id={`${kind}-model`} required maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9._:\/\-]*" bind:value={drafts[kind].model} autocomplete="off" />
         <label for={`${kind}-endpoint`}>Endpoint</label><input id={`${kind}-endpoint`} value={drafts[kind].endpoint} readonly /><small>Only this official endpoint is supported.</small>
-        <label for={`${kind}-key`}>API key {connections[kind].configured ? '(leave blank to keep saved key)' : ''}</label><input id={`${kind}-key`} type="password" maxlength="512" bind:value={keys[kind]} required={!connections[kind].configured} autocomplete="new-password" spellcheck="false" />
+        <label for={`${kind}-key`}>API key {connections[kind].configured ? needsKey(kind) ? '(required for selected provider)' : '(leave blank to keep saved key)' : ''}</label><input id={`${kind}-key`} type="password" maxlength="512" bind:value={keys[kind]} required={needsKey(kind)} autocomplete="new-password" spellcheck="false" />
         <div class="model-limits"><div><label for={`${kind}-timeout`}>Timeout (seconds)</label><input id={`${kind}-timeout`} type="number" min="5" max="60" required bind:value={drafts[kind].timeout_seconds} /></div>
         {#if kind === 'general'}<div><label for={`${kind}-tokens`}>Maximum output tokens</label><input id={`${kind}-tokens`} type="number" min="256" max="4096" required bind:value={drafts[kind].max_output_tokens} /></div>{/if}</div>
         {#if kind === 'jev'}<small>Jev's decision contract has no output-token limit parameter. The probe uses three fixed questions and a 64 KiB response limit.</small>{/if}
@@ -87,7 +101,7 @@
   h3 {margin:0; font-size:1.15rem} .model-heading span, small {font-size:.8rem; color:var(--muted)}
   p {line-height:1.6} fieldset {border:0; padding:0; margin:0; min-width:0}
   label {display:block; margin:1rem 0 .4rem; font-size:.85rem; font-weight:600}
-  input {display:block; box-sizing:border-box; width:100%; min-width:0; padding:.7rem; border:1px solid var(--border); border-radius:var(--radius); font:inherit; background:transparent; color:inherit}
+  input, select {display:block; box-sizing:border-box; width:100%; min-width:0; padding:.7rem; border:1px solid var(--border); border-radius:var(--radius); font:inherit; background:transparent; color:inherit}
   input[readonly] {background:var(--surface); font-size:.8rem} small {display:block; margin-top:.4rem; line-height:1.5}
   .model-limits {display:flex; flex-wrap:wrap; gap:1rem} .model-limits > div {flex:1; min-width:120px}
   .model-actions {display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.2rem}

@@ -197,3 +197,10 @@ The first complete product is step 6: scan a few company boards, identify releva
 - Always-on deployment host and agreed resource budget.
 
 Synthetic integration fixtures allow development to proceed before these are available. They must never be mistaken for the user's real profile or used to send real applications.
+
+
+## October 8, 2026 — T05/T12 general LLM provider extension
+
+The existing end-to-end résumé product now supports OpenAI Responses, Claude (Anthropic) Messages and OpenRouter Chat Completions through one general connection and the same confirmed-fact selection workflow. Settings → AI Models selects the provider; switching requires a new key and a successful test of the new revision. Collection and delivery remain independent. No SDK dependency, database migration or alternate-provider fallback was added.
+
+Completion evidence: 86 focused Python tests pass, including native contracts for all three APIs and real queued local PDF generation for Claude/OpenRouter; the integrated provider-settings Chromium test passes; focused Ruff/mypy, Svelte check, production build and whitespace checks pass. The full Python run has 831 passes, one skip and one loopback-bind sandbox failure, whose targeted rerun passes with local-network permission. See [T05 contracts](t05-model-configuration.md#october-8-general-provider-extension) and [T12 evidence](t12-tailored-resumes.md#october-8-provider-extension-verification). Paid credentialed acceptance for these providers remains unverified; this extension does not close the container or live-provider release gates.

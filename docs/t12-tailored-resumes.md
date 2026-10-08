@@ -4,7 +4,7 @@ Implemented October 6, 2026. Select a job in the authenticated workspace and req
 
 ## Supported generation and grounding contract
 
-The supported provider is the official OpenAI Responses endpoint from T05, with strict structured output, `store: false`, no redirects, environment proxies or fallback provider. Requests contain only confirmed résumé fact records and the selected posting title, employer and description, explicitly identified as untrusted matching data. Name, contact details and education stay local to the deterministic template; unknown facts, eligibility inputs and preferred skills cannot become generated claims.
+The general LLM supports the official OpenAI Responses, Claude (Anthropic) Messages and OpenRouter Chat Completions endpoints from T05. Settings → AI Models selects the provider and model. Each API requests structured JSON output, with no redirects, environment proxies or application-level provider fallback. OpenAI requests set `store: false`; OpenRouter routing requires parameter support and disables provider fallbacks. Each provider has its own retention policy. Requests contain only confirmed résumé fact records and the selected posting title, employer and description, explicitly identified as untrusted matching data. Name, contact details and education stay local to the deterministic template; unknown facts, eligibility inputs and preferred skills cannot become generated claims.
 
 The model returns a structured ordered list of confirmed fact IDs. The application validates IDs, uniqueness and nonempty selection, then renders original confirmed wording verbatim. This is intentional job-specific selection and ordering within fixed sections, not unrestricted prose rewriting: preserving each entire supported statement gives a mechanical grounding guarantee for qualifications, numbers and dates. The UI displays selected and omitted original statements and unknown statuses so the owner can inspect exactly what changed. Unsupported or fabricated IDs fail before compilation. The profile evidence records in the manifest retain their original source provenance; contact, education, selected skills and every original factual character must survive readable PDF extraction.
 
@@ -36,7 +36,7 @@ Reproduce from the repository with `PYTHONPATH=src .venv/bin/python -m pytest te
 
 ## External verification blockers
 
-No supported general-LLM credential was supplied, so actual OpenAI generation acceptance remains blocked. Mocked transport and successful PDF generation do not count as live provider acceptance. When a supported credential is supplied and a bounded synthetic live request is authorized, verify the selected model's actual structured response, metadata and rendering through this same path. No live paid model request was made, and a Jev credential is never reused as a general-LLM credential.
+No supported general-LLM credential was supplied, so credentialed live generation acceptance for OpenAI, Claude and OpenRouter remains unverified. Mocked transport and successful PDF generation do not count as live provider acceptance. When a supported credential is supplied and a bounded synthetic live request is authorized, verify the selected model's actual structured response, metadata and rendering through this same path. No live paid model request was made for this provider extension, and a Jev credential is never reused as a general-LLM credential.
 
 The Docker host remains unresponsive, so actual runtime image acceptance remains unverified. The Dockerfile retains Node only in its frontend build stage and removes the Codex subscription generator/runtime dependency; native compilation/browser tests do not stand in for an image run. T17 coordinated backup/recovery and T21 release acceptance remain later work.
 
@@ -51,3 +51,15 @@ The obsolete opening/Dot/recording coordinator is removed by the cross-task clea
 Master/tailored generation use their own durable task identities and safe authenticated APIs.
 The native affected regression suite passed, including real pdflatex T11/T12 generation;
 T13 adds atomic automatic policy gates without changing manual request availability.
+
+
+## October 8 provider extension verification
+
+OpenAI, Claude (Anthropic) and OpenRouter now share the same selection and grounding workflow. The saved endpoint chooses each provider's native request format, authentication and response parsing. OpenRouter supports namespaced model IDs; usage is normalized from prompt/completion counters, and Anthropic cache counters are included in input usage. A provider change requires a supplied replacement key, creates a new immutable model revision and requires a new successful capability test before generation.
+
+- The focused provider/connection/tailored suite passes **86 tests**: `PYTHONPATH=src .venv/bin/python -m pytest tests/test_general_providers.py tests/test_model_connections.py tests/test_tailored_resume.py -q`. It checks native authentication/payloads, strict output contracts, grounding, refusals/truncation/missing usage, bounded errors, revision invalidation and credential isolation. Claude and OpenRouter also pass durable queue execution, real local PDF generation, review, cache reuse and persisted model/usage checks.
+- The full Python run passes **831 tests with one skip** and has one sandbox-only failure at the supervisor test's loopback port bind. That exact test passes separately with local-network permission; no product assertion failed in either run.
+- The integrated `web/tests/models.spec.ts` browser test passes against the built frontend and temporary real API/SQLite instance. It checks all three provider choices, endpoint/model changes, required replacement keys, discard, save/reload persistence, capability feedback, removal and 390px overflow. Browser capability results are intercepted; Python tests exercise the actual provider client with synthetic HTTP transport. Playwright's missing headless browser was downloaded to `/private/tmp/pipeline-provider-playwright`; reproduce with `PLAYWRIGHT_BROWSERS_PATH=/private/tmp/pipeline-provider-playwright npx playwright test tests/models.spec.ts` from `web/` after building.
+- Focused Ruff and mypy pass. Svelte check has zero errors/warnings; the production build and `git diff --check` pass.
+
+These checks use synthetic candidate data. No saved personal credentials were read, no paid live-provider request was made, and this extension was not deployed. Credentialed live acceptance remains open for each provider.
