@@ -67,6 +67,33 @@ jobs:
           python3 deploy/release-install-smoke.py --engine "$ENGINE" --delivery "$DELIVERY" \
             --assets "$RUNNER_TEMP/release-assets" --work "$RUNNER_TEMP/release-install" \
             --report "evidence/$ENGINE.json"
+      - name: Retain bounded runtime failure evidence
+        if: failure()
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          rows = []
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'release-install'
+          for path in root.glob('*/installation.json'):
+              manifest = json.loads(path.read_text())
+              result = subprocess.run([os.environ['ENGINE'], 'inspect', manifest['container_name']],
+                                      capture_output=True, text=True, timeout=15)
+              if result.returncode:
+                  rows.append({'installation': path.parent.name, 'inspect_exit': result.returncode})
+                  continue
+              container = json.loads(result.stdout)[0]
+              state = container.get('State') or {}
+              health = state.get('Health') or state.get('Healthcheck') or {}
+              rows.append({'installation': path.parent.name, 'running': state.get('Running'),
+                           'exit_code': state.get('ExitCode'), 'health_status': health.get('Status'),
+                           'health_state_keys': list(health),
+                           'image_healthcheck_present': bool(container.get('Config', {}).get('Healthcheck'))})
+          pathlib.Path('evidence').mkdir(exist_ok=True)
+          pathlib.Path('evidence/failure.json').write_text(json.dumps(rows, indent=2) + '\n')
+          print(json.dumps(rows))
+          PY
       - name: Remove runner-only registry credentials
         if: always() && steps.private.outcome == 'success'
         env:
