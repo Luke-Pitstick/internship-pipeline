@@ -36,5 +36,5 @@ ENV PIPELINE_DATA_DIR=/var/data PIPELINE_WEB_DIR=/app/web/build
 EXPOSE 8080
 VOLUME ["/var/data"]
 USER pipeline
-HEALTHCHECK --interval=15s --timeout=5s --start-period=20s CMD python -c "import os,urllib.request,urllib.parse; origin=os.environ.get('PIPELINE_ORIGIN','http://localhost:8080'); urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8080/readyz',headers={'Host':urllib.parse.urlsplit(origin).netloc}),timeout=3)"
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s CMD python -m internship_pipeline.healthcheck
 ENTRYPOINT ["python", "-m", "internship_pipeline.bootstrap"]

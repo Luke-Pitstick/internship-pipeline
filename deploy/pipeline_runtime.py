@@ -245,6 +245,14 @@ class Runtime:
         validate_runtime(spec)
         self.spec = spec
 
+    def is_ready(self, container: dict[str, Any]) -> bool:
+        state = container.get("State")
+        if not isinstance(state, dict) or state.get("Running") is not True:
+            return False
+        key = "Healthcheck" if self.spec.name == "podman" else "Health"
+        health = state.get(key)
+        return isinstance(health, dict) and health.get("Status") == "healthy"
+
     @property
     def environment(self) -> dict[str, str]:
         # Freeze connection selection without changing Docker/Podman global configuration.
@@ -567,7 +575,7 @@ def wait_ready(runtime: Runtime, manifest: Manifest, timeout: float = 60) -> dic
     while time.monotonic() < deadline:
         container = runtime.require_owned(manifest, deadline)
         state = container.get("State") or {}
-        if state.get("Running") and (state.get("Health") or {}).get("Status") == "healthy":
+        if runtime.is_ready(container):
             return container
         if not state.get("Running"):
             raise Failure(

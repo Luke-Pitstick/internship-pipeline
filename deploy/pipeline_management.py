@@ -295,13 +295,10 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
                 "logs", "--tail", str(args.lines), manifest.container_name, include_stderr=True
             )
         )
-    health = state.get("Health", {})
     result: dict[str, Any] = {
         "runtime": manifest.runtime.name,
         "running": state.get("Running") is True,
-        "ready": isinstance(health, dict)
-        and health.get("Status") == "healthy"
-        and state.get("Running") is True,
+        "ready": runtime.is_ready(container),
         "url": manifest.url,
         "diagnostics": "Sign in with --diagnostics for work activity and sanitized errors.",
     }

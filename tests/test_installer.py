@@ -33,6 +33,7 @@ while args and args[0].startswith("--"):
     key = args.pop(0)
     if "=" not in key: args.pop(0)
 name = Path(sys.argv[0]).name
+health_key = "Healthcheck" if name == "podman" else "Health"
 state["calls"].append({"engine": name, "raw": raw, "args": args,
                        "connection_env": [k for k in os.environ
                            if k.startswith("DOCKER_") or k.startswith("CONTAINER_")]})
@@ -66,10 +67,10 @@ elif args[0] == "create":
                    "Env": [args[i + 1] for i, arg in enumerate(args) if arg == "--env"]},
         "Mounts": [{"Name": mount, "Destination": "/var/data"}],
         "HostConfig": {"PortBindings": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}},
-        "State": {"Running": False, "Status": "created", "Health": {"Status": "starting"}}}
+        "State": {"Running": False, "Status": "created", health_key: {"Status": "starting"}}}
 elif args[0] == "start":
     state["containers"][args[-1]]["State"] = {"Running": True, "Status": "running",
-                                             "Health": {"Status": state.get("health", "healthy")}}
+                                             health_key: {"Status": state.get("health", "healthy")}}
 elif args[0] == "stop": state["containers"][args[-1]]["State"]["Running"] = False
 elif args[0] == "pull": pass
 elif args[0] == "run":
@@ -142,6 +143,7 @@ def test_first_install_creates_owned_loopback_volume_and_command(fake, capsys):
     create = next(command for command in commands if command[0] == "create")
     assert create[create.index("--env") + 1] == "PIPELINE_ORIGIN=http://localhost:8080"
     assert create[create.index("--publish") + 1] == "127.0.0.1:8080:8080"
+    assert create[create.index("--health-cmd") + 1] == "python -m internship_pipeline.healthcheck"
     assert create[-1] == manifest.image
     assert {"--read-only", "--init", "--tmpfs"} <= set(create)
     assert fake[0].joinpath("installation.json").stat().st_mode & 0o777 == 0o600
