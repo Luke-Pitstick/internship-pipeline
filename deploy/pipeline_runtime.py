@@ -249,8 +249,7 @@ class Runtime:
         state = container.get("State")
         if not isinstance(state, dict) or state.get("Running") is not True:
             return False
-        key = "Healthcheck" if self.spec.name == "podman" else "Health"
-        health = state.get(key)
+        health = state.get("Health")
         return isinstance(health, dict) and health.get("Status") == "healthy"
 
     @property

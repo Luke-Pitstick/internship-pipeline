@@ -33,7 +33,6 @@ while args and args[0].startswith("--"):
     key = args.pop(0)
     if "=" not in key: args.pop(0)
 name = Path(sys.argv[0]).name
-health_key = "Healthcheck" if name == "podman" else "Health"
 state["calls"].append({"engine": name, "raw": raw, "args": args,
                        "connection_env": [k for k in os.environ
                            if k.startswith("DOCKER_") or k.startswith("CONTAINER_")]})
@@ -67,10 +66,10 @@ elif args[0] == "create":
                    "Env": [args[i + 1] for i, arg in enumerate(args) if arg == "--env"]},
         "Mounts": [{"Name": mount, "Destination": "/var/data"}],
         "HostConfig": {"PortBindings": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}},
-        "State": {"Running": False, "Status": "created", health_key: {"Status": "starting"}}}
+        "State": {"Running": False, "Status": "created", "Health": {"Status": "starting"}}}
 elif args[0] == "start":
     state["containers"][args[-1]]["State"] = {"Running": True, "Status": "running",
-                                             health_key: {"Status": state.get("health", "healthy")}}
+                                             "Health": {"Status": state.get("health", "healthy")}}
 elif args[0] == "stop": state["containers"][args[-1]]["State"]["Running"] = False
 elif args[0] == "pull": pass
 elif args[0] == "run":

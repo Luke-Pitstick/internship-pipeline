@@ -91,11 +91,15 @@ def main() -> None:
     manifest = json.loads((source / "installation.json").read_text())
     smoke.require(manifest["image"] == IMAGE, "Installer selected another image")
     container, volume = manifest["container_name"], manifest["volume_name"]
-    image_id = smoke.docker("inspect", "--format", "{{.Image}}", container)
+    raw_image_id = smoke.docker("inspect", "--format", "{{.Image}}", container)
+    smoke.require(bool(re.fullmatch(r"(?:sha256:)?[a-f0-9]{64}", raw_image_id)),
+                  "Engine returned an invalid image identity")
+    image_id = "sha256:" + raw_image_id.removeprefix("sha256:")
     manager = str(source_command / "internship-pipeline")
     browser = smoke.Browser(manifest["origin"])
     smoke.ready(browser, "setup")
     smoke.healthy(container)
+    native_state = json.loads(smoke.docker("inspect", container))[0]["State"]
     smoke.require(browser.request("/")[0] == 200, "Frontend unavailable")
     smoke.require(browser.request("/api/jobs")[0] == 401, "Jobs exposed before claim")
     tokens = re.findall(r"Owner setup token: (\S+)", smoke.docker("logs", container))
@@ -206,6 +210,9 @@ def main() -> None:
     args.report.write_text(json.dumps({
         "version": VERSION, "image": IMAGE, "config_digest": image_id,
         "engine": args.engine, "architecture": platform.machine(), "delivery": args.delivery,
+        "engine_version": json.loads(smoke.docker("version", "--format", "{{json .}}")),
+        "native_state_keys": sorted(native_state),
+        "native_health_status": (native_state.get("Health") or {}).get("Status"),
         "install_seconds": installed_seconds, "synthetic_pdf_metrics": metrics,
         "passed": ["asset_hashes", "fresh_install", "owner_claim", "saved_rerun", "management",
                    "stopped_backup", "fresh_installer_restore", "revoked_source_session",

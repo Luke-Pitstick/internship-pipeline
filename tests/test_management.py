@@ -67,8 +67,7 @@ elif command == "inspect":
     result = json.dumps([state["container"]])
 elif command in {"start", "stop"}:
     state["container"]["State"]["Running"] = command == "start"
-    health_key = "Healthcheck" if Path(sys.argv[0]).name == "podman" else "Health"
-    state["container"]["State"][health_key]["Status"] = state.get("health", "healthy")
+    state["container"]["State"]["Health"]["Status"] = state.get("health", "healthy")
     state_path.write_text(json.dumps(state))
     result = state["container_name"]
 elif command == "logs":
@@ -128,9 +127,7 @@ def installed(tmp_path, request):
             "HostConfig": {
                 "PortBindings": {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"}]}
             },
-            "State": {"Running": False,
-                      "Healthcheck" if request.param == "podman" else "Health":
-                          {"Status": "healthy"}},
+            "State": {"Running": False, "Health": {"Status": "healthy"}},
         },
     }
     (engine_dir / "engine.json").write_text(json.dumps(state))

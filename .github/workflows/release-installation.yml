@@ -87,6 +87,9 @@ jobs:
               state = container.get('State') or {}
               health = state.get('Health') or state.get('Healthcheck') or {}
               rows.append({'installation': path.parent.name, 'running': state.get('Running'),
+                           'state_keys': sorted(state),
+                           'native_health_status': (state.get('Health') or {}).get('Status'),
+                           'legacy_healthcheck_status': (state.get('Healthcheck') or {}).get('Status'),
                            'exit_code': state.get('ExitCode'), 'health_status': health.get('Status'),
                            'health_state_keys': list(health),
                            'image_healthcheck_present': bool(container.get('Config', {}).get('Healthcheck'))})

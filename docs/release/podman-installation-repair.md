@@ -17,23 +17,24 @@ but `Config.Healthcheck` was absent and health status was empty. Docker's image
 health metadata survived its pull; Podman did not retain it from the OCI image.
 The installer had assumed both engines would retain this metadata.
 
-A separate contract defect affected installer readiness and installed `status`:
-Podman's native JSON uses `State.Healthcheck`, while Docker uses `State.Health`.
-Earlier fake-engine fixtures incorrectly emitted Docker's field for both engines.
-Correcting the Podman fixture reproduced a management startup timeout before the
-repair. Podman's Go-template `.State.Health` alias had hidden the JSON distinction
-in the earlier container-only smoke test.
+The first repair introduced an incorrect engine-specific JSON-field assumption
+based on an older Podman documentation example. RC2's actual registry-installation
+[run 37998097751](https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/37998097751)
+showed the explicitly configured health check was present and healthy, but startup
+still timed out. The tested Podman emits `State.Health`, like Docker; the added
+`Healthcheck` branch was wrong. The fabricated field difference in the fixtures was
+removed. Current readiness and status read the observed common `Health` field.
 
 The repair sets the health command explicitly when creating either engine's
 container, shares one application readiness command with the Dockerfile, and reads
-each engine's native JSON field. The command checks the local `/readyz` response
+the observed runtime health field. The command checks the local `/readyz` response
 with the configured Host, without proxies or redirects, and fails closed on
 connection errors, non-200 responses or unexpected payloads. Installed status and
-startup use the same readiness interpretation. Engine fixtures now reflect their
-actual JSON contracts.
+startup use the same readiness interpretation. The registry-installation test is
+the required verification; a documentation-derived fake alone cannot close it.
 
 The repair changes the installer and image. It requires a fresh candidate and
-versioned release assets; RC1 bytes are not to be replaced. Local regression
+versioned release assets; RC1/RC2 bytes are not to be replaced. Local regression
 results and the new full candidate/registry-installation run will be recorded when
 they finish. No model, email or Sheets request was made during these checks.
 
