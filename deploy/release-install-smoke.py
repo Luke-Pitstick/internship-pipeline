@@ -54,7 +54,7 @@ def checked_file(path: Path, expected: str) -> bytes:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=("docker", "podman"), required=True)
-    parser.add_argument("--delivery", choices=("authenticated-bundle", "public-launcher"),
+    parser.add_argument("--delivery", choices=("staged-bundle", "public-launcher"),
                         required=True)
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
@@ -83,7 +83,7 @@ def main() -> None:
     restored_command = root / "restored-command"
     first = [*base, "--runtime", args.engine, "--install-dir", str(source),
              "--command-dir", str(source_command), "--port", "18080"]
-    if args.delivery == "authenticated-bundle":
+    if args.delivery == "staged-bundle":
         first += ["--image", IMAGE]
     started = time.monotonic()
     command(*first)

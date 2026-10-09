@@ -5,11 +5,12 @@ on:
       delivery:
         description: Explicit delivery being accepted; authenticated mode does not certify public access
         type: choice
-        options: [authenticated-bundle, public-launcher]
-        default: authenticated-bundle
+        options: [staged-bundle, public-launcher]
+        default: staged-bundle
         required: true
 permissions:
   contents: read
+  actions: read
   packages: read
 jobs:
   install:
@@ -30,21 +31,24 @@ jobs:
         run: |
           set -eu
           mkdir -p "$RUNNER_TEMP/release-assets" "$RUNNER_TEMP/registry-config"
-          echo "DOCKER_CONFIG=$RUNNER_TEMP/registry-config" >> "$GITHUB_ENV"
           echo "REGISTRY_AUTH_FILE=$RUNNER_TEMP/registry-config/auth.json" >> "$GITHUB_ENV"
           if [ "$ENGINE" = podman ] && ! command -v podman >/dev/null; then
             sudo apt-get update
             sudo apt-get install -y podman
           fi
-      - name: Download private draft assets and authenticate image pull
-        if: inputs.delivery == 'authenticated-bundle'
+      - name: Download hash-identical staging assets and authenticate image pull
+        id: private
+        if: inputs.delivery == 'staged-bundle'
         env:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
           ENGINE: ${{ matrix.engine }}
         run: |
           set -eu
-          gh release download v0.1.0-rc.1 --dir "$RUNNER_TEMP/release-assets"
+          gh run download 37886214373 --name curl-release-37886214373 --dir "$RUNNER_TEMP/staging"
+          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.1.tar.gz; do
+            cp "$RUNNER_TEMP/staging/release/$asset" "$RUNNER_TEMP/release-assets/$asset"
+          done
           printf '%s' "$GH_TOKEN" | "$ENGINE" login ghcr.io -u "$ACTOR" --password-stdin
       - name: Download public assets without credentials
         if: inputs.delivery == 'public-launcher'
@@ -64,7 +68,7 @@ jobs:
             --assets "$RUNNER_TEMP/release-assets" --work "$RUNNER_TEMP/release-install" \
             --report "evidence/$ENGINE.json"
       - name: Remove runner-only registry credentials
-        if: always() && inputs.delivery == 'authenticated-bundle'
+        if: always() && steps.private.outcome == 'success'
         env:
           ENGINE: ${{ matrix.engine }}
         run: '"$ENGINE" logout ghcr.io'
