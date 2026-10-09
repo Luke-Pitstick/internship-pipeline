@@ -1,4 +1,4 @@
-"""Exercise downloaded RC1 installers on disposable GitHub-hosted Linux runners.
+"""Exercise downloaded RC2 installers on disposable GitHub-hosted Linux runners.
 
 This is release acceptance tooling, never a user's upgrade/cleanup command. It
 prints only aggregate results; the runner owns all synthetic data until teardown.
@@ -19,12 +19,12 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "v0.1.0-rc.1"
+VERSION = "v0.1.0-rc.2"
 IMAGE = ("ghcr.io/luke-pitstick/internship-pipeline@sha256:"
-         "616d882df67a978a8b7fd798d90cb6e4634caa03a4e63ffb09cb973f9788130d")
-LAUNCHER_SHA = "465efd89cae5d9753be6d2b85c3d5c329835f0931fc11549a76fa8cdeb3cdd1f"
+         "5d700842e195c43eef220f6db76e69656b5827741deb847498632810d172274d")
+LAUNCHER_SHA = "1ec2e6912ce8d69990a24384698c0298e4a2369acd08726eaf02ba4bf0cd4a7c"
 BOOTSTRAP_SHA = "431a9dc06b838fb93d94a698226ba6e6edc86772c4b1586566216b1c9c0fcca2"
-BUNDLE_SHA = "f80065ecc64a79af323e47c7431b8da9934b75f8ce0cbbc8017d535184c9ec53"
+BUNDLE_SHA = "2dee1f2d36deca24eaa6fb5bbea5ccdf825ee9071e37fc1f70df07ef1aaa1120"
 
 
 def load(name: str, path: Path):
@@ -104,7 +104,8 @@ def main() -> None:
     csrf = browser.json("/api/session")["csrf"]
     csrf = browser.json("/api/claim", {**credentials, "setup_token": tokens[0]}, csrf)["csrf"]
     browser.json("/api/onboarding/checkpoint", {"step": "models", "defer_models": True}, csrf)
-    command(manager, "status")
+    smoke.require(json.loads(command(manager, "status"))["ready"] is True,
+                  "Installed status did not report readiness")
     command(manager, "url")
     command(manager, "logs", "--lines", "10")
     command(manager, "stop")
@@ -172,6 +173,7 @@ def main() -> None:
     smoke.require(destination["volume_name"] != volume, "Restore reused source volume")
     smoke.require(destination["data_dir"] == "/var/data/restored", "Restore used wrong root")
     recovered = smoke.Browser(destination["origin"])
+    recovered.opener = browser.opener  # Reuse the source cookie across localhost ports.
     smoke.ready(recovered, "owner")
     session = recovered.json("/api/session")
     smoke.require(session["claimed"] and not session["authenticated"], "Invalid restored identity")
@@ -179,7 +181,8 @@ def main() -> None:
     smoke.require(len(recovered.json("/api/jobs")["jobs"]) == 1,
                   "Restored job missing or duplicated")
     recovered_manager = str(restored_command / "internship-pipeline")
-    command(recovered_manager, "status")
+    smoke.require(json.loads(command(recovered_manager, "status"))["ready"] is True,
+                  "Recovered installed status did not report readiness")
     command(recovered_manager, "stop")
     maintenance(destination["volume_name"], "-", "verify", "--root", "/var/data/restored",
                 data=fixture)
@@ -205,7 +208,8 @@ def main() -> None:
         "engine": args.engine, "architecture": platform.machine(), "delivery": args.delivery,
         "install_seconds": installed_seconds, "synthetic_pdf_metrics": metrics,
         "passed": ["asset_hashes", "fresh_install", "owner_claim", "saved_rerun", "management",
-                   "stopped_backup", "fresh_installer_restore", "restored_login", "synthetic_job",
+                   "stopped_backup", "fresh_installer_restore", "revoked_source_session",
+                   "restored_login", "synthetic_job",
                    "encrypted_connections_and_pdf", "source_and_backup_preserved", "image_notices"],
         "live_providers": False, "unfamiliar_operator": False,
     }, indent=2) + "\n")
