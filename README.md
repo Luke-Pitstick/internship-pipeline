@@ -5,6 +5,19 @@
   Collect jobs, understand your fit, review résumé drafts, and track what you apply to.
 </p>
 
+## Install with one command
+
+```sh
+curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/install.sh | sh
+```
+
+**Coming with the RC3 preview release:** this command will work once the draft release is
+published and its container image is public. Public installation has not passed verification yet.
+
+You'll need **Python 3.12+, curl, and Docker or Podman**. The installer starts the app and prints
+your browser URL and owner setup instructions. See [requirements](#requirements) and
+[first-time setup](#quick-start).
+
 <p align="center">
   <img alt="Project status: release preparation" src="https://img.shields.io/badge/status-release%20preparation-f59e0b" />
   <img alt="Python 3.12 or newer" src="https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&amp;logoColor=white" />
@@ -43,13 +56,13 @@ it fits, prepare a résumé and remember what happened next:
 
 ## Project status
 
-**v0.1.0-rc.3 is staged privately.** Its [acceptance record](docs/release/rc3-status.md)
+**v0.1.0-rc.3 is staged as a draft release.** Its [acceptance record](docs/release/rc3-status.md)
 includes 956 Python tests, 35 browser cases, native container checks and actual registry-pulled
 installer/backup/restore tests on Ubuntu 24.04 with Docker and rootless Podman, on amd64 and arm64.
 Model and delivery checks still use synthetic transports.
 
 > [!IMPORTANT]
-> Public installation is not available yet: the repository is private, the release is a draft,
+> The source repository is public, but installation is not available yet: the release is a draft,
 > and anonymous image/launcher access has not passed. Live model, SMTP and Google Sheets
 > acceptance, remaining host/operator checks and the operating trial remain open.
 > See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
@@ -59,7 +72,7 @@ routing is the current behavior; a successful connection test does not establish
 
 ## Installation
 
-The intended installation is **one curl command**, followed by setup in your browser. Each
+Use the [curl command at the top of this README](#install-with-one-command), followed by setup in your browser. Each
 published release will provide an `install.sh` asset that selects its own verified installer bundle
 and pinned container image. You won't need to clone the repository or supply checksums, image names
 or API keys to the command.
@@ -68,8 +81,8 @@ The launcher checks your prerequisites, creates persistent storage, starts the a
 prints the browser URL plus instructions for retrieving the owner setup token. Repeating the
 command preserves the existing installation, image and data; it does not perform an upgrade.
 
-**Publication is still pending.** No hosted command is advertised as runnable until its release
-assets and image are anonymously downloadable and the hosted path has been checked. The
+**Publication is still pending.** The command above is a preview of the release installation path;
+its assets and image must be anonymously downloadable and the hosted path checked before use. The
 [publication guide](docs/release/curl-publication.md) and
 [installation acceptance record](docs/release/curl-installation-acceptance.md) track that boundary.
 For now, maintainers can use the [source setup](#development) below.
