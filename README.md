@@ -11,8 +11,8 @@
 curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/install.sh | sh
 ```
 
-**Coming with the RC3 preview release:** this command will work once the draft release is
-published and its container image is public. Public installation has not passed verification yet.
+**Installation temporarily blocked:** RC3's installer downloads are public, but its container
+image still needs public access. The command cannot complete until that is enabled and verified.
 
 You'll need **Python 3.12+, curl, and Docker or Podman**. The installer starts the app and prints
 your browser URL and owner setup instructions. See [requirements](#requirements) and
@@ -56,14 +56,14 @@ it fits, prepare a résumé and remember what happened next:
 
 ## Project status
 
-**v0.1.0-rc.3 is staged as a draft release.** Its [acceptance record](docs/release/rc3-status.md)
+**v0.1.0-rc.3 is published as a preview release.** Its [acceptance record](docs/release/rc3-status.md)
 includes 956 Python tests, 35 browser cases, native container checks and actual registry-pulled
 installer/backup/restore tests on Ubuntu 24.04 with Docker and rootless Podman, on amd64 and arm64.
 Model and delivery checks still use synthetic transports.
 
 > [!IMPORTANT]
-> The source repository is public, but installation is not available yet: the release is a draft,
-> and anonymous image/launcher access has not passed. Live model, SMTP and Google Sheets
+> The source repository and installer assets are public, but installation is not available yet:
+> anonymous container access is blocked and public installation has not passed. Live model, SMTP and Google Sheets
 > acceptance, remaining host/operator checks and the operating trial remain open.
 > See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
 
@@ -81,8 +81,8 @@ The launcher checks your prerequisites, creates persistent storage, starts the a
 prints the browser URL plus instructions for retrieving the owner setup token. Repeating the
 command preserves the existing installation, image and data; it does not perform an upgrade.
 
-**Publication is still pending.** The command above is a preview of the release installation path;
-its assets and image must be anonymously downloadable and the hosted path checked before use. The
+**Public container access is still pending.** The installer assets download without credentials;
+the image must also be anonymously downloadable and the hosted path checked before use. The
 [publication guide](docs/release/curl-publication.md) and
 [installation acceptance record](docs/release/curl-installation-acceptance.md) track that boundary.
 For now, maintainers can use the [source setup](#development) below.

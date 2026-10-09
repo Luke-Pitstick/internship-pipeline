@@ -1,6 +1,6 @@
 # RC3 acceptance — October 9, 2026
 
-**The Linux candidate is verified and staged privately. Public publication and full
+**The Linux candidate is published as a prerelease. Anonymous container access and full
 stable-release acceptance remain incomplete.** RC3 targets
 `ba21d018ae679619e22c3dfd56a816ac2a7b1e1a`. RC1 and RC2 remain held drafts, with
 their original bytes retained and the Podman defects described in their notes.
@@ -66,15 +66,14 @@ temporary product instrumentation was added or left running.
 
 ## Still open
 
-Repository publication was blocked by automatic approval review because exposing
-the existing commit history, author metadata and Actions history requires explicit
-owner approval. That approval is pending. The repository is still private; RC3 is
-still a draft. Anonymous GHCR access returned 401. The available browser was signed
-out, so the package visibility setting also needs owner action or authenticated
-browser access. **No anonymous curl installation has passed.**
+The owner explicitly approved publication of the existing repository and history;
+the repository is now public. RC3 is published as a prerelease. Anonymous downloads
+of its launcher, bootstrap and installer archive passed SHA-256 verification against
+the accepted identities above. Anonymous GHCR access still returned 401. The available
+browser was signed out, so the package visibility setting needs owner action or
+authenticated browser access. **No anonymous curl installation has passed.**
 
-After those prerequisites and the release scope are approved, enable/verify private
-vulnerability reporting, publish the approved candidate, and run
+Enable/verify private vulnerability reporting. After public package access is enabled, run
 `release-installation.yml` with `delivery=public-launcher`. That mode downloads the
 versioned launcher without credentials and executes its normal bootstrap path.
 The successful `staged-bundle` mode is deliberately a different acceptance claim.
