@@ -1,0 +1,77 @@
+name: Downloaded release installation
+on:
+  workflow_dispatch:
+    inputs:
+      delivery:
+        description: Explicit delivery being accepted; authenticated mode does not certify public access
+        type: choice
+        options: [authenticated-bundle, public-launcher]
+        default: authenticated-bundle
+        required: true
+permissions:
+  contents: read
+  packages: read
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        engine: [docker, podman]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare isolated engine configuration
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/release-assets" "$RUNNER_TEMP/registry-config"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/registry-config" >> "$GITHUB_ENV"
+          echo "REGISTRY_AUTH_FILE=$RUNNER_TEMP/registry-config/auth.json" >> "$GITHUB_ENV"
+          if [ "$ENGINE" = podman ] && ! command -v podman >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+      - name: Download private draft assets and authenticate image pull
+        if: inputs.delivery == 'authenticated-bundle'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          set -eu
+          gh release download v0.1.0-rc.1 --dir "$RUNNER_TEMP/release-assets"
+          printf '%s' "$GH_TOKEN" | "$ENGINE" login ghcr.io -u "$ACTOR" --password-stdin
+      - name: Download public assets without credentials
+        if: inputs.delivery == 'public-launcher'
+        run: |
+          set -eu
+          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.1.tar.gz; do
+            curl --fail --location --proto '=https' --proto-redir '=https' \
+              "https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.1/$asset" \
+              --output "$RUNNER_TEMP/release-assets/$asset"
+          done
+      - name: Execute downloaded installer and exact-image recovery
+        env:
+          ENGINE: ${{ matrix.engine }}
+          DELIVERY: ${{ inputs.delivery }}
+        run: |
+          python3 deploy/release-install-smoke.py --engine "$ENGINE" --delivery "$DELIVERY" \
+            --assets "$RUNNER_TEMP/release-assets" --work "$RUNNER_TEMP/release-install" \
+            --report "evidence/$ENGINE.json"
+      - name: Remove runner-only registry credentials
+        if: always() && inputs.delivery == 'authenticated-bundle'
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: '"$ENGINE" logout ghcr.io'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-install-${{ matrix.runner }}-${{ matrix.engine }}-${{ inputs.delivery }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
