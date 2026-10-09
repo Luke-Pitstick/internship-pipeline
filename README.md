@@ -43,14 +43,15 @@ it fits, prepare a résumé and remember what happened next:
 
 ## Project status
 
-This repository is in **release preparation**. The latest [native verification](docs/release/completion-status.md)
-passed 866 Python tests and eight browser cases, including fresh setup and a 10,000-job workspace.
-Those checks use synthetic provider transports.
+**v0.1.0-rc.3 is staged privately.** Its [acceptance record](docs/release/rc3-status.md)
+includes 956 Python tests, 35 browser cases, native container checks and actual registry-pulled
+installer/backup/restore tests on Ubuntu 24.04 with Docker and rootless Podman, on amd64 and arm64.
+Model and delivery checks still use synthetic transports.
 
 > [!IMPORTANT]
-> There is no published container image or hosted installer yet. The final combined candidate
-> still needs image acceptance, and no OS/architecture/runtime support matrix is certified.
-> Live general-LLM, SMTP and Google Sheets acceptance remain open.
+> Public installation is not available yet: the repository is private, the release is a draft,
+> and anonymous image/launcher access has not passed. Live model, SMTP and Google Sheets
+> acceptance, remaining host/operator checks and the operating trial remain open.
 > See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
 
 Automatic model-derived rejection remains disabled behind an independent quality gate. Review
@@ -83,7 +84,8 @@ For the hosted installation:
 - Persistent local storage and a browser for owner setup.
 
 The installer guides missing prerequisite setup; it does not install system software or start a
-container VM. Linux/macOS on amd64/arm64 are candidate targets awaiting the declared host checks.
+container VM. The Ubuntu 24.04 amd64/arm64 installer journeys above have passed; macOS and
+the remaining declared host/operator scenarios still need acceptance.
 If both runtimes are available, select one with `--runtime docker` or `--runtime podman`.
 
 You can claim the account and explore setup without model credentials. Matching requires a Jev

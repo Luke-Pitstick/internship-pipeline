@@ -24,6 +24,11 @@ showed the explicitly configured health check was present and healthy, but start
 still timed out. The tested Podman emits `State.Health`, like Docker; the added
 `Healthcheck` branch was wrong. The fabricated field difference in the fixtures was
 removed. Current readiness and status read the observed common `Health` field.
+[Run 37998474479](https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/37998474479)
+then recorded the exact native schema on both architectures: `Health` is present
+and healthy, while `Healthcheck` is absent. The sanitized
+[amd64](rc3-evidence/rc2-podman-health-amd64.json) and
+[arm64](rc3-evidence/rc2-podman-health-arm64.json) records preserve that evidence.
 
 The repair sets the health command explicitly when creating either engine's
 container, shares one application readiness command with the Dockerfile, and reads
@@ -33,10 +38,12 @@ connection errors, non-200 responses or unexpected payloads. Installed status an
 startup use the same readiness interpretation. The registry-installation test is
 the required verification; a documentation-derived fake alone cannot close it.
 
-The repair changes the installer and image. It requires a fresh candidate and
-versioned release assets; RC1/RC2 bytes are not to be replaced. Local regression
-results and the new full candidate/registry-installation run will be recorded when
-they finish. No model, email or Sheets request was made during these checks.
+The repair changes the installer and image. RC3 supplies new versioned assets;
+RC1/RC2 bytes remain unchanged. [RC3 acceptance](rc3-status.md) records the final
+956-test/35-browser candidate and successful registry-pulled installer/restore
+checks on all four native Linux cells in run 37999715396. The code repair is
+closed. Public, live-provider and human/trial acceptance remain separate. No model,
+email or Sheets request was made during these checks.
 
 The read-only staging-artifact workflow does not certify public launcher delivery.
 Draft release reads required broader GitHub token permissions; automatic approval

@@ -1,5 +1,7 @@
 # S5 — Hosted installation and exact-image recovery acceptance
 
+**Current status (October 9):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 passed source/image and all four Linux registry-installer/recovery cells; it remains a private draft, with public, live and human/trial gates open. RC1 and RC2 are held drafts.
+
 Prepared October 8, 2026. **Execution pending:** no published immutable installer/image references, fresh test hosts or unfamiliar operator have been supplied. Native executable fake-runtime tests establish host command behavior; T17 native tests establish backup semantics. Neither certifies Docker/Podman, a macOS VM or the hosted bytes. This run sheet authorizes no paid model calls, email sends, remote Sheet writes, engine startup on the existing low-disk Colima host, pruning or removal of user resources.
 
 ## Candidate and host evidence

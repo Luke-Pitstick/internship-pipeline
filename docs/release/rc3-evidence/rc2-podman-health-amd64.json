@@ -1,0 +1,35 @@
+[
+  {
+    "installation": "source",
+    "running": true,
+    "state_keys": [
+      "CgroupPath",
+      "CheckpointedAt",
+      "ConmonPid",
+      "Dead",
+      "Error",
+      "ExitCode",
+      "FinishedAt",
+      "Health",
+      "OOMKilled",
+      "OciVersion",
+      "Paused",
+      "Pid",
+      "Restarting",
+      "RestoredAt",
+      "Running",
+      "StartedAt",
+      "Status"
+    ],
+    "native_health_status": "healthy",
+    "legacy_healthcheck_status": null,
+    "exit_code": 0,
+    "health_status": "healthy",
+    "health_state_keys": [
+      "Status",
+      "FailingStreak",
+      "Log"
+    ],
+    "image_healthcheck_present": true
+  }
+]
