@@ -1,5 +1,7 @@
 # Release readiness — T21 preparation
 
+**October 9 execution update:** [RC1 staging evidence](release/rc1-staging.md) records the accepted 949-test/35-browser main candidate, both native runtime matrices, verified GHCR promotion and downloaded draft installer checks. The release remains draft; live, public-hosting, redistribution and operator/trial gates remain open. Older preparation snapshots below are historical.
+
 **October 8 downstream update:** [Downstream completion status](release/completion-status.md) records 866 passing native tests, eight current browser cases, reviewed installer packaging/recovery, MIT preparation and the live/resource acceptance tooling. These changes and provider commit `8f14e54` need a new combined image candidate. Historical counts and runtime attempts below apply to their named snapshots; external provider, hosted installation, support and promotion gates remain open.
 
 Execution plan: [Defect repair and release completion](../agents/release-repair-subtasks.md) maps all 16 independent review findings to repairs, regression tests and owners, then sequences the remaining image, provider, distribution and installation gates. That plan is not evidence that any open gate has passed.

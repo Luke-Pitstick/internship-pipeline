@@ -1,0 +1,7 @@
+d5960e7a734bf06873556e63f2e761ea9161379740be00cca80d901f7d46ba0c  LICENSE
+431a9dc06b838fb93d94a698226ba6e6edc86772c4b1586566216b1c9c0fcca2  bootstrap_installer.py
+465efd89cae5d9753be6d2b85c3d5c329835f0931fc11549a76fa8cdeb3cdd1f  install.sh
+156e5c764dff35061108c23aa33ca155e814b5379d01a8729e8552505407d015  internship-pipeline-installer-v0.1.0-rc.1.json
+f80065ecc64a79af323e47c7431b8da9934b75f8ce0cbbc8017d535184c9ec53  internship-pipeline-installer-v0.1.0-rc.1.tar.gz
+bf7a2f991a25efb91b40a08e68dfc72c4bed59e93d14e230a9ccd464b521a6d3  internship-pipeline-installer-v0.1.0-rc.1.tar.gz.sha256
+c9c48f3b836ec8e338bb9404b562d6434291ba027916dc55558d54a262dc7256  release-metadata.json

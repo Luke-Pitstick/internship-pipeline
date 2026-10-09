@@ -1,5 +1,7 @@
 # Curl installer publication
 
+**October 9 execution update:** [RC1 staging evidence](rc1-staging.md) records the accepted 949-test/35-browser main candidate, both native runtime matrices, verified GHCR promotion and downloaded draft installer checks. The release remains draft; live, public-hosting, redistribution and operator/trial gates remain open. Older preparation snapshots below are historical.
+
 The tooling generates a release `install.sh` that embeds the exact bootstrap hash,
 installer archive hash and immutable GHCR image reference. A user selects a versioned
 URL and runs it through `sh`; they don't supply those hashes or an image. Python 3.12+

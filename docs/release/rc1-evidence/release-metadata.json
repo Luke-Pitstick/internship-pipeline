@@ -1,0 +1,312 @@
+{
+  "bootstrap_sha256": "431a9dc06b838fb93d94a698226ba6e6edc86772c4b1586566216b1c9c0fcca2",
+  "bundle_sha256": "f80065ecc64a79af323e47c7431b8da9934b75f8ce0cbbc8017d535184c9ec53",
+  "candidate": {
+    "platforms": {
+      "amd64": {
+        "archive_sha256": "9121f7661e9945e04625d666156c58211f55ff6206af49d803c7d57e36f97b17",
+        "artifact_id": 11585549898,
+        "artifact_name": "image-0.1.0-amd64-25e97fbdda2b718616d56f2f06b9f5ec5c9af338",
+        "config_digest": "sha256:271fdf64e3b611d8d6c4e61d8f2a4a24b1f346e53be43cbb9d5ce0c16db31dbe",
+        "index_digest": "sha256:2b1c38d7c111bea1f1133ea4ad21ffb3773b1cab1ae374a5c68ad6128e6ccdef",
+        "manifests": [
+          {
+            "digest": "sha256:ca924c2f41b9317e4f388d1ef287ff2b271e58cf13e2bfcd4f2993ba622469e2",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            "size": 2581
+          },
+          {
+            "annotations": {
+              "vnd.docker.reference.digest": "sha256:ca924c2f41b9317e4f388d1ef287ff2b271e58cf13e2bfcd4f2993ba622469e2",
+              "vnd.docker.reference.type": "attestation-manifest"
+            },
+            "digest": "sha256:c0280720df0d437a1a89a360ecae90579b8874eb4e36a8b856c04201e9ae63f5",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "platform": {
+              "architecture": "unknown",
+              "os": "unknown"
+            },
+            "size": 1113
+          }
+        ],
+        "platform_manifest": "sha256:ca924c2f41b9317e4f388d1ef287ff2b271e58cf13e2bfcd4f2993ba622469e2",
+        "smoke_reports": [
+          {
+            "engine": "docker",
+            "engine_version": {
+              "Client": {
+                "ApiVersion": "1.48",
+                "Arch": "amd64",
+                "BuildTime": "Tue Mar 25 15:07:16 2025",
+                "Context": "default",
+                "DefaultAPIVersion": "1.48",
+                "GitCommit": "b8034c0",
+                "GoVersion": "go1.23.7",
+                "Os": "linux",
+                "Platform": {
+                  "Name": "Docker Engine - Community"
+                },
+                "Version": "28.0.4"
+              },
+              "Server": {
+                "ApiVersion": "1.48",
+                "Arch": "amd64",
+                "BuildTime": "2025-03-25T15:07:16.000000000+00:00",
+                "Components": [
+                  {
+                    "Details": {
+                      "ApiVersion": "1.48",
+                      "Arch": "amd64",
+                      "BuildTime": "Tue Mar 25 15:07:16 2025",
+                      "Experimental": "false",
+                      "GitCommit": "6430e49",
+                      "GoVersion": "go1.23.7",
+                      "KernelVersion": "6.17.0-1022-azure",
+                      "MinAPIVersion": "1.24",
+                      "Os": "linux"
+                    },
+                    "Name": "Engine",
+                    "Version": "28.0.4"
+                  },
+                  {
+                    "Details": {
+                      "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+                    },
+                    "Name": "containerd",
+                    "Version": "v2.3.6"
+                  },
+                  {
+                    "Details": {
+                      "GitCommit": "v1.5.1-0-g8f2685a4"
+                    },
+                    "Name": "runc",
+                    "Version": "1.5.1"
+                  },
+                  {
+                    "Details": {
+                      "GitCommit": "de40ad0"
+                    },
+                    "Name": "docker-init",
+                    "Version": "0.19.0"
+                  }
+                ],
+                "GitCommit": "6430e49",
+                "GoVersion": "go1.23.7",
+                "KernelVersion": "6.17.0-1022-azure",
+                "MinAPIVersion": "1.24",
+                "Os": "linux",
+                "Platform": {
+                  "Name": "Docker Engine - Community"
+                },
+                "Version": "28.0.4"
+              }
+            },
+            "host": "runnervmmprz5",
+            "host_os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+            "idle_memory": "90.93MiB / 7.751GiB",
+            "image_bytes": 932384574,
+            "image_id": "sha256:271fdf64e3b611d8d6c4e61d8f2a4a24b1f346e53be43cbb9d5ce0c16db31dbe",
+            "image_platform": "linux/amd64",
+            "pull_seconds": null,
+            "render_cpu_seconds": 0.096,
+            "render_peak_memory": null,
+            "render_peak_rss_kib": 63512,
+            "render_seconds": 0.097,
+            "run_memory": null,
+            "start_to_setup_seconds": 2.307
+          },
+          {
+            "engine": "podman",
+            "engine_version": {
+              "Client": {
+                "APIVersion": "4.9.3",
+                "Built": 0,
+                "BuiltTime": "Thu Jan  1 00:00:00 1970",
+                "GitCommit": "",
+                "GoVersion": "go1.22.2",
+                "Os": "linux",
+                "OsArch": "linux/amd64",
+                "Version": "4.9.3"
+              }
+            },
+            "host": "runnervmmprz5",
+            "host_os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+            "idle_memory": "91.9MB / 8.323GB",
+            "image_bytes": 963900155,
+            "image_id": "271fdf64e3b611d8d6c4e61d8f2a4a24b1f346e53be43cbb9d5ce0c16db31dbe",
+            "image_platform": "linux/amd64",
+            "pull_seconds": null,
+            "render_cpu_seconds": 0.096,
+            "render_peak_memory": null,
+            "render_peak_rss_kib": 63048,
+            "render_seconds": 0.097,
+            "run_memory": null,
+            "start_to_setup_seconds": 3.415
+          }
+        ]
+      },
+      "arm64": {
+        "archive_sha256": "32b653ff1c6ea1c1d773b8924f8a15fb7c1d83453132f98f057d9bb9930fb2dc",
+        "artifact_id": 11585913825,
+        "artifact_name": "image-0.1.0-arm64-25e97fbdda2b718616d56f2f06b9f5ec5c9af338",
+        "config_digest": "sha256:7be21a360b83cae2c1a3529367bd187626aaed798223c67b27cbba63adeaa96e",
+        "index_digest": "sha256:6ce3236e8952da2b69544f37047294c53fff8e44175f8dbb9aaefb5b014fca69",
+        "manifests": [
+          {
+            "digest": "sha256:332e8cddacebad66369c5c0820f41d77c8c5c68b21ab53da63393fa68f4aafbe",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux"
+            },
+            "size": 2581
+          },
+          {
+            "annotations": {
+              "vnd.docker.reference.digest": "sha256:332e8cddacebad66369c5c0820f41d77c8c5c68b21ab53da63393fa68f4aafbe",
+              "vnd.docker.reference.type": "attestation-manifest"
+            },
+            "digest": "sha256:bd2910b6f31e81f96f3b1d9067c4067479aa895cf16db475dcf75884e119a03d",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "platform": {
+              "architecture": "unknown",
+              "os": "unknown"
+            },
+            "size": 1113
+          }
+        ],
+        "platform_manifest": "sha256:332e8cddacebad66369c5c0820f41d77c8c5c68b21ab53da63393fa68f4aafbe",
+        "smoke_reports": [
+          {
+            "engine": "docker",
+            "engine_version": {
+              "Client": {
+                "ApiVersion": "1.48",
+                "Arch": "arm64",
+                "BuildTime": "Tue Mar 25 15:07:55 2025",
+                "Context": "default",
+                "DefaultAPIVersion": "1.48",
+                "GitCommit": "b8034c0",
+                "GoVersion": "go1.23.7",
+                "Os": "linux",
+                "Platform": {
+                  "Name": "Docker Engine - Community"
+                },
+                "Version": "28.0.4"
+              },
+              "Server": {
+                "ApiVersion": "1.48",
+                "Arch": "arm64",
+                "BuildTime": "2025-03-25T15:07:55.000000000+00:00",
+                "Components": [
+                  {
+                    "Details": {
+                      "ApiVersion": "1.48",
+                      "Arch": "arm64",
+                      "BuildTime": "Tue Mar 25 15:07:55 2025",
+                      "Experimental": "false",
+                      "GitCommit": "6430e49",
+                      "GoVersion": "go1.23.7",
+                      "KernelVersion": "6.17.0-1022-azure",
+                      "MinAPIVersion": "1.24",
+                      "Os": "linux"
+                    },
+                    "Name": "Engine",
+                    "Version": "28.0.4"
+                  },
+                  {
+                    "Details": {
+                      "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+                    },
+                    "Name": "containerd",
+                    "Version": "v2.3.6"
+                  },
+                  {
+                    "Details": {
+                      "GitCommit": "v1.5.1-0-g8f2685a4"
+                    },
+                    "Name": "runc",
+                    "Version": "1.5.1"
+                  },
+                  {
+                    "Details": {
+                      "GitCommit": "de40ad0"
+                    },
+                    "Name": "docker-init",
+                    "Version": "0.19.0"
+                  }
+                ],
+                "GitCommit": "6430e49",
+                "GoVersion": "go1.23.7",
+                "KernelVersion": "6.17.0-1022-azure",
+                "MinAPIVersion": "1.24",
+                "Os": "linux",
+                "Platform": {
+                  "Name": "Docker Engine - Community"
+                },
+                "Version": "28.0.4"
+              }
+            },
+            "host": "runnervmy3dvn",
+            "host_os": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
+            "idle_memory": "90.16MiB / 7.726GiB",
+            "image_bytes": 949186022,
+            "image_id": "sha256:7be21a360b83cae2c1a3529367bd187626aaed798223c67b27cbba63adeaa96e",
+            "image_platform": "linux/arm64",
+            "pull_seconds": null,
+            "render_cpu_seconds": 0.081,
+            "render_peak_memory": null,
+            "render_peak_rss_kib": 61552,
+            "render_seconds": 0.082,
+            "run_memory": null,
+            "start_to_setup_seconds": 1.728
+          },
+          {
+            "engine": "podman",
+            "engine_version": {
+              "Client": {
+                "APIVersion": "4.9.3",
+                "Built": 0,
+                "BuiltTime": "Thu Jan  1 00:00:00 1970",
+                "GitCommit": "",
+                "GoVersion": "go1.22.2",
+                "Os": "linux",
+                "OsArch": "linux/arm64",
+                "Version": "4.9.3"
+              }
+            },
+            "host": "runnervmy3dvn",
+            "host_os": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
+            "idle_memory": "91.13MB / 8.296GB",
+            "image_bytes": 980655357,
+            "image_id": "7be21a360b83cae2c1a3529367bd187626aaed798223c67b27cbba63adeaa96e",
+            "image_platform": "linux/arm64",
+            "pull_seconds": null,
+            "render_cpu_seconds": 0.082,
+            "render_peak_memory": null,
+            "render_peak_rss_kib": 61492,
+            "render_seconds": 0.083,
+            "run_memory": null,
+            "start_to_setup_seconds": 2.045
+          }
+        ]
+      }
+    },
+    "repository": "Luke-Pitstick/internship-pipeline",
+    "run_id": 37861200652,
+    "run_url": "https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/37861200652",
+    "source_commit": "25e97fbdda2b718616d56f2f06b9f5ec5c9af338",
+    "version": "v0.1.0-rc.1"
+  },
+  "image": "ghcr.io/luke-pitstick/internship-pipeline@sha256:616d882df67a978a8b7fd798d90cb6e4634caa03a4e63ffb09cb973f9788130d",
+  "launcher_sha256": "465efd89cae5d9753be6d2b85c3d5c329835f0931fc11549a76fa8cdeb3cdd1f",
+  "publication": "Draft prerelease; anonymous hosting and host acceptance remain separate.",
+  "repository": "Luke-Pitstick/internship-pipeline",
+  "schema": 1,
+  "source_commit": "25e97fbdda2b718616d56f2f06b9f5ec5c9af338",
+  "version": "v0.1.0-rc.1"
+}

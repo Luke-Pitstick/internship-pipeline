@@ -1,5 +1,7 @@
 # Downstream release work — October 8, 2026
 
+**October 9 execution update:** [RC1 staging evidence](rc1-staging.md) records the accepted 949-test/35-browser main candidate, both native runtime matrices, verified GHCR promotion and downloaded draft installer checks. The release remains draft; live, public-hosting, redistribution and operator/trial gates remain open. Older preparation snapshots below are historical.
+
 The local implementation for the remaining release tasks is ready for a new candidate. Release acceptance remains partial. Three GPT-6.1 Sol workers at high reasoning implemented and independently reviewed distribution, recovery and live-test preparation; the parent integrated native browser/resource work and combined verification.
 
 ## Task disposition

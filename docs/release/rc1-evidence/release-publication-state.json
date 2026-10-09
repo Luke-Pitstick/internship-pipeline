@@ -1,0 +1,46 @@
+{
+  "operations": [
+    {
+      "destination": "docker://ghcr.io/luke-pitstick/internship-pipeline:v0.1.0-rc.1-amd64",
+      "digest": "sha256:2b1c38d7c111bea1f1133ea4ad21ffb3773b1cab1ae374a5c68ad6128e6ccdef",
+      "status": "attempting"
+    },
+    {
+      "destination": "docker://ghcr.io/luke-pitstick/internship-pipeline:v0.1.0-rc.1-amd64",
+      "digest": "sha256:2b1c38d7c111bea1f1133ea4ad21ffb3773b1cab1ae374a5c68ad6128e6ccdef",
+      "status": "verified"
+    },
+    {
+      "destination": "docker://ghcr.io/luke-pitstick/internship-pipeline:v0.1.0-rc.1-arm64",
+      "digest": "sha256:6ce3236e8952da2b69544f37047294c53fff8e44175f8dbb9aaefb5b014fca69",
+      "status": "attempting"
+    },
+    {
+      "destination": "docker://ghcr.io/luke-pitstick/internship-pipeline:v0.1.0-rc.1-arm64",
+      "digest": "sha256:6ce3236e8952da2b69544f37047294c53fff8e44175f8dbb9aaefb5b014fca69",
+      "status": "verified"
+    },
+    {
+      "destination": "ghcr.io/luke-pitstick/internship-pipeline:v0.1.0-rc.1",
+      "digest": null,
+      "status": "attempting"
+    },
+    {
+      "destination": "ghcr.io/luke-pitstick/internship-pipeline:v0.1.0-rc.1",
+      "digest": "sha256:616d882df67a978a8b7fd798d90cb6e4634caa03a4e63ffb09cb973f9788130d",
+      "status": "verified"
+    },
+    {
+      "destination": "https://github.com/Luke-Pitstick/internship-pipeline/releases/tag/v0.1.0-rc.1",
+      "digest": null,
+      "status": "attempting"
+    },
+    {
+      "destination": "https://github.com/Luke-Pitstick/internship-pipeline/releases/tag/v0.1.0-rc.1",
+      "digest": null,
+      "status": "draft-created"
+    }
+  ],
+  "source_commit": "25e97fbdda2b718616d56f2f06b9f5ec5c9af338",
+  "version": "v0.1.0-rc.1"
+}
