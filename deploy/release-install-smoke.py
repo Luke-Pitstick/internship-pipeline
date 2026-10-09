@@ -1,4 +1,4 @@
-"""Exercise downloaded RC2 installers on disposable GitHub-hosted Linux runners.
+"""Exercise downloaded RC3 installers on disposable GitHub-hosted Linux runners.
 
 This is release acceptance tooling, never a user's upgrade/cleanup command. It
 prints only aggregate results; the runner owns all synthetic data until teardown.
@@ -19,12 +19,12 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "v0.1.0-rc.2"
+VERSION = "v0.1.0-rc.3"
 IMAGE = ("ghcr.io/luke-pitstick/internship-pipeline@sha256:"
-         "5d700842e195c43eef220f6db76e69656b5827741deb847498632810d172274d")
-LAUNCHER_SHA = "1ec2e6912ce8d69990a24384698c0298e4a2369acd08726eaf02ba4bf0cd4a7c"
+         "81538221a68875ceddcf7172f7918537ec4e736cd2cdd925cdb7e5c0082010ad")
+LAUNCHER_SHA = "3c64e271a8cb1a509861d3a87ae4ae8bae71a2c5e9a365284f01b9b272a18665"
 BOOTSTRAP_SHA = "431a9dc06b838fb93d94a698226ba6e6edc86772c4b1586566216b1c9c0fcca2"
-BUNDLE_SHA = "2dee1f2d36deca24eaa6fb5bbea5ccdf825ee9071e37fc1f70df07ef1aaa1120"
+BUNDLE_SHA = "7649055ce7e08703ad1738775ec4125e7ba1da86843a681138047f091f99b76a"
 
 
 def load(name: str, path: Path):

@@ -45,8 +45,8 @@ jobs:
           ENGINE: ${{ matrix.engine }}
         run: |
           set -eu
-          gh run download 37997738155 --name curl-release-37997738155 --dir "$RUNNER_TEMP/staging"
-          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.2.tar.gz; do
+          gh run download 37999393250 --name curl-release-37999393250 --dir "$RUNNER_TEMP/staging"
+          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.3.tar.gz; do
             cp "$RUNNER_TEMP/staging/release/$asset" "$RUNNER_TEMP/release-assets/$asset"
           done
           printf '%s' "$GH_TOKEN" | "$ENGINE" login ghcr.io -u "$ACTOR" --password-stdin
@@ -54,9 +54,9 @@ jobs:
         if: inputs.delivery == 'public-launcher'
         run: |
           set -eu
-          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.2.tar.gz; do
+          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.3.tar.gz; do
             curl --fail --location --proto '=https' --proto-redir '=https' \
-              "https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.2/$asset" \
+              "https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/$asset" \
               --output "$RUNNER_TEMP/release-assets/$asset"
           done
       - name: Execute downloaded installer and exact-image recovery
