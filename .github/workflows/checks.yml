@@ -78,3 +78,11 @@ jobs:
         working-directory: web
       - run: npx playwright test --config playwright.generation-policy.config.ts
         working-directory: web
+      - run: npx playwright test --config playwright.master.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.tailored.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.search.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.t09.config.ts
+        working-directory: web
