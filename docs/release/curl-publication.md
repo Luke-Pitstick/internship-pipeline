@@ -1,6 +1,6 @@
 # Curl installer publication
 
-**Current status (October 9):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 passed source/image and all four Linux registry-installer/recovery cells; it remains a private draft, with public, live and human/trial gates open. RC1 and RC2 are held drafts.
+**Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.
 
 **October 9 execution update:** [RC1 staging evidence](rc1-staging.md) records the accepted 949-test/35-browser main candidate, both native runtime matrices, verified GHCR promotion and downloaded draft installer checks. The release remains draft; live, public-hosting, redistribution and operator/trial gates remain open. Older preparation snapshots below are historical.
 

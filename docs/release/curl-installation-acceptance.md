@@ -1,5 +1,10 @@
 # Curl installation acceptance
 
+**Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes the historical
+preparation results below. All four anonymous Linux installer/recovery cells and one macOS
+arm64 Docker installation/lifecycle/recovery journey passed. Live providers, remaining
+host/operator scenarios and the operating trial remain separate gates.
+
 October 8, 2026. The generated launcher works through a real POSIX shell pipe against controlled download responses and an executable fake container runtime. Anonymous hosted installation and a real browser/container journey remain open; no publication, visibility changes, provider calls, emails or Sheet writes occurred.
 
 ## Executed user journey

@@ -11,8 +11,9 @@
 curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/install.sh | sh
 ```
 
-**Installation temporarily blocked:** RC3's installer downloads are public, but its container
-image still needs public access. The command cannot complete until that is enabled and verified.
+**RC3 preview:** public installation and backup/restore have passed on Ubuntu 24.04 with Docker
+and rootless Podman on amd64/arm64. Installation and Docker lifecycle/recovery also passed on
+macOS arm64. Remaining release checks are tracked in the [acceptance record](docs/release/rc3-status.md).
 
 You'll need **Python 3.12+, curl, and Docker or Podman**. The installer starts the app and prints
 your browser URL and owner setup instructions. See [requirements](#requirements) and
@@ -57,13 +58,12 @@ it fits, prepare a résumé and remember what happened next:
 ## Project status
 
 **v0.1.0-rc.3 is published as a preview release.** Its [acceptance record](docs/release/rc3-status.md)
-includes 956 Python tests, 35 browser cases, native container checks and actual registry-pulled
+includes 956 Python tests, 39 browser cases, native container checks and actual registry-pulled
 installer/backup/restore tests on Ubuntu 24.04 with Docker and rootless Podman, on amd64 and arm64.
 Model and delivery checks still use synthetic transports.
 
 > [!IMPORTANT]
-> The source repository and installer assets are public, but installation is not available yet:
-> anonymous container access is blocked and public installation has not passed. Live model, SMTP and Google Sheets
+> Public installation is available as a preview. Live model, SMTP and Google Sheets
 > acceptance, remaining host/operator checks and the operating trial remain open.
 > See the [release acceptance matrix](docs/release-readiness.md) before choosing a deployment path.
 
@@ -81,11 +81,11 @@ The launcher checks your prerequisites, creates persistent storage, starts the a
 prints the browser URL plus instructions for retrieving the owner setup token. Repeating the
 command preserves the existing installation, image and data; it does not perform an upgrade.
 
-**Public container access is still pending.** The installer assets download without credentials;
-the image must also be anonymously downloadable and the hosted path checked before use. The
+The installer assets and pinned image download without credentials, and the public launcher
+passed installation and recovery on all four Linux engine/architecture combinations. The
 [publication guide](docs/release/curl-publication.md) and
 [installation acceptance record](docs/release/curl-installation-acceptance.md) track that boundary.
-For now, maintainers can use the [source setup](#development) below.
+Maintainers can also use the [source setup](#development) below.
 
 ## Requirements
 
@@ -97,8 +97,8 @@ For the hosted installation:
 - Persistent local storage and a browser for owner setup.
 
 The installer guides missing prerequisite setup; it does not install system software or start a
-container VM. The Ubuntu 24.04 amd64/arm64 installer journeys above have passed; macOS and
-the remaining declared host/operator scenarios still need acceptance.
+container VM. Ubuntu 24.04 amd64/arm64 and one macOS arm64 Docker installation/recovery journey
+have passed; other macOS runtimes/architectures and remaining host/operator scenarios still need acceptance.
 If both runtimes are available, select one with `--runtime docker` or `--runtime podman`.
 
 You can claim the account and explore setup without model credentials. Matching requires a Jev
@@ -274,6 +274,25 @@ Install Playwright Chromium if it is unavailable. PDF tests require the local Te
 checks needed for a change.
 
 ## Troubleshooting
+
+### Docker or Podman is installed, but no healthy engine is found
+
+The installer needs a responding Linux engine, not only an installed CLI. On macOS, open
+Docker Desktop and wait for `docker info` to succeed before rerunning the installer:
+
+```sh
+open -a Docker
+docker info
+```
+
+For Podman on macOS, inspect `podman machine list` and start your existing machine with
+`podman machine start`. If the list is empty, initialize a machine with `podman machine init`
+before starting it. Confirm `podman info` succeeds. The installer preserves your selected
+connection and does not create or start VMs. If both engines are healthy, select one explicitly:
+
+```sh
+curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/install.sh | sh -s -- --runtime docker
+```
 
 ### The browser cannot connect
 

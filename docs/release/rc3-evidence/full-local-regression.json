@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-10",
+  "checkout_revision": "04528ea50cad9aa768a15c8cd5c82b6d75d6aee4",
+  "application_revision": "ba21d018ae679619e22c3dfd56a816ac2a7b1e1a",
+  "synthetic_providers": true,
+  "python": {
+    "passed": 956,
+    "elapsed_seconds": 145.6,
+    "warnings": 1
+  },
+  "browser": {
+    "passed": 39,
+    "configurations": [
+      {
+        "config": "playwright.config.ts",
+        "passed": 6,
+        "elapsed": "11.6s"
+      },
+      {
+        "config": "playwright.setup.config.ts",
+        "passed": 1,
+        "elapsed": "9.5s"
+      },
+      {
+        "config": "playwright.web-security.config.ts",
+        "passed": 25,
+        "elapsed": "27.6s"
+      },
+      {
+        "config": "playwright.email.config.ts",
+        "passed": 1,
+        "elapsed": "3.3s"
+      },
+      {
+        "config": "playwright.sheets.config.ts",
+        "passed": 1,
+        "elapsed": "6.1s"
+      },
+      {
+        "config": "playwright.generation-policy.config.ts",
+        "passed": 1,
+        "elapsed": "4.5s"
+      },
+      {
+        "config": "playwright.master.config.ts",
+        "passed": 1,
+        "elapsed": "8.8s"
+      },
+      {
+        "config": "playwright.tailored.config.ts",
+        "passed": 1,
+        "elapsed": "5.2s"
+      },
+      {
+        "config": "playwright.search.config.ts",
+        "passed": 1,
+        "elapsed": "12.5s"
+      },
+      {
+        "config": "playwright.t09.config.ts",
+        "passed": 1,
+        "elapsed": "17.6s"
+      }
+    ]
+  },
+  "other_checks": [
+    "Ruff",
+    "strict mypy (57 files)",
+    "Compose configuration",
+    "Svelte check (0 errors/warnings)",
+    "production build",
+    "bundle budget"
+  ]
+}

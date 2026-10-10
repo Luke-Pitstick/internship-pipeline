@@ -1,6 +1,6 @@
 # Image notice review — October 8, 2026
 
-**Current status (October 9):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 passed source/image and all four Linux registry-installer/recovery cells; it remains a private draft, with public, live and human/trial gates open. RC1 and RC2 are held drafts.
+**Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.
 
 The accepted amd64 OCI artifact from [run 37838328196](https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/37838328196), source `df4835f7674007de38a45045f593c5a0b314b680`, was inspected without executing it. Its config digest is `sha256:c0e002c301d6c50ed336090c3d2f542313479e4554d93c3eb2e397ce01b5bcc6`. The [path/hash inventory](image-notice-inventory-df4835f.json) records 467 observed Debian, TeX and Python notice files. The SBOM has 300 package entries, including duplicates/build-cache entries, and 85 entries with `NOASSERTION`; those counts are not a count of unique runtime dependencies or a finding that those packages lack licenses.
 

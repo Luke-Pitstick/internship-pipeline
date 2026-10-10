@@ -1,6 +1,6 @@
 # v0.1.0-rc.1 staging — October 9, 2026
 
-**Current status (October 9):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 passed source/image and all four Linux registry-installer/recovery cells; it remains a private draft, with public, live and human/trial gates open. RC1 and RC2 are held drafts.
+**Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.
 
 **A verified draft prerelease exists; public release acceptance is incomplete.** The draft targets `25e97fbdda2b718616d56f2f06b9f5ec5c9af338`. [Candidate run 37861200652](https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/37861200652) passed on the default branch; [staging run 37886214373](https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/37886214373) passed both validation and promotion. The [draft release](https://github.com/Luke-Pitstick/internship-pipeline/releases/tag/untagged-2ae9ba13d1d1b29fb8d7) is visible to authorized repository users. Its temporary draft URL is not the generated versioned install URL.
 
