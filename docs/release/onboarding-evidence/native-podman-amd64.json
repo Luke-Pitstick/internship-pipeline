@@ -1,0 +1,27 @@
+{
+  "host_os": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "engine": "podman",
+  "engine_version": {
+    "Client": {
+      "APIVersion": "4.9.3",
+      "Version": "4.9.3",
+      "GoVersion": "go1.22.2",
+      "GitCommit": "",
+      "BuiltTime": "Thu Jan  1 00:00:00 1970",
+      "Built": 0,
+      "OsArch": "linux/amd64",
+      "Os": "linux"
+    }
+  },
+  "pull_seconds": null,
+  "run_memory": null,
+  "render_peak_memory": null,
+  "image_id": "d97a793ff0fd22e0db1425d1f8e41fd958b83d7fc056e54ce7a1ed49ee941ec5",
+  "image_bytes": 963903298,
+  "image_platform": "linux/amd64",
+  "start_to_setup_seconds": 1.894,
+  "idle_memory": "91.49MB / 16.77GB",
+  "render_seconds": 0.088,
+  "render_peak_rss_kib": 63152,
+  "render_cpu_seconds": 0.087
+}

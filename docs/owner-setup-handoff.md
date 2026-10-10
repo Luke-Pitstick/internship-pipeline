@@ -8,8 +8,8 @@ The secret travels in `#setup=...`, so it is absent from HTTP request targets an
 
 ## Validation on October 10, 2026
 
-- The complete backend regression passed: 961 tests. Six subsequently added host-opening cases also passed in the eight-case targeted opening run.
+- The complete hosted backend regression passed: **967 tests**, including all new setup-link and host-opening cases. The local full run passed 961 tests before the final six cases were added; the subsequent targeted opening run passed all eight cases.
 - All 39 browser tests passed across all ten configurations, including account creation, first-run guided setup, sign-in/logout and existing settings/workflows. The account test checks two fields, absent/invalid links, fragment removal, reload retention, no secret in request URLs/page text, and removal after claim.
 - Desktop and 390-pixel mobile screenshots were inspected; the form fits without horizontal overflow.
 - Ruff, strict mypy, Svelte checking, production build and bundle budget passed. Compressed JavaScript is 80,499 gzip bytes against a 200,000-byte budget.
-- Actual-container and publication evidence is recorded separately; source/native/browser checks alone do not certify a published release.
+- Actual ARM64 Docker lifecycle/recovery passed on macOS. The [same-source candidate workflow](https://github.com/Luke-Pitstick/internship-pipeline/actions/runs/38076455270) passed source checks and full Docker/Podman lifecycle/recovery on native AMD64 and ARM64. Published installer acceptance remains a separate check.

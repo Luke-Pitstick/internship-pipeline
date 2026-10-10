@@ -1,0 +1,83 @@
+{
+  "host_os": "macOS-26.6.2-arm64-arm-64bit",
+  "engine": "docker",
+  "engine_version": {
+    "Client": {
+      "Platform": {
+        "Name": "Docker Engine - Community"
+      },
+      "Version": "29.2.1",
+      "ApiVersion": "1.51",
+      "DefaultAPIVersion": "1.53",
+      "GitCommit": "a5c7197d72",
+      "GoVersion": "go1.25.6",
+      "Os": "darwin",
+      "Arch": "arm64",
+      "BuildTime": "Mon Feb  2 16:33:58 2026",
+      "Context": "default"
+    },
+    "Server": {
+      "Platform": {
+        "Name": "Docker Desktop 4.47.0 (206054)"
+      },
+      "Version": "28.4.0",
+      "ApiVersion": "1.51",
+      "MinAPIVersion": "1.24",
+      "Os": "linux",
+      "Arch": "arm64",
+      "Components": [
+        {
+          "Name": "Engine",
+          "Version": "28.4.0",
+          "Details": {
+            "ApiVersion": "1.51",
+            "Arch": "arm64",
+            "BuildTime": "Wed Sep  3 20:58:53 2025",
+            "Experimental": "false",
+            "GitCommit": "249d679",
+            "GoVersion": "go1.24.7",
+            "KernelVersion": "6.10.14-linuxkit",
+            "MinAPIVersion": "1.24",
+            "Os": "linux"
+          }
+        },
+        {
+          "Name": "containerd",
+          "Version": "1.7.27",
+          "Details": {
+            "GitCommit": "05044ec0a9a75232cad458027ca83437aae3f4da"
+          }
+        },
+        {
+          "Name": "runc",
+          "Version": "1.2.5",
+          "Details": {
+            "GitCommit": "v1.2.5-0-g59923ef"
+          }
+        },
+        {
+          "Name": "docker-init",
+          "Version": "0.19.0",
+          "Details": {
+            "GitCommit": "de40ad0"
+          }
+        }
+      ],
+      "GitCommit": "249d679",
+      "GoVersion": "go1.24.7",
+      "KernelVersion": "6.10.14-linuxkit",
+      "BuildTime": "2025-09-03T20:58:53.000000000+00:00"
+    }
+  },
+  "pull_seconds": null,
+  "run_memory": null,
+  "render_peak_memory": null,
+  "image_id": "sha256:d350006716b43b1005346b4f8a85bd9f522ed1b91d3195a162e9946b08f10c19",
+  "image_bytes": 949217680,
+  "image_platform": "linux/arm64",
+  "start_to_setup_seconds": 1.993,
+  "idle_memory": "89.94MiB / 7.654GiB",
+  "render_seconds": 0.087,
+  "render_peak_rss_kib": 61536,
+  "render_cpu_seconds": 0.086
+}

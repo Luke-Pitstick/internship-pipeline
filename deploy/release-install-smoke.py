@@ -1,4 +1,4 @@
-"""Exercise downloaded RC3 installers on disposable GitHub-hosted Linux runners.
+"""Exercise downloaded RC4 installers on disposable GitHub-hosted Linux runners.
 
 This is release acceptance tooling, never a user's upgrade/cleanup command. It
 prints only aggregate results; the runner owns all synthetic data until teardown.
@@ -19,12 +19,12 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "v0.1.0-rc.3"
+VERSION = "v0.1.0-rc.4"
 IMAGE = ("ghcr.io/luke-pitstick/internship-pipeline@sha256:"
-         "81538221a68875ceddcf7172f7918537ec4e736cd2cdd925cdb7e5c0082010ad")
-LAUNCHER_SHA = "3c64e271a8cb1a509861d3a87ae4ae8bae71a2c5e9a365284f01b9b272a18665"
+         "fa6699ac2501879026bf3604718aa920dc60195aeff0031c9065e372159e8955")
+LAUNCHER_SHA = "eeb310d281e30e7b1101a189796de62a5bd357cc7e21c0c0efa570f1adae359d"
 BOOTSTRAP_SHA = "431a9dc06b838fb93d94a698226ba6e6edc86772c4b1586566216b1c9c0fcca2"
-BUNDLE_SHA = "7649055ce7e08703ad1738775ec4125e7ba1da86843a681138047f091f99b76a"
+BUNDLE_SHA = "6944a906ce23ed723c6678e51ff7c42e882e1b3642f028e40d7cb055617a63bb"
 
 
 def load(name: str, path: Path):
@@ -76,7 +76,7 @@ def main() -> None:
     extracted.mkdir()
     local_launcher = bootstrap.unpack(bundle, extracted, VERSION) / "install.sh"
     launcher = assets / "install.sh" if args.delivery == "public-launcher" else local_launcher
-    base = ["sh", str(launcher)]
+    base = ["sh", str(launcher), "--no-open"]
     source = root / "source"
     source_command = root / "source-command"
     restored = root / "restored"
@@ -86,7 +86,7 @@ def main() -> None:
     if args.delivery == "staged-bundle":
         first += ["--image", IMAGE]
     started = time.monotonic()
-    command(*first)
+    installation_output = command(*first)
     installed_seconds = round(time.monotonic() - started, 3)
     manifest = json.loads((source / "installation.json").read_text())
     smoke.require(manifest["image"] == IMAGE, "Installer selected another image")
@@ -102,11 +102,16 @@ def main() -> None:
     native_state = json.loads(smoke.docker("inspect", container))[0]["State"]
     smoke.require(browser.request("/")[0] == 200, "Frontend unavailable")
     smoke.require(browser.request("/api/jobs")[0] == 401, "Jobs exposed before claim")
-    tokens = re.findall(r"Owner setup token: (\S+)", smoke.docker("logs", container))
-    smoke.require(len(tokens) == 1, "Missing unique setup token")
+    tokens = re.findall(
+        rb"Open your workspace: " + re.escape(manifest["origin"].encode())
+        + rb"/#setup=([A-Za-z0-9_-]{43})", installation_output,
+    )
+    smoke.require(len(tokens) == 1, "Missing unique private browser setup link")
     credentials = {"username": "synthetic-owner", "password": "synthetic-release-password"}
     csrf = browser.json("/api/session")["csrf"]
-    csrf = browser.json("/api/claim", {**credentials, "setup_token": tokens[0]}, csrf)["csrf"]
+    csrf = browser.json(
+        "/api/claim", {**credentials, "setup_token": tokens[0].decode()}, csrf,
+    )["csrf"]
     browser.json("/api/onboarding/checkpoint", {"step": "models", "defer_models": True}, csrf)
     smoke.require(json.loads(command(manager, "status"))["ready"] is True,
                   "Installed status did not report readiness")
