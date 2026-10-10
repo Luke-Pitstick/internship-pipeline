@@ -8,15 +8,15 @@
 ## Install with one command
 
 ```sh
-curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/install.sh | sh
+curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.4/install.sh | sh
 ```
 
-**RC3 preview:** public installation and backup/restore have passed on Ubuntu 24.04 with Docker
+**RC4 preview:** public installation and backup/restore have passed on Ubuntu 24.04 with Docker
 and rootless Podman on amd64/arm64. Installation and Docker lifecycle/recovery also passed on
-macOS arm64. Remaining release checks are tracked in the [acceptance record](docs/release/rc3-status.md).
+macOS arm64. Remaining release checks are tracked in the [acceptance record](docs/release/rc4-status.md).
 
-You'll need **Python 3.12+, curl, and Docker or Podman**. The installer starts the app and prints
-your browser URL and owner setup instructions. See [requirements](#requirements) and
+You'll need **Python 3.12+, curl, and Docker or Podman**. The installer starts the app and opens
+account setup with just username and password. See [requirements](#requirements) and
 [first-time setup](#quick-start).
 
 <p align="center">
@@ -57,8 +57,8 @@ it fits, prepare a résumé and remember what happened next:
 
 ## Project status
 
-**v0.1.0-rc.3 is published as a preview release.** Its [acceptance record](docs/release/rc3-status.md)
-includes 956 Python tests, 39 browser cases, native container checks and actual registry-pulled
+**v0.1.0-rc.4 is published as a preview release.** Its [acceptance record](docs/release/rc4-status.md)
+includes 967 Python tests, 39 browser cases, native container checks and actual registry-pulled
 installer/backup/restore tests on Ubuntu 24.04 with Docker and rootless Podman, on amd64 and arm64.
 Model and delivery checks still use synthetic transports.
 
@@ -294,7 +294,7 @@ before starting it. Confirm `podman info` succeeds. The installer preserves your
 connection and does not create or start VMs. If both engines are healthy, select one explicitly:
 
 ```sh
-curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.3/install.sh | sh -s -- --runtime docker
+curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.4/install.sh | sh -s -- --runtime docker
 ```
 
 ### The browser cannot connect

@@ -1,0 +1,17 @@
+{
+  "version": "v0.1.0-rc.4",
+  "source_commit": "28903c04f84fdde8976e3c0d73575a3cf13989ac",
+  "image": "ghcr.io/luke-pitstick/internship-pipeline@sha256:fa6699ac2501879026bf3604718aa920dc60195aeff0031c9065e372159e8955",
+  "public_curl_installer": true,
+  "delivery": "public",
+  "api_account_flow": {
+    "claim": true,
+    "logout": true,
+    "login": true,
+    "anonymous_denied": true
+  },
+  "rerun_preserved_manifest": true,
+  "claimed_rerun_normal_sign_in": true,
+  "loopback_only": true,
+  "fixture_cleaned": true
+}

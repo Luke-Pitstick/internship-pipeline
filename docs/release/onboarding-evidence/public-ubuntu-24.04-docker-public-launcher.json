@@ -1,0 +1,114 @@
+{
+  "version": "v0.1.0-rc.4",
+  "image": "ghcr.io/luke-pitstick/internship-pipeline@sha256:fa6699ac2501879026bf3604718aa920dc60195aeff0031c9065e372159e8955",
+  "config_digest": "sha256:d97a793ff0fd22e0db1425d1f8e41fd958b83d7fc056e54ce7a1ed49ee941ec5",
+  "engine": "docker",
+  "architecture": "x86_64",
+  "delivery": "public-launcher",
+  "engine_version": {
+    "Client": {
+      "Platform": {
+        "Name": "Docker Engine - Community"
+      },
+      "Version": "28.0.4",
+      "ApiVersion": "1.48",
+      "DefaultAPIVersion": "1.48",
+      "GitCommit": "b8034c0",
+      "GoVersion": "go1.23.7",
+      "Os": "linux",
+      "Arch": "amd64",
+      "BuildTime": "Tue Mar 25 15:07:16 2025",
+      "Context": "default"
+    },
+    "Server": {
+      "Platform": {
+        "Name": "Docker Engine - Community"
+      },
+      "Components": [
+        {
+          "Name": "Engine",
+          "Version": "28.0.4",
+          "Details": {
+            "ApiVersion": "1.48",
+            "Arch": "amd64",
+            "BuildTime": "Tue Mar 25 15:07:16 2025",
+            "Experimental": "false",
+            "GitCommit": "6430e49",
+            "GoVersion": "go1.23.7",
+            "KernelVersion": "6.17.0-1022-azure",
+            "MinAPIVersion": "1.24",
+            "Os": "linux"
+          }
+        },
+        {
+          "Name": "containerd",
+          "Version": "v2.3.6",
+          "Details": {
+            "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+          }
+        },
+        {
+          "Name": "runc",
+          "Version": "1.5.1",
+          "Details": {
+            "GitCommit": "v1.5.1-0-g8f2685a4"
+          }
+        },
+        {
+          "Name": "docker-init",
+          "Version": "0.19.0",
+          "Details": {
+            "GitCommit": "de40ad0"
+          }
+        }
+      ],
+      "Version": "28.0.4",
+      "ApiVersion": "1.48",
+      "MinAPIVersion": "1.24",
+      "GitCommit": "6430e49",
+      "GoVersion": "go1.23.7",
+      "Os": "linux",
+      "Arch": "amd64",
+      "KernelVersion": "6.17.0-1022-azure",
+      "BuildTime": "2025-03-25T15:07:16.000000000+00:00"
+    }
+  },
+  "native_state_keys": [
+    "Dead",
+    "Error",
+    "ExitCode",
+    "FinishedAt",
+    "Health",
+    "OOMKilled",
+    "Paused",
+    "Pid",
+    "Restarting",
+    "Running",
+    "StartedAt",
+    "Status"
+  ],
+  "native_health_status": "healthy",
+  "install_seconds": 26.967,
+  "synthetic_pdf_metrics": {
+    "render_seconds": 0.092,
+    "render_peak_rss_kib": 63556,
+    "render_cpu_seconds": 0.09
+  },
+  "passed": [
+    "asset_hashes",
+    "fresh_install",
+    "owner_claim",
+    "saved_rerun",
+    "management",
+    "stopped_backup",
+    "fresh_installer_restore",
+    "revoked_source_session",
+    "restored_login",
+    "synthetic_job",
+    "encrypted_connections_and_pdf",
+    "source_and_backup_preserved",
+    "image_notices"
+  ],
+  "live_providers": false,
+  "unfamiliar_operator": false
+}

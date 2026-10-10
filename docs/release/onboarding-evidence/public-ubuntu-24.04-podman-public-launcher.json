@@ -1,0 +1,63 @@
+{
+  "version": "v0.1.0-rc.4",
+  "image": "ghcr.io/luke-pitstick/internship-pipeline@sha256:fa6699ac2501879026bf3604718aa920dc60195aeff0031c9065e372159e8955",
+  "config_digest": "sha256:d97a793ff0fd22e0db1425d1f8e41fd958b83d7fc056e54ce7a1ed49ee941ec5",
+  "engine": "podman",
+  "architecture": "x86_64",
+  "delivery": "public-launcher",
+  "engine_version": {
+    "Client": {
+      "APIVersion": "4.9.3",
+      "Version": "4.9.3",
+      "GoVersion": "go1.22.2",
+      "GitCommit": "",
+      "BuiltTime": "Thu Jan  1 00:00:00 1970",
+      "Built": 0,
+      "OsArch": "linux/amd64",
+      "Os": "linux"
+    }
+  },
+  "native_state_keys": [
+    "CgroupPath",
+    "CheckpointedAt",
+    "ConmonPid",
+    "Dead",
+    "Error",
+    "ExitCode",
+    "FinishedAt",
+    "Health",
+    "OOMKilled",
+    "OciVersion",
+    "Paused",
+    "Pid",
+    "Restarting",
+    "RestoredAt",
+    "Running",
+    "StartedAt",
+    "Status"
+  ],
+  "native_health_status": "healthy",
+  "install_seconds": 37.254,
+  "synthetic_pdf_metrics": {
+    "render_seconds": 0.077,
+    "render_peak_rss_kib": 63160,
+    "render_cpu_seconds": 0.076
+  },
+  "passed": [
+    "asset_hashes",
+    "fresh_install",
+    "owner_claim",
+    "saved_rerun",
+    "management",
+    "stopped_backup",
+    "fresh_installer_restore",
+    "revoked_source_session",
+    "restored_login",
+    "synthetic_job",
+    "encrypted_connections_and_pdf",
+    "source_and_backup_preserved",
+    "image_notices"
+  ],
+  "live_providers": false,
+  "unfamiliar_operator": false
+}
