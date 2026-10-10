@@ -14,8 +14,27 @@
   const api = new Api(() => { session = null; refresh(); });
   let setupPending = $state(false);
   setContext('api', api);
+  function captureSetupLink() {
+    const fragment = new URLSearchParams(location.hash.slice(1));
+    const token = fragment.get('setup');
+    if (token !== null) {
+      history.replaceState(history.state, '', location.pathname + location.search);
+      if (/^[A-Za-z0-9_-]{43}$/.test(token)) sessionStorage.setItem('pipeline-setup', token);
+      else sessionStorage.removeItem('pipeline-setup');
+    }
+    if (session?.claimed) clearSetupLink();
+    else setupToken = sessionStorage.getItem('pipeline-setup') ?? '';
+  }
+  function clearSetupLink() {
+    setupToken = '';
+    sessionStorage.removeItem('pipeline-setup');
+  }
   async function refresh() {
-    try { session = await api.session(); error = ''; if(session.authenticated) await checkSetup(); }
+    try {
+      session = await api.session(); error = '';
+      if (session.claimed) clearSetupLink();
+      if(session.authenticated) await checkSetup();
+    }
     catch { error = 'The application could not be reached. Retry when it is available.'; }
   }
   async function checkSetup() {
@@ -25,15 +44,19 @@
       if (setupPending && !setup.has_jobs && page.url.pathname === '/') await goto('/setup/');
     } catch { /* The setup screen exposes its own retry if unavailable. */ }
   }
-  onMount(refresh);
-  afterNavigate(() => { if (session?.authenticated) void checkSetup(); });
+  onMount(() => {
+    captureSetupLink(); void refresh();
+    window.addEventListener('hashchange', captureSetupLink);
+    return () => window.removeEventListener('hashchange', captureSetupLink);
+  });
+  afterNavigate(() => { captureSetupLink(); if (session?.authenticated) void checkSetup(); });
   async function submit(event: SubmitEvent) {
     event.preventDefault(); busy = true; error = '';
     try {
       session = await api.request<Session>(session?.claimed ? '/api/login' : '/api/claim', {
         username, password, ...(!session?.claimed ? { setup_token: setupToken } : {})
       });
-      api.csrf = session.csrf; password = ''; setupToken = '';
+      api.csrf = session.csrf; password = ''; clearSetupLink();
       await checkSetup();
     } catch (reason) { error = (reason as Error).message; }
     finally { busy = false; }
@@ -60,16 +83,15 @@
     {@render children()}
   {:else if session}
     <section class="auth-panel settings-panel">
-      <p class="eyebrow">YOUR PRIVATE WORKSPACE</p>
       <h1>{session.claimed ? 'Welcome back.' : 'Make it yours.'}</h1>
       <p class="intro">{session.claimed ? 'Sign in to your internship workspace.' : 'Create the owner account to claim this instance. No model credentials or profile are needed yet.'}</p>
       <form onsubmit={submit}>
-        {#if !session.claimed}<label for="setup-token">Operator setup token</label><input id="setup-token" type="password" bind:value={setupToken} required maxlength="100" autocomplete="off" /><p class="field-help">Find this one-time token in your container’s startup logs.</p>{/if}
         <label for="username">Username</label><input id="username" bind:value={username} required maxlength="80" autocomplete="username" />
         <label for="password">Password</label><input id="password" type="password" bind:value={password} minlength={session.claimed ? 1 : 12} maxlength="256" required autocomplete={session.claimed ? 'current-password' : 'new-password'} />
         {#if !session.claimed}<p class="field-help">Use at least 12 characters. Store this password in your password manager.</p>{/if}
+        {#if !session.claimed && !setupToken}<p class="field-help" role="status">Open the private setup link printed by the installer, or run <code>internship-pipeline open</code> on the host to open it automatically.</p>{/if}
         {#if error}<p class="error" role="alert">{error}</p>{/if}
-        <button class="primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : session.claimed ? 'Sign in' : 'Create owner account'}</button>
+        <button class="primary" type="submit" disabled={busy || (!session.claimed && !setupToken)}>{busy ? 'Please wait…' : session.claimed ? 'Sign in' : 'Create owner account'}</button>
       </form>
       {#if session.claimed}<p class="field-help">Forgot your password? The instance operator can recover the account from the local command line.</p>{/if}
     </section>

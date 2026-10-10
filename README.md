@@ -78,7 +78,8 @@ and pinned container image. You won't need to clone the repository or supply che
 or API keys to the command.
 
 The launcher checks your prerequisites, creates persistent storage, starts the application and
-prints the browser URL plus instructions for retrieving the owner setup token. Repeating the
+opens your browser to a private setup link where you choose a username and password. On a
+headless host, open the printed private link yourself. Repeating the
 command preserves the existing installation, image and data; it does not perform an upgrade.
 
 The installer assets and pinned image download without credentials, and the public launcher
@@ -107,9 +108,10 @@ Sheets are optional. No numerical memory or disk minimum is certified yet.
 
 ## Quick start
 
-After installation prints its ready URL, read the **Owner setup token** privately using the
-printed log command, open the URL (normally [http://localhost:8080](http://localhost:8080)) and
-claim the owner account. Keep the log private: the first-boot token authorizes account creation.
+The installer opens your browser to account setup. Choose a username and a password of at least
+12 characters; no setup token needs to be copied or typed. If the browser does not open, use the
+printed private setup link or run `internship-pipeline open` on the host. Keep that link private:
+it authorizes the first account. After setup, the ordinary URL shows username/password sign-in.
 
 Then complete the guided setup:
 
@@ -248,7 +250,8 @@ uv run --frozen python -m internship_pipeline.bootstrap
 ```
 
 Keep that terminal running and open the local URL. The command creates an ignored local
-installation, prints its owner setup token and supervises the app and ready workers.
+installation, prints its private **Owner setup URL** and supervises the app and ready workers. Open that full
+link to choose your username and password.
 Use synthetic profiles and provider transports for development.
 
 Run the core checks from the repository root:
@@ -300,9 +303,11 @@ For a hosted installation, inspect `internship-pipeline status` and `internship-
 For source Compose, inspect `docker compose ps`. Confirm the selected runtime is running and open
 the configured origin. Preserve the existing volume while diagnosing startup problems.
 
-### The setup token is rejected
+### The setup link is missing or expired
 
-The token is single-use. If the installation is already claimed, sign in with the owner account.
+Run `internship-pipeline open` on the host to open a fresh private setup link. Old setup links
+are single-use and are invalidated when a new one is issued. If the installation is already
+claimed, the command opens ordinary owner sign-in.
 For a lost password, use the stopped-installation [owner recovery procedure](docs/deployment.md#account-recovery).
 
 ### No jobs or résumé drafts appear

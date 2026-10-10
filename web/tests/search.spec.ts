@@ -1,8 +1,8 @@
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 test('saved searches persist backlog review budgets pause history and reconnect with real API worker',async({page})=>{
-  await page.goto('/settings/');
-  await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results/search-setup.json','utf8')).token);
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results/search-setup.json','utf8')).token}`);
+
   await page.getByLabel('Username',{exact:true}).fill('synthetic-owner');
   await page.getByLabel('Password',{exact:true}).fill('synthetic-owner-password');
   await page.getByRole('button',{name:'Create owner account'}).click();

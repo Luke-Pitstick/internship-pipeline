@@ -2,9 +2,9 @@
   "method": "Sum each independently compressed static JavaScript asset, including both routes. Conservative upper bound on initial JS; excludes maps, CSS, HTML, design assets.",
   "budgetBytes": 200000,
   "total": {
-    "rawBytes": 221434,
-    "gzipBytes": 80309,
-    "brotliBytes": 70187
+    "rawBytes": 221855,
+    "gzipBytes": 80499,
+    "brotliBytes": 70359
   },
   "underBudget": true,
   "assets": [
@@ -69,7 +69,7 @@
       "brotliBytes": 26
     },
     {
-      "path": "build/_app/immutable/entry/app.59ZGEUL6.js",
+      "path": "build/_app/immutable/entry/app.DrVoLkvp.js",
       "rawBytes": 1659,
       "gzipBytes": 754,
       "brotliBytes": 701
@@ -87,10 +87,10 @@
       "brotliBytes": 299
     },
     {
-      "path": "build/_app/immutable/nodes/0.E7coeZAm.js",
-      "rawBytes": 5272,
-      "gzipBytes": 2459,
-      "brotliBytes": 2030
+      "path": "build/_app/immutable/nodes/0.-R6zOXuQ.js",
+      "rawBytes": 5693,
+      "gzipBytes": 2649,
+      "brotliBytes": 2202
     },
     {
       "path": "build/_app/immutable/nodes/1.7ku88tcv.js",

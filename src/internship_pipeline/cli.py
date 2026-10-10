@@ -14,6 +14,7 @@ import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -39,11 +40,15 @@ def parser() -> argparse.ArgumentParser:
         "--config", type=Path, help="Settings YAML; relative paths use the working directory"
     )
     commands = cli.add_subparsers(dest="command", required=True)
-    for name in ("recover-owner", "setup-token"):
+    for name in ("recover-owner", "setup-token", "setup-link"):
         account = commands.add_parser(name, help="Local operator account recovery")
         account.add_argument(
             "--data-dir", type=Path, default=Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
         )
+        if name == "setup-link":
+            account.add_argument(
+                "--origin", default=os.getenv("PIPELINE_ORIGIN", "http://localhost:8080")
+            )
     scan = commands.add_parser("scan", help="Run one collection pass and available downstream work")
     scan.add_argument(
         "--once", action="store_true", help="Explicitly select the default one-shot mode"
@@ -216,9 +221,29 @@ def _main(argv: list[str] | None = None) -> int:
                 result = restore_installation(args.source, args.destination)
             print(json.dumps(result))
             return 0
-        if args.command in {"recover-owner", "setup-token"}:
+        if args.command in {"recover-owner", "setup-token", "setup-link"}:
             from internship_pipeline.identity import Identity
 
+            if args.command == "setup-link":
+                origin = urlsplit(args.origin)
+                if (
+                    origin.scheme not in {"https", "http"}
+                    or not origin.hostname
+                    or origin.username
+                    or origin.password
+                    or origin.path
+                    or origin.query
+                    or origin.fragment
+                    or (
+                        origin.scheme == "http"
+                        and origin.hostname not in {"localhost", "127.0.0.1", "::1"}
+                    )
+                ):
+                    raise ValueError("Use an HTTPS origin or a loopback HTTP origin")
+                identity = Identity(args.data_dir / "identity.sqlite3")
+                token = identity.setup_token(rotate=True)
+                print(args.origin + (f"/#setup={token}" if token else "/"))
+                return 0
             identity = Identity(args.data_dir / "identity.sqlite3")
             if args.command == "setup-token":
                 token = identity.setup_token(rotate=True)
@@ -348,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in {"backup", "restore"}:
         return _main(argv)
     try:
-        if args.command in {"recover-owner", "setup-token"}:
+        if args.command in {"recover-owner", "setup-token", "setup-link"}:
             root = args.data_dir
         else:
             settings = load_settings(args.config)

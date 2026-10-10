@@ -46,3 +46,39 @@ def test_native_recovery_refuses_active_lock_then_rotates_stopped_token(tmp_path
     rotated = capsys.readouterr().out.strip().removeprefix("Owner setup token: ")
     assert rotated and rotated != original
     assert account.claim(rotated, "synthetic-owner", "synthetic-password-123")
+
+
+def test_setup_link_works_with_running_service_and_cannot_reopen_owner(tmp_path, capsys):
+    account = Identity(tmp_path / "identity.sqlite3")
+    original = account.setup_token()
+    args = ["setup-link", "--data-dir", str(tmp_path), "--origin", "http://localhost:8080"]
+    with installation_lock(tmp_path):
+        assert cli.main(args) == 0
+    url = capsys.readouterr().out.strip()
+    assert url.startswith("http://localhost:8080/#setup=")
+    token = url.split("#setup=")[1]
+    assert len(token) == 43 and token != original
+    with pytest.raises(ValueError):
+        account.claim(original, "synthetic-owner", "synthetic-password-123")
+    account.claim(token, "synthetic-owner", "synthetic-password-123")
+    assert cli.main(args) == 0
+    assert capsys.readouterr().out.strip() == "http://localhost:8080/"
+    with pytest.raises(ValueError):
+        account.claim(token, "another-owner", "synthetic-password-123")
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://example.com",
+        "https://example.com/#secret",
+        "https://u:p@example.com",
+        "https://example.com/path",
+    ],
+)
+def test_setup_link_rejects_unsafe_origins_without_rotating(tmp_path, capsys, origin):
+    account = Identity(tmp_path / "identity.sqlite3")
+    original = account.setup_token()
+    assert cli.main(["setup-link", "--data-dir", str(tmp_path), "--origin", origin]) == 2
+    assert "#setup=" not in capsys.readouterr().out
+    account.claim(original, "synthetic-owner", "synthetic-password-123")

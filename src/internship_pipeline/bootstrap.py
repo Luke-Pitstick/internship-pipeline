@@ -55,7 +55,8 @@ def _main() -> int:
     Store(settings.database_path)
     identity = Identity(root / "identity.sqlite3")
     if token := identity.setup_token():
-        print(f"Owner setup token: {token}", flush=True)
+        origin = os.getenv("PIPELINE_ORIGIN", "http://localhost:8080").rstrip("/")
+        print(f"Owner setup URL: {origin}/#setup={token}", flush=True)
     roles = configured_roles(settings) if identity.claimed() else []
     print(
         f"Starting application; active workers: {', '.join(roles) or 'none (setup mode)'}",

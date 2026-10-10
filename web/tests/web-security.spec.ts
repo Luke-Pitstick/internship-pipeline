@@ -2,10 +2,9 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 const username='synthetic-security-owner', password='synthetic-security-password';
 async function owner(page:Page) {
-  await page.goto('/settings/');
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-web-security/setup.json','utf8')).token}`);
   await expect(page.getByRole('button',{name:'Notifications & Integrations',exact:true}).or(page.getByLabel('Username',{exact:true}))).toBeVisible();
-  if(await page.getByLabel('Operator setup token').isVisible()) {
-    await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results-web-security/setup.json','utf8')).token);
+  if(await page.getByRole('button', {name: 'Create owner account'}).isVisible()) {
     await page.getByLabel('Username',{exact:true}).fill(username);
     await page.getByLabel('Password',{exact:true}).fill(password);
     await page.getByRole('button',{name:'Create owner account'}).click();

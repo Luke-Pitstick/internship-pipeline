@@ -3,8 +3,8 @@ import {readFile} from 'node:fs/promises';
 
 test('fresh browser setup resumes imported facts, models, skips, failed source correction and useful jobs',async({page})=>{
   test.setTimeout(90000);
-  await page.goto('/');
-  await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results-setup/setup.json','utf8')).token);
+  await page.goto(`/#setup=${JSON.parse(await readFile('test-results-setup/setup.json','utf8')).token}`);
+
   await page.getByLabel('Username',{exact:true}).fill('synthetic-owner');
   await page.getByLabel('Password',{exact:true}).fill('synthetic-owner-password');
   await page.getByRole('button',{name:'Create owner account'}).click();

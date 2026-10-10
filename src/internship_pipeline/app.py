@@ -178,7 +178,7 @@ def create_app(
         async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             with installation_lock(root):
                 if token := identity.setup_token():
-                    print(f"Owner setup token: {token}", flush=True)
+                    print(f"Owner setup URL: {origin}/#setup={token}", flush=True)
                 yield
 
         app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)

@@ -1,8 +1,8 @@
 import {test, expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 test('off default, qualifying preview, automatic draft, persistent disable and manual action', async ({page}) => {
-  await page.goto('/settings/');
-  await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results-generation-policy/setup.json','utf8')).token);
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-generation-policy/setup.json','utf8')).token}`);
+
   await page.getByLabel('Username', {exact:true}).fill('synthetic-policy-owner');
   await page.getByLabel('Password', {exact:true}).fill('synthetic-policy-password');
   await page.getByRole('button', {name:'Create owner account'}).click();

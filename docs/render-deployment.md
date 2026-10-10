@@ -2,11 +2,10 @@
 
 `render.yaml` builds the same single application image used by Compose. It serves Svelte assets and FastAPI on port 8080 while the existing supervisor manages configured worker roles. Mount the persistent disk at `/var/data` and set `PIPELINE_ORIGIN` to the exact public HTTPS origin, for example `https://your-service.onrender.com`. This enables Secure session cookies and same-origin mutation checks. The blueprint checks `/readyz`; `/healthz` only reports process liveness.
 
-A fresh deployment serves owner setup immediately. Read the generated one-time setup
-token from startup logs and claim the instance in its browser UI. No profile or model
-credential is needed for account setup. Token rotation and owner recovery are **offline**
-operations: the active service shell cannot perform them while the supervisor holds the
-installation lock. Stop the service and every worker, then use the exact deployed image's
+A fresh deployment serves owner setup immediately. Open the full private **Owner setup URL**
+from startup logs and choose a username and password. No profile or model credential is needed.
+A trusted service shell can issue a fresh link with `internship-pipeline setup-link --data-dir /var/data`; it uses the configured HTTPS origin and cannot replace an existing owner.
+Owner password recovery and the low-level `setup-token` command are **offline** operations. Stop the service and every worker, then use the exact deployed image's
 maintenance CLI with the same preserved disk mounted at `/var/data`, networking disabled,
 and a private interactive terminal; run `setup-token --data-dir /var/data` before claim or
 `recover-owner --data-dir /var/data` after claim. Restart only after success and verify

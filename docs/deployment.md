@@ -10,7 +10,7 @@ docker compose up --build -d
 docker compose logs app
 ```
 
-Open `http://localhost:8080`, copy the **Owner setup token** from the first startup log, and create the owner account with a password of at least 12 characters. Only one claim can succeed, including simultaneous attempts. Claim consumes the token; restarting cannot reopen setup. Account creation works with no model credentials, profile, or notification destination. Keep logs private because the first-boot token authorizes account creation.
+Open the full private **Owner setup URL** from the first startup log and choose your username and a password of at least 12 characters. The form has no setup-token field. To issue a fresh link while the service is running, use `docker compose exec app internship-pipeline setup-link --data-dir /var/data`; the configured `PIPELINE_ORIGIN` supplies its origin. Only one claim can succeed, including simultaneous attempts. Claim consumes the token; restarting cannot reopen setup. Account creation works with no model credentials, profile, or notification destination. Keep logs private because the first-boot token authorizes account creation.
 
 Compose binds to loopback by default. To change the local port, set both `PIPELINE_PORT` and `PIPELINE_ORIGIN`, for example `PIPELINE_PORT=8081 PIPELINE_ORIGIN=http://localhost:8081 docker compose up -d`. Always open exactly that origin. Non-loopback HTTP origins are rejected. For remote access, terminate HTTPS at a reverse proxy, keep the upstream container port private, preserve the configured Host header, and set `PIPELINE_ORIGIN=https://jobs.example.com`. HTTPS uses a Secure, HttpOnly, SameSite=Strict `__Host-` session cookie. Local loopback HTTP uses a non-Secure development cookie. Do not expose the local HTTP configuration to the internet.
 
@@ -56,9 +56,10 @@ preserved volume, and inspection pins maintenance to the stopped container's exa
 
 ```sh
 internship-pipeline stop
-# On a claimed installation use: internship-pipeline recover-owner
-internship-pipeline setup-token && internship-pipeline start
+internship-pipeline recover-owner && internship-pipeline start
 ```
+
+For an unclaimed host installation, use `internship-pipeline open` while it is running; no stopped maintenance is needed to obtain a new private setup link.
 
 Stop separately launched writers too. The installed recovery command requires a private
 terminal, rejects a running application container, disables networking and image pulls in

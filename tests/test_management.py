@@ -70,6 +70,8 @@ elif command in {"start", "stop"}:
     state["container"]["State"]["Health"]["Status"] = state.get("health", "healthy")
     state_path.write_text(json.dumps(state))
     result = state["container_name"]
+elif command == "exec":
+    result = state.get("browser_url", args[-1] + "/#setup=" + "s" * 43)
 elif command == "logs":
     result = state.get("logs", "")
     print(state.get("stderr_logs", ""), file=sys.stderr, end="")
@@ -570,12 +572,43 @@ def test_diagnostics_refuse_echoing_password_prompt(installed, monkeypatch, caps
     assert "Secure password prompt unavailable" in capsys.readouterr().err
 
 
-def test_open_is_explicit_and_uses_saved_url_without_engine_action(installed, monkeypatch, capsys):
+def test_open_issues_private_setup_link_but_url_stays_offline(installed, monkeypatch, capsys):
     installation, manifest, engine_dir = installed
     opened = []
     monkeypatch.setattr(management.webbrowser, "open", lambda url: opened.append(url) or True)
     assert run(installation, "url") == 0
     assert opened == []
+    alter(engine_dir, lambda state: state["container"]["State"].update(Running=True))
     assert run(installation, "open") == 0
-    assert opened == [manifest.url]
-    assert calls(engine_dir) == []
+    assert opened == [manifest.url + "/#setup=" + "s" * 43]
+    assert any("setup-link" in call["argv"] for call in calls(engine_dir))
+
+
+@pytest.mark.parametrize(
+    "url", ["https://foreign.example/#setup=secret", "http://localhost:8080/#setup=short"]
+)
+def test_open_rejects_invalid_private_link_without_launching(installed, monkeypatch, capsys, url):
+    installation, _, engine_dir = installed
+    alter(engine_dir, lambda state: state["container"]["State"].update(Running=True))
+    alter(engine_dir, lambda state: state.update(browser_url=url))
+    opened = []
+    monkeypatch.setattr(management.webbrowser, "open", lambda url: opened.append(url) or True)
+    assert run(installation, "open") == 1
+    output = capsys.readouterr()
+    assert "invalid setup link" in output.err
+    assert url not in output.out + output.err
+    assert opened == []
+
+
+def test_open_claimed_instance_uses_normal_sign_in_and_prints_link_if_browser_unavailable(
+    installed, monkeypatch, capsys
+):
+    installation, manifest, engine_dir = installed
+    alter(engine_dir, lambda state: state["container"]["State"].update(Running=True))
+    alter(engine_dir, lambda state: state.update(browser_url=manifest.origin + "/"))
+    monkeypatch.setattr(management.webbrowser, "open", lambda url: False)
+    assert run(installation, "open") == 0
+    output = capsys.readouterr().out
+    assert "Browser could not open automatically" in output
+    assert manifest.origin + "/" in output
+    assert "#setup=" not in output

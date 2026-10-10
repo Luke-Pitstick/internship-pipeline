@@ -2,8 +2,8 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 test('Google setup/tab selection, preview, real queue and explicit inward review',async({page})=>{
   const setup=JSON.parse(await readFile('test-results-sheets/setup.json','utf8'));
-  await page.goto('/settings/');
-  await page.getByLabel('Operator setup token').fill(setup.token);
+  await page.goto(`/settings/#setup=${setup.token}`);
+
   await page.getByLabel('Username',{exact:true}).fill('synthetic-sheets-owner');
   await page.getByLabel('Password',{exact:true}).fill('synthetic-sheets-password');
   await page.getByRole('button',{name:'Create owner account'}).click();

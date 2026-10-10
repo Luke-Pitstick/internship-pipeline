@@ -122,7 +122,10 @@ class Identity:
                 or not row
                 or not hmac.compare_digest(row[0], digest(token))
             ):
-                raise IdentityError("Setup is unavailable or the setup token is incorrect.")
+                raise IdentityError(
+                    "This setup link is invalid or already used. If the instance is unclaimed, "
+                    "run internship-pipeline open on the host to open a new private setup link."
+                )
             connection.execute("INSERT INTO owner VALUES(1,?,?)", (username, password_hash))
             connection.execute("DELETE FROM owner_setup")
             connection.execute("DELETE FROM owner_sessions")

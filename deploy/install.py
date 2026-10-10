@@ -8,10 +8,10 @@ import fcntl
 import os
 import platform
 import re
-import shlex
 import shutil
 import socket
 import sys
+import webbrowser
 from pathlib import Path
 from uuid import uuid4
 
@@ -319,6 +319,9 @@ def parser() -> argparse.ArgumentParser:
     cli.add_argument("--command-dir", type=Path, default=Path.home() / ".local/bin")
     cli.add_argument("--ready-timeout", type=int, default=60, help="readiness wait seconds (1–300)")
     cli.add_argument(
+        "--no-open", action="store_true", help="print the private browser link without opening it"
+    )
+    cli.add_argument(
         "--restore-from", type=Path, help="private complete T17 backup; fresh destination only"
     )
     cli.add_argument(
@@ -432,11 +435,19 @@ def main(argv: list[str] | None = None) -> int:
             wait_ready(runtime, manifest, timeout=args.ready_timeout)
         print(f"Ready: {manifest.url}\nManagement command: {command_dir / 'internship-pipeline'}")
         print(f"Manifest: {manifest_path}\nData volume: {manifest.volume_name}")
-        print("For an unclaimed instance, read the Owner setup token in a private terminal:")
-        print(shlex.join(runtime.argv("logs", "--tail", "200", manifest.container_name)))
+        url = runtime.browser_url(manifest)
+        print(f"Open your workspace: {url}")
         print(
-            "Open the URL, enter that token, create your owner account, then follow guided setup."
+            "Create your username and password, then follow guided setup. "
+            "Keep this setup link private."
         )
+        if not args.no_open and (
+            platform.system() == "Darwin" or os.getenv("DISPLAY") or os.getenv("WAYLAND_DISPLAY")
+        ):
+            try:
+                webbrowser.open(url)
+            except (OSError, webbrowser.Error):
+                print("Browser could not open automatically; open the link above.")
         print(
             "Add the command directory to PATH if needed. Use the printed "
             "command with --help or status."

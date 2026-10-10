@@ -2,11 +2,10 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
 test('model connections save, edit, test, persist and remove without revealing credentials', async ({ page }) => {
-  await page.goto('/settings/');
+  const token = JSON.parse(await readFile('test-results/setup.json', 'utf8')).token;
+  await page.goto(`/settings/#setup=${token}`);
   await expect(page.getByLabel('Password', {exact: true})).toBeVisible();
-  if (await page.getByLabel('Operator setup token').isVisible()) {
-    const token = JSON.parse(await readFile('test-results/setup.json', 'utf8')).token;
-    await page.getByLabel('Operator setup token').fill(token);
+  if (await page.getByRole('button', {name: 'Create owner account'}).isVisible()) {
     await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
     await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
     await page.getByRole('button', {name: 'Create owner account'}).click();

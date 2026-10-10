@@ -1,8 +1,8 @@
 import {test, expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 test('configured model draft, inspect facts, preview, download and explicit review without destinations', async ({page}) => {
-  await page.goto('/settings/');
-  await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results-tailored/setup.json','utf8')).token);
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-tailored/setup.json','utf8')).token}`);
+
   await page.getByLabel('Username', {exact:true}).fill('synthetic-tailored-owner');
   await page.getByLabel('Password', {exact:true}).fill('synthetic-tailored-password');
   await page.getByRole('button', {name:'Create owner account'}).click();

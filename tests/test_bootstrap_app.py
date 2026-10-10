@@ -103,4 +103,4 @@ def test_real_supervisor_setup_restart_and_graceful_shutdown(tmp_path: Path) -> 
                 assert process.returncode == 0
                 assert not (root / "supervisor.json").exists()
                 output.seek(0)
-                assert ("Owner setup token:" in output.read()) is (boot == 0)
+                assert ("Owner setup URL:" in output.read()) is (boot == 0)

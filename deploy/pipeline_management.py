@@ -258,15 +258,17 @@ def _state(container: dict[str, Any]) -> dict[str, Any]:
 
 
 def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str:
-    if args.command in {"url", "open"}:
-        if args.command == "open":
-            if not webbrowser.open(manifest.url):
-                raise Failure("Browser could not open; use the URL shown by the url command.")
+    if args.command == "url":
         return manifest.url
     runtime = Runtime(manifest.runtime)
     runtime.check()
     container = runtime.require_owned(manifest)
     state = _state(container)
+    if args.command == "open":
+        url = runtime.browser_url(manifest)
+        if not webbrowser.open(url):
+            return f"Browser could not open automatically. Open your workspace: {url}"
+        return url
     if args.command in {"setup-token", "recover-owner"}:
         if state.get("Running") is True:
             raise Failure("Stop the application and all workers before offline recovery.")

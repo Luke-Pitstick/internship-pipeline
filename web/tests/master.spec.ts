@@ -11,8 +11,8 @@ async function renderedPreview(page: Page) {
 }
 
 test('master PDF uses saved facts, generates, previews, downloads, caches and handles errors on mobile', async ({page}) => {
-  await page.goto('/settings/');
-  await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results-master/setup.json', 'utf8')).token);
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-master/setup.json', 'utf8')).token}`);
+
   await page.getByLabel('Username', {exact: true}).fill('synthetic-master-owner');
   await page.getByLabel('Password', {exact: true}).fill('synthetic-master-password');
   await page.getByRole('button', {name: 'Create owner account'}).click();

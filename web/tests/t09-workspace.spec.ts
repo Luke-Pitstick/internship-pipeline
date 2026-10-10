@@ -5,8 +5,8 @@ test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API t
   test.setTimeout(120000);
   const errors:string[]=[]; page.on('pageerror',e=>errors.push(e.message));
   const token=JSON.parse(await readFile('test-results-t09/t09-setup.json','utf8')).token;
-  await page.goto('/');
-  await page.getByLabel('Operator setup token').fill(token);
+  await page.goto(`/#setup=${token}`);
+
   await page.getByLabel('Username',{exact:true}).fill('synthetic-owner');
   await page.getByLabel('Password',{exact:true}).fill('synthetic-password-long');
   await page.getByRole('button',{name:'Create owner account'}).click();

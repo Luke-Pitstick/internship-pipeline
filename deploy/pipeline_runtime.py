@@ -315,6 +315,26 @@ class Runtime:
             return "\n".join(stream.strip() for stream in (result.stdout, result.stderr) if stream)
         return result.stdout.strip()
 
+    def browser_url(self, manifest: Manifest) -> str:
+        """Issue a private first-run link using local container ownership authority."""
+        if not self.is_ready(self.require_owned(manifest)):
+            raise Failure("Start the saved installation before opening its browser setup.")
+        url = self.run(
+            "exec",
+            manifest.container_name,
+            "internship-pipeline",
+            "setup-link",
+            "--data-dir",
+            manifest.data_dir,
+            "--origin",
+            manifest.origin,
+        )
+        if not re.fullmatch(re.escape(manifest.origin) + r"/(?:#setup=[A-Za-z0-9_-]{43})?", url):
+            raise Failure(
+                "The application returned an invalid setup link; preserve the installation."
+            )
+        return url
+
     def maintenance(self, manifest: Manifest, command: str, image_id: str) -> None:
         """Run explicit local recovery with private terminal IO and the saved image."""
         if command not in {"setup-token", "recover-owner"}:

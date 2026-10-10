@@ -174,7 +174,7 @@ def recovery_acceptance(
     require(setup["defer_models"] and "models" in setup["reviewed"],
             "Restore lost guided setup progress")
     require(len(browser.json("/api/jobs")["jobs"]) == 1, "Restore duplicated or lost jobs")
-    require("Owner setup token:" not in docker("logs", restored_container),
+    require("Owner setup URL:" not in docker("logs", restored_container),
             "Restore produced a first-run setup token")
     docker("stop", "--time", "45", restored_container, timeout=55)
     stopped(restored_container)
@@ -244,14 +244,22 @@ def run(build_timeout: int, *, existing_image: str = "", expected_platform: str 
             require(browser.request(path)[0] == 401, f"Private endpoint {path} was public")
         print("PASS one-port built frontend/API, setup readiness, anonymous denial", flush=True)
         logs = docker("logs", name)
-        tokens = re.findall(r"Owner setup token: (\S+)", logs)
+        tokens = re.findall(r"Owner setup URL: \S+/#setup=([A-Za-z0-9_-]{43})", logs)
         require(len(tokens) == 1, "Expected exactly one first-boot setup token")
         token = tokens[0]
         credentials = {"username": "synthetic-owner", "password": "synthetic-smoke-password"}
         payload = {**credentials, "setup_token": token}
         csrf = browser.json("/api/session")["csrf"]
+        link = docker("exec", name, "internship-pipeline", "setup-link", "--origin", origin)
+        require(bool(re.fullmatch(re.escape(origin) + r"/#setup=[A-Za-z0-9_-]{43}", link)),
+                "Local setup link was invalid")
+        require(browser.request("/api/claim", payload, csrf)[0] == 400,
+                "New setup link did not invalidate the previous link")
+        payload["setup_token"] = link.split("#setup=", 1)[1]
         csrf = browser.json("/api/claim", payload, csrf)["csrf"]
         require(browser.request("/api/claim", payload, csrf)[0] == 400, "Claim was reusable")
+        require(docker("exec", name, "internship-pipeline", "setup-link", "--origin", origin)
+                == origin + "/", "Claimed installation did not open ordinary sign-in")
         require(browser.json("/api/jobs")["jobs"] == [], "Fresh synthetic volume was not empty")
         roles = browser.json("/api/status")["worker_roles"]
         require(set(roles) <= {"web", "search-runs", "email-delivery", "sheets-sync"},
@@ -298,7 +306,7 @@ def run(build_timeout: int, *, existing_image: str = "", expected_platform: str 
         require(session["claimed"] and not session["authenticated"], "Owner did not persist")
         require(guest.request("/api/claim", payload, session["csrf"])[0] == 400,
                 "Restart reopened claim")
-        require(len(re.findall(r"Owner setup token:", docker("logs", name))) == 1,
+        require(len(re.findall(r"Owner setup URL:", docker("logs", name))) == 1,
                 "Restart issued another setup token")
         check = (
             "import sqlite3; db=sqlite3.connect('/var/data/state.sqlite3'); "

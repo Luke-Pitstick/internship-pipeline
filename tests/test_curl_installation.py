@@ -192,6 +192,7 @@ def invoke(flow: dict[str, Any], text: str, *extra: str) -> subprocess.Completed
             str(flow["port"]),
             "--ready-timeout",
             "1",
+            "--no-open",
             *extra,
         ],
         input=text,
@@ -210,8 +211,8 @@ def test_piped_install_ready_management_without_checkout_and_new_release_rerun(
     assert result.returncode == 0, result.stderr
     url = f"http://localhost:{flow['port']}"
     assert f"Ready: {url}" in result.stdout
-    assert "Owner setup token" in result.stdout
-    assert "logs --tail 200" in result.stdout
+    assert f"Open your workspace: {url}/#setup=" in result.stdout
+    assert "logs --tail 200" not in result.stdout
     manifest_path = flow["install"] / "installation.json"
     manifest = json.loads(manifest_path.read_text())
     assert manifest["image"] == IMAGE

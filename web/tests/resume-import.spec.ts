@@ -2,11 +2,8 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
 async function login(page: Page) {
-  await page.goto('/settings/');
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results/setup.json', 'utf8')).token}`);
   await expect(page.getByLabel('Username', {exact: true})).toBeVisible();
-  if (await page.getByLabel('Operator setup token').count()) {
-    await page.getByLabel('Operator setup token').fill(JSON.parse(await readFile('test-results/setup.json', 'utf8')).token);
-  }
   await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
   await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
   await page.getByRole('button', {name: /Create owner account|^Sign in$/}).click();

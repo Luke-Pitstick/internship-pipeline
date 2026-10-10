@@ -22,7 +22,7 @@ internship-pipeline url
 internship-pipeline open
 ```
 
-`--install-dir /private/installation` before the subcommand selects an existing installation explicitly. `show-url` is an alias for `url`. URL discovery works with the runtime stopped; `open` invokes the system browser only when explicitly requested. The URL is the saved loopback origin, never a guessed wildcard address or token-bearing link.
+`--install-dir /private/installation` before the subcommand selects an existing installation explicitly. `show-url` is an alias for `url`. URL discovery works with the runtime stopped; `open` invokes the system browser only when explicitly requested. `url` prints the saved loopback origin without contacting the engine. `open` requires the owned container to be running and ready; it issues and opens a private setup link before claim, or opens ordinary sign-in after claim. Keep its output private.
 
 | Command | Behavior and limits |
 | --- | --- |
@@ -32,6 +32,7 @@ internship-pipeline open
 | `logs` | Captures a bounded runtime tail of 1–200 lines and prints recognized worker-exit/start-failure events plus a count of omitted lines. Unknown lines, exception text, setup tokens and credentials are omitted. It is a sanitized summary rather than a raw engine-log pass-through. |
 | `status --diagnostics` | Prompts for the owner username/password in an interactive terminal, then shows bounded source freshness, queue/activity, worker health, failed-work and model-status summaries from the authenticated application API. |
 | `logs --diagnostics` | Uses the same explicit owner login and prints the application's sanitized work-failure event view. |
+| `open` | Opens a private setup link for an unclaimed ready installation, invalidating earlier unclaimed links. After claim it opens ordinary sign-in without changing the owner. |
 | `setup-token` / `recover-owner` | Require a stopped owned application container and private interactive terminal. Pin maintenance to the inspected container image ID, saved endpoint and preserved volume, with networking and image pulls disabled. They leave the application stopped, and the exclusive installation lock still rejects any separately running writers. |
 
 The schema-1 `installation.json` records the installation UUID, explicit image version/digest (or exact local image ID for recovery), required data directory, engine executable, captured local endpoint (and Podman SSH identity where needed), container/volume names, port and origin. The shared runtime helper validates its owner and write permissions and refuses incompatible resource labels, image, data mount or loopback port mapping. Commands use literal argument vectors and the saved endpoint; inherited Docker/Podman connection variables cannot redirect them. They never change a global engine context or start runtime software. Missing runtime, manifest, container or volume produces an actionable failure. Missing data is never treated as permission to create a second installation.

@@ -78,6 +78,7 @@ elif args[0] == "run":
         state["stdin_digest"] = hashlib.sha256(sys.stdin.buffer.read()).hexdigest()
     if state.get("restore_failure"): sys.exit(1)
     state["restore_count"] = state.get("restore_count", 0) + 1
+elif args[0] == "exec": print(args[-1] + "/#setup=" + "s" * 43)
 elif args[0] == "logs": print("private setup_token=never-print-this")
 else: sys.exit(2)
 statefile.write_text(json.dumps(state))
@@ -103,6 +104,7 @@ def fake(tmp_path, monkeypatch):
             monkeypatch.delenv(key)
     monkeypatch.setattr(installer, "check_port", lambda port: None)
     monkeypatch.setattr(installer, "check_host", lambda: None)
+    monkeypatch.setattr(installer.webbrowser, "open", lambda url: True)
     return tmp_path / "installation", tmp_path / "commands", state
 
 
