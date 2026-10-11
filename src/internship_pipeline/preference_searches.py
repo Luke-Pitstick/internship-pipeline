@@ -9,12 +9,22 @@ from internship_pipeline.search_runs import SourceConfig
 
 
 def preference_searches(preferences: Preferences) -> list[SourceConfig]:
-    roles = list(dict.fromkeys(role.strip() for role in preferences.soft.roles)) or [""]
+    titles = {
+        "swe": "Software engineering",
+        "pm": "Product management",
+        "ml_ai": "Machine learning",
+        "ds": "Data science",
+    }
+    roles = list(
+        dict.fromkeys(
+            titles.get(role.strip().lower(), role.strip()) for role in preferences.soft.roles
+        )
+    ) or [""]
     countries = list(dict.fromkeys(preferences.hard.countries)) or [""]
     locations = list(dict.fromkeys(preferences.hard.locations or preferences.soft.locations)) or [
         ""
     ]
-    if len(roles) * len(countries) * len(locations) > 100:
+    if len(roles) * len(countries) * len(locations) * 2 > 100:
         raise ValueError(
             "Choose fewer roles or locations to keep your first search under 100 queries."
         )
@@ -45,14 +55,19 @@ def preference_searches(preferences: Preferences) -> list[SourceConfig]:
             raise ValueError(
                 "Shorten locations so each search location fits within 200 characters."
             )
-        configs.append(
-            SourceConfig(
-                name=" · ".join(filter(None, (term, location, country)))[:120],
-                source="jobspy",
-                search_term=term,
-                location=search_location,
-                country=region.value[0].split(",")[0] if region else "worldwide",
-                sites=["indeed"] if region else ["linkedin"],
+        # Separate sites isolate slow/blocked providers and keep partial results durable.
+        for site in ["indeed", "linkedin"] if region else ["linkedin"]:
+            configs.append(
+                SourceConfig(
+                    name=" · ".join(filter(None, (term, location, country, site)))[:120],
+                    source="jobspy",
+                    search_term=term,
+                    location=search_location,
+                    country=region.value[0].split(",")[0] if region else "worldwide",
+                    sites=[site],
+                    hours_old=720,
+                    max_jobs=100,
+                    max_calls=200,
+                )
             )
-        )
     return configs

@@ -33,14 +33,7 @@ def run_admission(db: sqlite3.Connection, job_id: str) -> bool:
     row = latest_run(db, job_id)
     if row is None:
         return True
-    if row["cancelled"]:
-        return False
-    return (
-        bool(row["review_backlog"])
-        or not db.execute(
-            "SELECT 1 FROM jobs WHERE id=? AND json_extract(data,'$.event')='backlog'", (job_id,)
-        ).fetchone()
-    )
+    return not bool(row["cancelled"])
 
 
 def reserve(
@@ -51,11 +44,10 @@ def reserve(
         return None
     if row["cancelled"]:
         raise RunLimitError("run_cancelled")
-    if not run_admission(db, job_id):
-        raise RunLimitError("backlog_review_required")
     calls, tokens = db.execute(
-        "SELECT COUNT(*),COALESCE(SUM(MAX(reserved_tokens,COALESCE(input_tokens,0)+"
-        "COALESCE(output_tokens,0))),0) FROM run_reservations WHERE run_id=?",
+        "SELECT COUNT(*),COALESCE(SUM(CASE WHEN input_tokens IS NULL OR output_tokens IS NULL "
+        "THEN reserved_tokens ELSE input_tokens+output_tokens END),0) "
+        "FROM run_reservations WHERE run_id=?",
         (row["id"],),
     ).fetchone()
     existing = db.execute(

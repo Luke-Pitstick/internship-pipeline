@@ -194,7 +194,9 @@
       <p class="status-note" role="status">Application status: <strong>{selected.status}</strong>{selected.appliedAt ? ` · Applied ${formatDate(selected.appliedAt)}` : ''}. Mark applied only after you submit.</p>
       <dl class="detail-facts"><div><dt>Match score</dt><dd>{selected.score === null ? 'Not evaluated' : `${selected.score} / 100`}</dd></div><div><dt>Posted</dt><dd>{formatDate(selected.postedAt)}</dd></div><div><dt>First observed</dt><dd>{formatDate(selected.firstObservedAt)}</dd></div><div><dt>Deadline</dt><dd>{formatDate(selected.deadline)}</dd></div></dl>
       <div class="detail-copy"><details class="original-posting" open><summary>Original posting</summary><p>{selected.description}</p>{#if selected.descriptionTruncated}<p>Posting text was shortened for this view. Open the original application link to inspect the full posting.</p>{/if}</details><h3>Jev assessment</h3>
-        <button class="small-button" disabled={updating || selected.status === 'Applied' || ['queued', 'evaluating'].includes(selected.evaluation?.state ?? '')} onclick={evaluate}>Evaluate job</button>
+        {#if selected.evaluation?.state === 'error'}<button class="small-button" disabled={updating || selected.status === 'Applied'} onclick={evaluate}>Retry evaluation</button>
+        {:else if selected.evaluation?.state !== 'complete'}<p>Match scoring runs automatically while you browse.</p>{/if}
+        {#if selected.evaluation?.retry_at && selected.evaluation.error === 'evaluation_budget_exhausted'}<p>Scoring resumes automatically at {new Date(selected.evaluation.retry_at*1000).toLocaleString()} when model capacity is available.</p>{/if}
         <p role="status">{selected.evaluation?.state ?? 'pending'}{selected.evaluation?.error ? ` · ${selected.evaluation.error.replaceAll('_', ' ')}` : ''}</p>
         {#if selected.evaluation?.result}
           {@const assessment = selected.evaluation.result}

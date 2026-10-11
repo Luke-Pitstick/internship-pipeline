@@ -1,6 +1,6 @@
 import {test,expect} from './workspace-fixture';
 import {readFile} from 'node:fs/promises';
-test('saved searches persist backlog review budgets pause history and reconnect with real API worker',async({page})=>{
+test('saved searches automatically collect and score first inventory and preserve pause history',async({page})=>{
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results/search-setup.json','utf8')).token}`);
 
   await page.getByLabel('Username',{exact:true}).fill('synthetic-owner');
@@ -14,10 +14,8 @@ test('saved searches persist backlog review budgets pause history and reconnect 
   await page.getByLabel('IANA timezone').fill('Denver');
   await page.getByRole('option', {name:'America/Denver', exact:true}).click();
   await page.getByRole('button',{name:'Save search',exact:true}).click();
-  await page.getByRole('button',{name:'Run now',exact:true}).click();
-  await expect(page.getByText('2 backlog jobs await explicit review.')).toBeVisible({timeout:15000});
-  await expect(page.getByText(/2 collected · 0 evaluated/)).toBeVisible();
-  await page.getByRole('button',{name:'Review backlog',exact:true}).click();
+  // Saving a scheduled source is enough: no Run or Review backlog action is needed.
+  await expect(page.getByRole('button',{name:'Review backlog',exact:true})).toHaveCount(0);
   await expect(page.getByText(/2 collected · 2 evaluated/)).toBeVisible({timeout:15000});
   await page.reload();await page.getByRole('button',{name:'Sources',exact:true}).click();
   await expect(page.getByText(/2 collected · 2 evaluated/)).toBeVisible();
@@ -44,7 +42,7 @@ test('saved searches persist backlog review budgets pause history and reconnect 
   expect(await page.locator('body').textContent()).not.toContain('synthetic-secret-token');
   await page.getByRole('button',{name:/Retry task/}).first().click();
   await expect(page.getByRole('button',{name:/Retry task/})).toHaveCount(0);
-  await page.goto('/');await page.getByText('Run details and history',{exact:true}).click();
+  await page.goto('/');await expect(page.getByText(/2 internships · 2 evaluated/)).toBeVisible();await page.getByText('Run details and history',{exact:true}).click();
   await expect(page.getByText(/Synthetic Company · cancelled/)).toBeVisible();
 });
 

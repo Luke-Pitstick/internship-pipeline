@@ -13,6 +13,7 @@ from typing import Any, Literal, cast
 import httpx
 from pydantic import Field, model_validator
 
+from internship_pipeline.internships import is_internship
 from internship_pipeline.jev_rubric import RUBRIC
 from internship_pipeline.model_connections import ConnectionError, ModelConnectionStore
 from internship_pipeline.models import Job, Record
@@ -113,6 +114,10 @@ class Assessment(Record):
 class EvaluationError(RuntimeError):
     """Only application-owned codes cross the provider boundary."""
 
+    def __init__(self, code: str, *, retry_after: float | None = None):
+        super().__init__(code)
+        self.retry_after = retry_after
+
 
 def identity(
     job: Job, profile_revision: int, connection_revision: int, effective_model: str | None
@@ -188,7 +193,7 @@ def stored_view(db: sqlite3.Connection, job: Job) -> dict[str, Any]:
             "attempts": attempts,
         }
     task = db.execute(
-        "SELECT status,error,attempts FROM tasks WHERE kind='match' AND key=?",
+        "SELECT status,error,attempts,available_at FROM tasks WHERE kind='match' AND key=?",
         ("assessment:" + fingerprint,),
     ).fetchone()
     old = db.execute("SELECT 1 FROM assessments WHERE job_id=? LIMIT 1", (job.id,)).fetchone()
@@ -201,6 +206,7 @@ def stored_view(db: sqlite3.Connection, job: Job) -> dict[str, Any]:
         "state": state,
         "result": None,
         "error": task["error"] if task else None,
+        "retry_at": task["available_at"] if task and task["status"] == "pending" else None,
         "attempts": attempts,
         "attempt_count": task["attempts"] if task else 0,
     }
@@ -420,6 +426,8 @@ class Assessments:
             if row is None:
                 raise KeyError(job_id)
             job = Job.model_validate_json(row[0])
+            if not is_internship(job.posting.title, job.posting.description):
+                raise EvaluationError("not_an_internship")
             profile, revision = current_revisions(db)
             model = resolved_model(db, revision)
             if not profile or not model:
@@ -454,7 +462,11 @@ class Assessments:
     def reconcile(self) -> None:
         """Queue current identities periodically; no model calls or collection dependency."""
         for job in self.store.list_jobs():
-            if job.status == "open" and job.applied_at is None:
+            if (
+                job.status == "open"
+                and job.applied_at is None
+                and is_internship(job.posting.title, job.posting.description)
+            ):
                 with self.store.connection() as db:
                     if not run_admission(db, job.id):
                         continue
@@ -466,6 +478,8 @@ class Assessments:
 
     def evaluate(self, job_id: str, expected_identity: str | None = None) -> None:
         job = self.store.get_job(job_id)
+        if not is_internship(job.posting.title, job.posting.description):
+            return
         if job.status != "open" or job.applied_at is not None:
             return
         snapshot = self.profiles.read()
@@ -514,8 +528,9 @@ class Assessments:
                 "SELECT COUNT(*) FROM assessment_attempts WHERE started>?", (now - 3600,)
             ).fetchone()[0]
             daily = db.execute(
-                "SELECT COUNT(*),COALESCE(SUM(MAX(reserved_tokens, "
-                "COALESCE(input_tokens,0)+COALESCE(output_tokens,0))),0) "
+                "SELECT COUNT(*),COALESCE(SUM(CASE WHEN input_tokens IS NULL "
+                "OR output_tokens IS NULL "
+                "THEN reserved_tokens ELSE input_tokens+output_tokens END),0) "
                 "FROM assessment_attempts WHERE started>?",
                 (now - 86400,),
             ).fetchone()
@@ -523,13 +538,22 @@ class Assessments:
                 "SELECT 1 FROM assessment_attempts WHERE status='pending' AND started>?",
                 (now - 65,),
             ).fetchone()
-            if (
-                count >= MAX_ATTEMPTS
-                or hourly >= MAX_HOURLY_ATTEMPTS
-                or daily[0] >= MAX_DAILY_ATTEMPTS
-                or daily[1] + reserve > MAX_DAILY_RESERVED
-            ):
+            if count >= MAX_ATTEMPTS:
                 raise EvaluationError("evaluation_budget_exhausted")
+            window = (
+                86400
+                if daily[0] >= MAX_DAILY_ATTEMPTS or daily[1] + reserve > MAX_DAILY_RESERVED
+                else 3600
+                if hourly >= MAX_HOURLY_ATTEMPTS
+                else None
+            )
+            if window:
+                first = db.execute(
+                    "SELECT MIN(started) FROM assessment_attempts WHERE started>?", (now - window,)
+                ).fetchone()[0]
+                raise EvaluationError(
+                    "evaluation_budget_exhausted", retry_after=max(1, (first or now) + window - now)
+                )
             if active:
                 raise EvaluationError("evaluation_busy")
             try:

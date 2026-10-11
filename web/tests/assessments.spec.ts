@@ -48,7 +48,9 @@ for (const narrow of [false, true]) {
     await expect(page.getByRole('heading', {name: 'Synthetic Python Internship'})).toBeFocused();
     await expect(page.getByText('No current assessment is available.', {exact: false})).toBeVisible();
     expect(calls).toBe(0);
-    await page.getByRole('button', {name: 'Evaluate job', exact: true}).click();
+    await expect(page.getByText('Match scoring runs automatically while you browse.')).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Evaluate job', exact: true})).toHaveCount(0);
+    state = 'complete'; await page.reload();
     await expect(page.getByText('Needs review', {exact: true}).last()).toBeVisible();
     await expect(page.getByText('Fit describes alignment with the rubric', {exact: false})).toBeVisible();
     await page.getByText('role · violated', {exact: true}).click();
@@ -58,11 +60,11 @@ for (const narrow of [false, true]) {
     await expect(page.getByText('fact-python: Built Python APIs.', {exact: true})).toBeVisible();
     await page.getByText('Assessment provenance and usage', {exact: true}).click();
     await expect(page.getByText('Profile revision 3;', {exact: false})).toContainText('effective model jev-1.13.0');
-    expect(calls).toBe(1);
+    expect(calls).toBe(0);
     await page.getByRole('button', {name: 'Mark as applied', exact: true}).click();
     await page.getByRole('button', {name: 'Applied', exact: true}).click();
     await expect(page.locator('[data-job]')).toHaveCount(1);
-    await expect(page.getByRole('button', {name: 'Evaluate job', exact: true})).toBeDisabled();
+    await expect(page.getByRole('button', {name: 'Retry evaluation', exact: true})).toHaveCount(0);
     await page.getByRole('button', {name: 'Undo applied', exact: true}).click();
     await expect(page.locator('[data-job]')).toHaveCount(0);
     await page.getByRole('button', {name: 'All jobs', exact: true}).click();
@@ -72,12 +74,13 @@ for (const narrow of [false, true]) {
     if (narrow) await expect(page.locator('.job-detail')).toBeVisible();
     else await page.locator('[data-job]').click();
     await expect(page.getByText('error · provider unavailable', {exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Retry evaluation', exact: true})).toBeVisible();
     await page.getByText('Evaluation attempts', {exact: true}).click();
     await expect(page.getByText('Input tokens unknown; output tokens unknown.', {exact: false})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({path: `test-results/t06-assessments-${narrow ? 'mobile' : 'desktop'}.png`, fullPage: true});
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-job]')).toBeFocused();
-    expect(calls).toBe(1);
+    expect(calls).toBe(0);
   });
 }

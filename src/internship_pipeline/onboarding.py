@@ -17,7 +17,7 @@ from internship_pipeline.model_connections import ModelConnectionStore
 from internship_pipeline.models import Record
 from internship_pipeline.preference_searches import preference_searches
 from internship_pipeline.profile_settings import ProfileSettings
-from internship_pipeline.search_runs import SearchRuns, SourceConfig
+from internship_pipeline.search_runs import SearchRuns, SourceConfig, next_due
 from internship_pipeline.sheets_integration import SheetsIntegration
 from internship_pipeline.storage import Store
 
@@ -235,10 +235,10 @@ class Onboarding:
                 config = SourceConfig.model_validate(search)
                 search_id = uuid.uuid4().hex
                 db.execute(
-                    "INSERT INTO saved_searches VALUES(?,1,?,0,NULL)",
-                    (search_id, config.model_dump_json()),
+                    "INSERT INTO saved_searches VALUES(?,1,?,0,?)",
+                    (search_id, config.model_dump_json(), next_due(config, time.time())),
                 )
-                self.searches._start(db, search_id, False, time.time())
+                self.searches._start(db, search_id, time.time())
             state["complete"] = True
             self._write(db, state)
         return self.view()

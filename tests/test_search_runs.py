@@ -24,7 +24,7 @@ from internship_pipeline.storage import Store
 @pytest.mark.parametrize("source", ["greenhouse", "lever", "ashby", "jobspy"])
 @pytest.mark.parametrize("state", ["paused", "deleted", "outside_schedule"])
 def test_registry_collector_never_owns_saved_sources(tmp_path, monkeypatch, source, state):
-    changes = {"source": source, "max_jobs": 0, "max_calls": 0, "max_tokens": 0}
+    changes = {"source": source, "daily_at": None, "max_jobs": 0, "max_calls": 0, "max_tokens": 0}
     if source == "jobspy":
         changes.update(search_term="Python internship", board="")
     store = Store(tmp_path / "jobs.sqlite3")
@@ -55,7 +55,7 @@ def test_registry_collector_never_owns_saved_sources(tmp_path, monkeypatch, sour
 
     monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
     monkeypatch.setattr("internship_pipeline.sources.jobspy.fetch_search", lambda q, t: result(q))
-    run = runs.start(saved["id"], True)["run"]
+    run = runs.start(saved["id"])["run"]
     settings = Settings(database_path=store.path)
     assert asyncio.run(runs.process_next(settings))
     assert len(calls) == 1
@@ -101,7 +101,7 @@ def test_saved_source_preserves_each_zero_budget(tmp_path, monkeypatch, budget, 
         return FetchResult(jobs=[posting()])
 
     monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
-    run = runs.start(saved["id"], True)["run"]
+    run = runs.start(saved["id"])["run"]
     assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
     job = store.list_jobs()[0]
     restarted = SearchRuns(Store(store.path))
@@ -190,12 +190,8 @@ def test_collection_backlog_dedup_admission_and_cancel(tmp_path, monkeypatch):
     settings = Settings(database_path=store.path)
     assert asyncio.run(runs.process_next(settings))
     assert runs.view()["run"]["collected"] == 2
-    assert runs.view()["run"]["stage"] == "awaiting_backlog_review"
+    assert runs.view()["run"]["stage"] == "awaiting_model_configuration"
     job = store.list_jobs()[0]
-    with store.transaction() as db:
-        with pytest.raises(RunLimitError, match="backlog_review_required"):
-            reserve(db, job.id, "assessment", 50)
-    runs.review_backlog(run["id"])
     with store.transaction() as db:
         one = reserve(db, job.id, "assessment", 50)
         finish(db, one, "success", 10, 10)
@@ -212,7 +208,7 @@ def test_collection_backlog_dedup_admission_and_cancel(tmp_path, monkeypatch):
     assert runs.view()["run"]["stage"] == "cancelled"
     with store.transaction() as db:
         db.execute("UPDATE providers SET next_allowed=0")
-    runs.start(saved["id"], True)
+    runs.start(saved["id"])
     asyncio.run(runs.process_next(settings))
     assert len(store.list_jobs()) == 2
 
@@ -224,7 +220,7 @@ def test_token_limit_unknown_usage_and_atomic_concurrency(tmp_path, monkeypatch)
         return FetchResult(jobs=[posting()])
 
     monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
-    runs.start(saved["id"], True)
+    runs.start(saved["id"])
     asyncio.run(runs.process_next(Settings(database_path=store.path)))
     job = store.list_jobs()[0]
 
@@ -320,3 +316,124 @@ def test_search_country_choices_are_supported_and_invalid_countries_fail(tmp_pat
         SourceConfig(name="Country", source="jobspy", search_term="intern", country=choice["value"])
     with pytest.raises(ValueError, match="Choose a supported search country"):
         SourceConfig(name="Invalid", source="jobspy", search_term="intern", country="Atlantis")
+
+
+def test_first_inventory_is_automatically_admitted_and_scheduled(tmp_path, monkeypatch):
+    store, runs, saved = setup(tmp_path)
+
+    async def fetch(*args):
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    assert saved["next_run"] is not None
+    assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    job = store.list_jobs()[0]
+    assert job.event == "backlog"
+    with store.transaction() as db:
+        assert reserve(db, job.id, "assessment", 1) is not None
+    assert runs.view()["run"]["stage"] != "awaiting_backlog_review"
+
+
+def test_continuous_collection_starts_other_sources_before_slow_fetch_finishes(
+    tmp_path, monkeypatch
+):
+    import threading
+
+    store, runs, _ = setup(tmp_path)
+    for source in ["lever", "ashby"]:
+        runs.save(SourceSave(name=source, source=source, board="example", expected_revision=0))
+    active = 0
+    peak = 0
+    started = set()
+    stop = threading.Event()
+
+    async def fetch(target, timeout):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        started.add(target.provider)
+        # Every provider must start before any provider is allowed to finish.
+        for _ in range(50):
+            if len(started) == 3:
+                break
+            await asyncio.sleep(0.01)
+        assert len(started) == 3
+        active -= 1
+        if active == 0:
+            stop.set()
+        return FetchResult()
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    asyncio.run(runs.collect(Settings(database_path=store.path), stop))
+    assert peak == 3
+    assert len(runs.history()["runs"]) == 3
+    assert all(run["stage"] == "complete" for run in runs.history()["runs"])
+
+
+def test_completed_usage_releases_unused_reservation_but_keeps_actual_budget(tmp_path, monkeypatch):
+    store, runs, saved = setup(tmp_path, max_tokens=50, max_calls=10)
+
+    async def fetch(*args):
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    runs.start(saved["id"])
+    asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    job = store.list_jobs()[0]
+    with store.transaction() as db:
+        first = reserve(db, job.id, "assessment", 40)
+        finish(db, first, "success", 10, 10)
+        reserve(db, job.id, "draft", 30)
+        with pytest.raises(RunLimitError, match="run_token_limit"):
+            reserve(db, job.id, "draft", 1)
+
+
+def test_site_backoff_does_not_block_other_sites(tmp_path, monkeypatch):
+    import time
+
+    store = Store(tmp_path / "jobs.sqlite3")
+    runs = SearchRuns(store)
+    for site in ["indeed", "linkedin"]:
+        saved = runs.save(
+            SourceSave(
+                name=site,
+                source="jobspy",
+                search_term="internship",
+                sites=[site],
+                expected_revision=0,
+            )
+        )["searches"][-1]
+        runs.start(saved["id"])
+    store.reserve_provider("jobspy:indeed", time.time(), spacing=600)
+    called = []
+
+    def fetch(query, timeout):
+        called.extend(query.sites)
+        return FetchResult()
+
+    monkeypatch.setattr("internship_pipeline.sources.jobspy.fetch_search", fetch)
+    settings = Settings(database_path=store.path)
+    assert not asyncio.run(runs.process_next(settings))
+    assert asyncio.run(runs.process_next(settings))
+    assert called == ["linkedin"]
+    history = runs.history()
+    assert history["summary"]["queued"] == 1
+    assert history["summary"]["collecting"] == 0
+
+
+def test_overlapping_searches_report_unique_inventory_and_filter_history(tmp_path, monkeypatch):
+    store, runs, saved = setup(tmp_path)
+
+    async def fetch(*args):
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    settings = Settings(database_path=store.path)
+    for _ in range(2):
+        with store.transaction() as db:
+            db.execute("UPDATE providers SET next_allowed=0")
+        runs.start(saved["id"])
+        assert asyncio.run(runs.process_next(settings))
+    assert runs.history()["summary"]["collected"] == 1
+    assert len(runs.history(saved["id"])["runs"]) == 2
+    assert runs.history("0" * 32)["runs"] == []

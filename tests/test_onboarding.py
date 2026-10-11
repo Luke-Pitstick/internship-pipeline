@@ -263,14 +263,14 @@ def test_searches_follow_roles_and_hard_locations_without_adding_eligibility_cla
         ),
     )
     searches = preference_searches(preferences)
-    assert len(searches) == 8
+    assert len(searches) == 16
     assert {search.country for search in searches} == {"canada", "usa"}
     assert {search.location for search in searches} == {"Toronto", "Denver"}
     assert {search.search_term for search in searches} == {
         "Software engineering internship",
         "UX research internship",
     }
-    assert all(search.sites == ["indeed"] for search in searches)
+    assert {tuple(search.sites) for search in searches} == {("indeed",), ("linkedin",)}
     assert preferences.hard.term_keywords == ["Summer 2027"]
     assert preferences.soft.skills == ["Python"]
 
@@ -310,12 +310,12 @@ def test_finish_saves_latest_queries_once_and_preserves_manual_sources(tmp_path)
     with pytest.raises(ValueError, match="Settings changed"):
         service.finish(Finish(preview=state["preview_token"]))
     state = service.view()
-    assert len(state["preview"]["searches"]) == 2
+    assert len(state["preview"]["searches"]) == 4
     assert service.finish(Finish(preview=state["preview_token"]))["complete"]
-    assert len(service.searches.settings()["searches"]) == 3
-    assert len(service.searches.history()["runs"]) == 2
+    assert len(service.searches.settings()["searches"]) == 5
+    assert len(service.searches.history()["runs"]) == 4
     service.finish(Finish(preview=state["preview_token"]))
-    assert len(service.searches.settings()["searches"]) == 3
+    assert len(service.searches.settings()["searches"]) == 5
 
 
 @pytest.mark.parametrize("failed", [False, True])
@@ -363,3 +363,23 @@ def test_unknown_checkpoint_resumes_at_an_existing_step_and_finish_requires_csrf
     assert client.post("/api/onboarding/finish", json={"preview": "0" * 64}).status_code == 401
     claim(client)
     assert client.post("/api/onboarding/finish", json={"preview": "0" * 64}).status_code == 403
+
+
+def test_generated_searches_expand_role_names_and_run_automatically():
+    searches = preference_searches(
+        Preferences(
+            hard=HardConstraints(countries=["US"], locations=["Denver"]),
+            soft=SoftPreferences(roles=["swe", "pm", "ml_ai", "ds"]),
+        )
+    )
+    assert len(searches) == 8
+    assert {s.search_term for s in searches} == {
+        "Software engineering internship",
+        "Product management internship",
+        "Machine learning internship",
+        "Data science internship",
+    }
+    assert {tuple(s.sites) for s in searches} == {("indeed",), ("linkedin",)}
+    assert all(
+        s.hours_old == 720 and s.daily_at and s.max_jobs >= s.results_wanted for s in searches
+    )

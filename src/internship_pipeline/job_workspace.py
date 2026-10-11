@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 from internship_pipeline.assessments import current_revisions, resolved_model, rubric_revision
+from internship_pipeline.internships import is_internship
 
 VIEWS = {"All", "Recommendations", "Needs review", "Saved", "Applied", "Rejected"}
 SORTS = {
@@ -149,6 +150,12 @@ def page(
     applied = "json_extract(j.data,'$.applied_at') IS NOT NULL"
     decision = "COALESCE(w.decision,json_extract(a.result,'$.recommendation'),'review')"
     filters = ["1=1"]
+    if view in {"All", "Recommendations", "Needs review"}:
+        db.create_function("is_internship", 2, is_internship, deterministic=True)
+        filters.append(
+            "is_internship(json_extract(j.data,'$.posting.title'),"
+            "json_extract(j.data,'$.posting.description'))"
+        )
     params: list[Any] = []
     if search:
         filters.append(

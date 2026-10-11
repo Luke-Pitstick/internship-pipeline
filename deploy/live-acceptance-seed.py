@@ -63,7 +63,7 @@ def _seed(root: Path, source: SourceSave) -> dict[str, Any]:
         store = Store(settings.database_path)
         runs = SearchRuns(store)
         saved = runs.save(source)["searches"][0]
-        run_id = runs.start(saved["id"], review_backlog=True)["run"]["id"]
+        run_id = runs.start(saved["id"])["run"]["id"]
         result = FetchResult(
             jobs=[
                 SourceJob(

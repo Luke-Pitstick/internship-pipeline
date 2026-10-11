@@ -637,3 +637,90 @@ def test_crash_attempt_is_inspectable_and_reservation_not_erased(tmp_path):
         )
         assert tuple(rows[0]) == ("interrupted_unknown_usage", 40000, None)
         assert rows[1][0] == "success"
+
+
+def test_rolling_model_budget_waits_then_resumes_without_manual_retry(tmp_path):
+    from internship_pipeline.pipeline import Pipeline
+
+    service, job = setup(tmp_path)
+    calls = mock(service)
+    with service.store.transaction() as db:
+        db.execute("DELETE FROM tasks WHERE kind='match'")
+    service.enqueue(job.id)
+    now = time.time()
+    with service.store.transaction() as db:
+        db.execute(
+            "INSERT INTO assessment_attempts(identity,job_id,started,status,reserved_tokens) "
+            "VALUES('other',?,?,'timeout',5000000)",
+            (job.id, now),
+        )
+    pipeline = Pipeline(
+        Settings(database_path=service.store.path),
+        service.profiles.read().candidate(),
+        service.store,
+    )
+    # Use the synthetic provider at the actual queue/assessment boundary.
+    pipeline._match = lambda task: service.evaluate(
+        task.payload["job_id"], task.payload.get("assessment_identity")
+    )
+    assert pipeline.process_next(["match"])
+    with service.store.connection() as db:
+        task = db.execute("SELECT * FROM tasks WHERE kind='match'").fetchone()
+        assert task["status"] == "pending" and task["attempts"] == 0
+        assert task["available_at"] > now + 86000
+    assert not calls
+    with service.store.transaction() as db:
+        db.execute(
+            "UPDATE assessment_attempts SET started=? WHERE identity='other'", (now - 86401,)
+        )
+        db.execute("UPDATE tasks SET available_at=0 WHERE kind='match'")
+    assert pipeline.process_next(["match"])
+    assert len(calls) == 1
+    with service.store.connection() as db:
+        assert db.execute("SELECT status FROM tasks WHERE kind='match'").fetchone()[0] == "done"
+
+
+def test_reported_model_usage_releases_conservative_daily_reservation(tmp_path):
+    service, job = setup(tmp_path)
+    calls = mock(service)
+    with service.store.transaction() as db:
+        db.execute(
+            "INSERT INTO assessment_attempts(identity,job_id,started,status,reserved_tokens,"
+            "input_tokens,output_tokens) "
+            "VALUES('other',?,?,'success',5000000,100,40)",
+            (job.id, time.time()),
+        )
+    service.evaluate(job.id)
+    assert len(calls) == 1
+
+
+def test_non_internships_do_not_enter_automatic_scoring_or_consume_model_calls(tmp_path):
+    service, job = setup(tmp_path)
+    calls = mock(service)
+    regular = job.model_copy(
+        update={
+            "posting": job.posting.model_copy(
+                update={
+                    "title": "Senior Software Engineer",
+                    "description": (
+                        "Build software and mentor interns. "
+                        "Five years of non-internship experience required."
+                    ),
+                    "employment_type": "internship",
+                }
+            )
+        }
+    )
+    with service.store.transaction() as db:
+        db.execute("UPDATE jobs SET data=? WHERE id=?", (regular.model_dump_json(), job.id))
+        db.execute("DELETE FROM tasks WHERE kind='match'")
+    service.reconcile()
+    with service.store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM tasks WHERE kind='match'").fetchone()[0] == 0
+    with pytest.raises(EvaluationError, match="not_an_internship"):
+        service.enqueue(job.id)
+    # Old queued work also exits without provider I/O after the scope correction.
+    service.evaluate(job.id)
+    assert not calls
+    with service.store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM assessment_attempts").fetchone()[0] == 0

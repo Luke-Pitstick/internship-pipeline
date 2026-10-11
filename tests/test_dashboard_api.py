@@ -87,12 +87,12 @@ def test_jobs_are_read_without_matching_or_exposing_candidate_facts(api: Dashboa
     data = api.jobs()
     assert data["scope"] == {
         "raw_collected": 5,
-        "screened_open": 5,
+        "screened_open": 4,
         "screened_applied_closed": 0,
         "limit": 25,
-        "returned": 5,
+        "returned": 4,
     }
-    assert len(data["jobs"]) == 5
+    assert len(data["jobs"]) == 4
     item = next(item for item in data["jobs"] if item["id"] == "relevant")
     assert item["application_url"] == "https://example.test/jobs/relevant"
     assert item["locations"] == ["United States"]
@@ -115,7 +115,7 @@ def test_missing_database_fails_closed(api: DashboardAPI) -> None:
 
 
 def test_absent_profile_does_not_block_inventory(api: DashboardAPI) -> None:
-    assert len(api.jobs()["jobs"]) == 5
+    assert len(api.jobs()["jobs"]) == 4
 
 
 def test_html_description_becomes_plaintext_with_paragraph_breaks() -> None:
@@ -130,7 +130,6 @@ def test_html_description_becomes_plaintext_with_paragraph_breaks() -> None:
     result, truncated = dashboard_api.plain_description("x" * 40000)
     assert len(result) == 30000
     assert truncated
-
 
 
 def test_mark_applied_is_idempotent_and_invalidates_cached_jobs(api: DashboardAPI) -> None:
@@ -171,7 +170,7 @@ def test_applied_jobs_remain_visible_after_source_closes(api: DashboardAPI) -> N
         == "applied"
     )
     assert data["scope"]["screened_applied_closed"] == 1
-    assert data["scope"]["screened_open"] == 4
+    assert data["scope"]["screened_open"] == 3
 
 
 def test_mark_applied_does_not_create_missing_database(api: DashboardAPI) -> None:

@@ -24,6 +24,7 @@ def seed(api, count=130):
                         update={
                             "company": "Same" if i % 3 else "Alpha",
                             "title": "Same" if i % 3 else "Analytics",
+                            "description": "This is a paid internship. Build software tools.",
                             "published_at": None
                             if i % 4 == 0
                             else datetime(2026, 1, 1 + i % 20, tzinfo=UTC),
@@ -162,3 +163,53 @@ def test_filters_selection_read_only_and_stale_assessment(api):
     stale = api.detail("synthetic-00001")
     assert stale["fit"] is None and stale["evaluation"]["state"] == "stale"
     assert all(r["id"] != "synthetic-00001" for r in api.jobs(view="Recommendations")["jobs"])
+
+
+@pytest.mark.parametrize(
+    "title,employment_type,description",
+    [
+        (
+            "Senior Software Engineer",
+            "fulltime",
+            "Build services and mentor interns in our internship program.",
+        ),
+        ("International Product Manager", None, "Own the product roadmap."),
+        (
+            "Machine Learning Engineer Graduate - 2027 Start",
+            "internship",
+            "Permanent graduate position. Build models.",
+        ),
+    ],
+)
+def test_discovery_excludes_regular_jobs_even_when_search_metadata_mentions_internships(
+    api,
+    title,
+    employment_type,
+    description,
+):
+    with sqlite3.connect(api.settings.database_path) as db:
+        db.execute("DELETE FROM jobs WHERE id<>'relevant'")
+        item = job(
+            "non-internship", title, employment_type=employment_type, description=description
+        )
+        db.execute(
+            "INSERT INTO jobs(id,data,canonical_url,company_key,content_hash,status,"
+            "first_seen,last_seen) "
+            "VALUES(?,?,?,?,?,'open',0,0)",
+            (
+                item.id,
+                item.model_dump_json(),
+                item.posting.apply_url,
+                "synthetic",
+                item.content_hash,
+            ),
+        )
+    result = api.jobs()
+    assert [row["id"] for row in result["jobs"]] == ["relevant"]
+    assert result["pagination"]["total"] == 1
+    # Filtering must not erase source history or explicit application tracking.
+    assert api.detail("non-internship") is not None
+    api.update_workspace("non-internship", {"saved": True})
+    assert api.jobs(view="Saved")["jobs"][0]["id"] == "non-internship"
+    api.mark_applied("non-internship")
+    assert api.jobs(view="Applied")["jobs"][0]["id"] == "non-internship"

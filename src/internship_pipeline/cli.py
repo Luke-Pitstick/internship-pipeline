@@ -127,6 +127,11 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
         companies = load_companies(settings.companies_path)
         queries = load_searches(settings.searches_path)
         register_targets(store, companies, queries)
+    if role == "search-runs":
+        from internship_pipeline.search_runs import SearchRuns
+
+        asyncio.run(SearchRuns(store).collect(settings, stop, once=once))
+        return 0
     last_reconcile = 0.0
     while not stop.is_set():
         if role == "matcher" and time.monotonic() - last_reconcile > 30:
@@ -139,11 +144,7 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
             ).reconcile()
             last_reconcile = time.monotonic()
         # Freeze one immutable snapshot for the whole task; the next task reads fresh state.
-        if role == "search-runs":
-            from internship_pipeline.search_runs import SearchRuns
-
-            worked = asyncio.run(SearchRuns(store).process_next(settings))
-        elif role == "tailored-resumes":
+        if role == "tailored-resumes":
             from internship_pipeline.resumes.tailored import TailoredResumes
 
             service = TailoredResumes(store, settings)

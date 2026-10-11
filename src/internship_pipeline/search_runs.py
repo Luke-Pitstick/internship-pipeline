@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 import sqlite3
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -18,6 +19,7 @@ from jobspy.model import Country
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from internship_pipeline.assessments import current_revisions, resolved_model, stored_view
+from internship_pipeline.internships import is_internship
 from internship_pipeline.models import Company, FetchResult, Job, SearchQuery, Settings
 from internship_pipeline.profile_settings import ProfileSettings
 from internship_pipeline.queue import Queue
@@ -33,7 +35,7 @@ CREATE TABLE IF NOT EXISTS search_runs (
  id TEXT PRIMARY KEY, search_id TEXT NOT NULL, config TEXT NOT NULL, target_id TEXT NOT NULL,
  stage TEXT NOT NULL, created REAL NOT NULL, collected_at REAL, result TEXT,
  collected INTEGER NOT NULL DEFAULT 0, error TEXT,
- cancelled INTEGER NOT NULL DEFAULT 0, review_backlog INTEGER NOT NULL DEFAULT 0,
+ cancelled INTEGER NOT NULL DEFAULT 0,
  max_jobs INTEGER NOT NULL, max_calls INTEGER NOT NULL, max_tokens INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS search_run_active ON search_runs(search_id)
  WHERE stage IN ('queued','collecting','fetched');
@@ -54,7 +56,7 @@ class SourceConfig(BaseModel):
     sites: list[str] = Field(default_factory=lambda: ["indeed"])
     hours_old: int = Field(default=72, ge=1, le=8760)
     results_wanted: int = Field(default=100, ge=1, le=1000)
-    daily_at: str | None = None
+    daily_at: str | None = "09:00"
     timezone: str = "UTC"
     max_jobs: int = Field(default=20, ge=0, le=1000)
     max_calls: int = Field(default=30, ge=0, le=3000)
@@ -126,7 +128,6 @@ class SourceSave(SourceConfig):
 
 class RunStart(BaseModel):
     search_id: str = Field(pattern=r"^[a-f0-9]{32}$")
-    review_backlog: bool = False
 
 
 class Revision(BaseModel):
@@ -213,7 +214,13 @@ class SearchRuns:
                     revision + 1,
                     config.model_dump_json(),
                     row["paused"] if row else 0,
-                    None if row and row["paused"] else next_due(config, time.time()),
+                    None
+                    if row and row["paused"]
+                    else (
+                        time.time()
+                        if not row and config.daily_at
+                        else next_due(config, time.time())
+                    ),
                 ),
             )
         return self.settings()
@@ -246,9 +253,7 @@ class SearchRuns:
             db.execute("DELETE FROM saved_searches WHERE id=?", (search_id,))
         return self.settings()
 
-    def _start(
-        self, db: sqlite3.Connection, search_id: str, review_backlog: bool, now: float
-    ) -> str:
+    def _start(self, db: sqlite3.Connection, search_id: str, now: float) -> str:
         db.execute(
             "UPDATE search_runs SET stage='failed',error='collection_worker_failed' WHERE id IN "
             "(SELECT json_extract(payload,'$.run_id') FROM tasks WHERE "
@@ -274,16 +279,15 @@ class SearchRuns:
         target_id = ("search:" if config.source == "jobspy" else "company:") + target.id
         db.execute(
             "INSERT INTO "
-            "search_runs(id,search_id,config,target_id,stage,created,review_ba"
-            "cklog,max_jobs,max_calls,max_tokens) "
-            "VALUES(?,?,?,?,'queued',?,?,?,?,?)",
+            "search_runs(id,search_id,config,target_id,stage,created,"
+            "max_jobs,max_calls,max_tokens) "
+            "VALUES(?,?,?,?,'queued',?,?,?,?)",
             (
                 run_id,
                 search_id,
                 config.model_dump_json(),
                 target_id,
                 now,
-                review_backlog,
                 config.max_jobs,
                 config.max_calls,
                 config.max_tokens,
@@ -292,9 +296,9 @@ class SearchRuns:
         enqueue(db, "collection_run", "collection-run:" + run_id, {"run_id": run_id}, now)
         return run_id
 
-    def start(self, search_id: str, review_backlog: bool = False) -> dict[str, Any]:
+    def start(self, search_id: str) -> dict[str, Any]:
         with self.store.transaction() as db:
-            run_id = self._start(db, search_id, review_backlog, time.time())
+            run_id = self._start(db, search_id, time.time())
         return self.view(run_id)
 
     def schedule(self, now: float | None = None) -> int:
@@ -304,7 +308,7 @@ class SearchRuns:
             for row in db.execute(
                 "SELECT * FROM saved_searches WHERE paused=0 AND next_due<=?", (now,)
             ).fetchall():
-                self._start(db, row["id"], False, now)
+                self._start(db, row["id"], now)
                 config = SourceConfig.model_validate_json(row["config"])
                 db.execute(
                     "UPDATE saved_searches SET next_due=? WHERE id=?",
@@ -324,22 +328,55 @@ class SearchRuns:
             )
         return self.view(run_id)
 
-    def review_backlog(self, run_id: str) -> dict[str, Any]:
-        with self.store.transaction() as db:
-            if not db.execute("SELECT 1 FROM search_runs WHERE id=?", (run_id,)).fetchone():
-                raise KeyError(run_id)
-            db.execute(
-                "UPDATE search_runs SET review_backlog=1 WHERE id=? AND cancelled=0", (run_id,)
-            )
-        return self.view(run_id)
-
-    def history(self) -> dict[str, Any]:
+    def history(self, search_id: str | None = None) -> dict[str, Any]:
         with self.store.connection() as db:
             ids = [
                 r[0]
-                for r in db.execute("SELECT id FROM search_runs ORDER BY created DESC LIMIT 100")
+                for r in db.execute(
+                    "SELECT id FROM search_runs "
+                    + ("WHERE search_id=? " if search_id else "")
+                    + "ORDER BY created DESC LIMIT 100",
+                    (search_id,) if search_id else (),
+                )
             ]
-        return {"runs": [self.view(i)["run"] for i in ids]}
+            summary: dict[str, Any] = dict(
+                collected=0, evaluated=0, pending=0, evaluation_errors=0, excluded=0
+            )
+            if not search_id:
+                for row in db.execute(
+                    "SELECT data FROM jobs WHERE id IN (SELECT job_id FROM search_run_jobs)"
+                ):
+                    job = Job.model_validate_json(row[0])
+                    if not is_internship(job.posting.title, job.posting.description):
+                        summary["excluded"] += 1
+                        continue
+                    summary["collected"] += 1
+                    if job.status != "open" or job.applied_at:
+                        continue
+                    state = stored_view(db, job)["state"]
+                    summary[
+                        {"complete": "evaluated", "error": "evaluation_errors"}.get(
+                            state, "pending"
+                        )
+                    ] += 1
+                summary.update(
+                    dict(
+                        db.execute(
+                            "SELECT COUNT(*) AS sources,MIN(next_due) AS next_run "
+                            "FROM saved_searches WHERE paused=0"
+                        ).fetchone()
+                    )
+                )
+                for stage in ("queued", "collecting", "fetched"):
+                    summary[stage] = db.execute(
+                        "SELECT COUNT(*) FROM search_runs WHERE stage=? AND cancelled=0", (stage,)
+                    ).fetchone()[0]
+                summary["scoring_resumes_at"] = db.execute(
+                    "SELECT MIN(available_at) FROM tasks WHERE kind='match' AND status='pending' "
+                    "AND error='evaluation_budget_exhausted' AND available_at>?",
+                    (time.time(),),
+                ).fetchone()[0]
+        return {"runs": [self.view(i)["run"] for i in ids], "summary": summary}
 
     def view(self, run_id: str | None = None) -> dict[str, Any]:
         with self.store.connection() as db:
@@ -360,15 +397,18 @@ class SearchRuns:
                 recommended=0,
                 evaluation_errors=0,
                 inactive=0,
+                excluded=0,
             )
             errors: set[str] = set()
-            waiting_backlog = 0
             for item in db.execute(
                 "SELECT j.data FROM jobs j JOIN search_run_jobs r "
                 "ON j.id=r.job_id WHERE r.run_id=?",
                 (row["id"],),
             ):
                 job = Job.model_validate_json(item[0])
+                if not is_internship(job.posting.title, job.posting.description):
+                    counts["excluded"] += 1
+                    continue
                 if job.status != "open" or job.applied_at:
                     counts["inactive"] += 1
                     continue
@@ -387,19 +427,12 @@ class SearchRuns:
                         errors.add(view["error"])
                 else:
                     counts["pending"] += 1
-                    if job.event == "backlog" and not row["review_backlog"]:
-                        waiting_backlog += 1
             usage = db.execute(
                 "SELECT "
                 "COUNT(*),COALESCE(SUM(reserved_tokens),0),SUM(input_tokens),SUM(o"
                 "utput_tokens) FROM run_reservations WHERE run_id=?",
                 (row["id"],),
             ).fetchone()
-            backlog = db.execute(
-                "SELECT COUNT(*) FROM search_run_jobs r JOIN jobs j ON "
-                "j.id=r.job_id WHERE r.run_id=? AND json_extract(j.data,'$.event')='backlog'",
-                (row["id"],),
-            ).fetchone()[0]
             stage = row["stage"]
             source_error = row["error"]
             task = db.execute(
@@ -412,9 +445,7 @@ class SearchRuns:
                 stage = "cancelled"
             elif stage == "collected":
                 stage = "evaluating" if counts["pending"] else "complete"
-                if counts["pending"] and waiting_backlog == counts["pending"]:
-                    stage = "awaiting_backlog_review"
-                elif counts["pending"]:
+                if counts["pending"]:
                     profile, revision = current_revisions(db)
                     if not profile or not resolved_model(db, revision):
                         stage = "awaiting_model_configuration"
@@ -425,9 +456,6 @@ class SearchRuns:
                     "id": row["id"],
                     "search_id": row["search_id"],
                     "name": json.loads(row["config"])["name"],
-                    "review_backlog": bool(row["review_backlog"]),
-                    "backlog": backlog,
-                    "waiting_backlog": waiting_backlog,
                     "limits": {
                         "jobs": row["max_jobs"],
                         "calls": row["max_calls"],
@@ -448,6 +476,21 @@ class SearchRuns:
                     **counts,
                 }
             }
+
+    async def collect(
+        self, settings: Settings, stop: threading.Event, *, once: bool = False
+    ) -> None:
+        """Keep four collection slots busy without waiting for the slowest request."""
+
+        async def consume() -> None:
+            while not stop.is_set():
+                worked = await self.process_next(settings)
+                if once:
+                    return
+                if not worked:
+                    await asyncio.sleep(1)
+
+        await asyncio.gather(*(consume() for _ in range(4)))
 
     async def process_next(self, settings: Settings) -> bool:
         from internship_pipeline.sources.ats import fetch_company
@@ -474,11 +517,15 @@ class SearchRuns:
             )
         config = SourceConfig.model_validate_json(row["config"])
         target = config.target(row["search_id"])
-        provider = config.source
+        provider = (
+            "jobspy:" + ",".join(sorted(config.sites))
+            if config.source == "jobspy"
+            else config.source
+        )
         target_id = row["target_id"]
         self.store.register_target(
             target_id,
-            "search" if provider == "jobspy" else "company",
+            "search" if config.source == "jobspy" else "company",
             target.model_dump_json(),
             provider,
             collection_owner="saved_search",
@@ -489,7 +536,12 @@ class SearchRuns:
         else:
             ready_at = self.store.provider_ready_at(provider)
             if not self.store.reserve_provider(provider, now, spacing=2):
-                queue.defer(task, max(0, ready_at - now))
+                with self.store.transaction() as db:
+                    db.execute(
+                        "UPDATE search_runs SET stage='queued' WHERE id=? AND cancelled=0",
+                        (row["id"],),
+                    )
+                queue.defer(task, max(0.2, ready_at - now))
                 return False
             if isinstance(target, Company):
                 result = await fetch_company(target, settings.request_timeout_seconds)
@@ -499,7 +551,9 @@ class SearchRuns:
                 result = await asyncio.to_thread(
                     fetch_search, target, settings.request_timeout_seconds
                 )
-            if result.error:
+            if result.coverage_limited:
+                result = result.model_copy(update={"error": None})
+            elif result.error:
                 result = result.model_copy(update={"error": "source_request_failed"})
             # Persist the fetch before ingestion; resume it without another public request.
             collected_at = time.time()
@@ -531,7 +585,9 @@ class SearchRuns:
             count = db.execute(
                 "SELECT COUNT(*) FROM search_run_jobs WHERE run_id=?", (row["id"],)
             ).fetchone()[0]
-            error = result.error or (None if result.complete else "Incomplete inventory")
+            error = result.error or (
+                None if result.complete or result.coverage_limited else "Incomplete inventory"
+            )
             db.execute(
                 "UPDATE search_runs SET stage='collected',collected=?,error=?,"
                 "result=NULL WHERE id=?",
@@ -592,23 +648,19 @@ def search_router(runs: SearchRuns, owner: Callable[..., Any]) -> APIRouter:
 
     @router.post("/search-runs", status_code=202)
     def start(body: RunStart) -> dict[str, Any]:
-        return invoke(lambda: runs.start(body.search_id, body.review_backlog))
+        return invoke(lambda: runs.start(body.search_id))
 
     @router.get("/search-runs/current")
     def current() -> dict[str, Any]:
         return runs.view()
 
     @router.get("/search-runs")
-    def history() -> dict[str, Any]:
-        return runs.history()
+    def history(search_id: str | None = None) -> dict[str, Any]:
+        return runs.history(search_id)
 
     @router.get("/search-runs/{run_id}")
     def view(run_id: str) -> dict[str, Any]:
         return runs.view(run_id)
-
-    @router.post("/search-runs/{run_id}/review-backlog")
-    def review(run_id: str) -> dict[str, Any]:
-        return invoke(lambda: runs.review_backlog(run_id))
 
     @router.post("/search-runs/{run_id}/cancel")
     def cancel(run_id: str) -> dict[str, Any]:

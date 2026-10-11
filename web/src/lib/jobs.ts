@@ -9,7 +9,7 @@ export interface Assessment {
   input_tokens: number; output_tokens: number;
 }
 export interface Evaluation {
-  state: string; result: Assessment | null; error?: string | null;
+  state: string; result: Assessment | null; error?: string | null; retry_at?: number | null;
   attempts?: {started: number; completed: number | null; status: string; input_tokens: number | null; output_tokens: number | null; reserved_tokens: number}[];
 }
 export interface Job {

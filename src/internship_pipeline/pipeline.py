@@ -47,7 +47,9 @@ class Pipeline:
             from internship_pipeline.assessments import MAX_ATTEMPTS, EvaluationError
 
             error = str(exc) if isinstance(exc, EvaluationError) else type(exc).__name__
-            if isinstance(exc, EvaluationError) and error == "evaluation_busy":
+            if isinstance(exc, EvaluationError) and exc.retry_after is not None:
+                self.queue.defer(task, exc.retry_after, reason=error)
+            elif isinstance(exc, EvaluationError) and error == "evaluation_busy":
                 self.queue.defer(task)
             elif isinstance(exc, EvaluationError) and task.attempts >= MAX_ATTEMPTS:
                 self.queue.needs_attention(task, error)
