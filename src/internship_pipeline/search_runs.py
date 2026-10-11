@@ -27,6 +27,11 @@ from internship_pipeline.run_limits import SCHEMA as LIMIT_SCHEMA
 from internship_pipeline.sources.jobspy import SUPPORTED_SITES
 from internship_pipeline.storage import Store, enqueue
 
+
+class _ObsoleteCollection(Exception):
+    """Roll back fetched inventory when cancellation or a new lease supersedes it."""
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS saved_searches (
  id TEXT PRIMARY KEY, revision INTEGER NOT NULL, config TEXT NOT NULL,
@@ -572,10 +577,10 @@ class SearchRuns:
             if db.execute("SELECT cancelled FROM search_runs WHERE id=?", (row["id"],)).fetchone()[
                 0
             ]:
-                raise ValueError("Run cancelled")
+                raise _ObsoleteCollection
             current = db.execute("SELECT token,status FROM tasks WHERE id=?", (task.id,)).fetchone()
             if current[0] != task.token or current[1] != "running":
-                raise ValueError("Run lease changed")
+                raise _ObsoleteCollection
             for posting in result.jobs:
                 db.execute(
                     "INSERT OR IGNORE INTO search_run_jobs SELECT ?,job_id FROM "
@@ -609,13 +614,17 @@ class SearchRuns:
                     (collected_at + result.retry_after_seconds, provider),
                 )
 
-        self.store.ingest(
-            target_id,
-            result,
-            profile.revision,
-            datetime.fromtimestamp(collected_at, UTC),
-            checkpoint=checkpoint,
-        )
+        try:
+            self.store.ingest(
+                target_id,
+                result,
+                profile.revision,
+                datetime.fromtimestamp(collected_at, UTC),
+                checkpoint=checkpoint,
+            )
+        except _ObsoleteCollection:
+            queue.complete(task)  # Token matching preserves work already claimed by a new owner.
+            return False
         return True
 
 

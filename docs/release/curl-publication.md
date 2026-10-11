@@ -20,6 +20,8 @@ The Linux checks also exposed two TeX prerequisites missed by macOS-only verific
 
 The hosted Python suite passes 1,032 tests after those corrections. Linux mobile QA also exposed a search-field flex minimum that pushed the Search button beyond a 320px viewport. The field now allows shrinking, and the workspace browser regression uses wide input glyphs to reproduce the original failure independently of host fonts while retaining the viewport-overflow assertion. The existing desktop/mobile workspace, pagination, keyboard and API timing checks remain required.
 
+The integrated search gate additionally exposed cancellation between fetch persistence and the ingestion transaction. Superseded collection now rolls back inventory atomically and exits normally, completing only its own task token; it does not stop the collection loop or overwrite a new lease. Two native regressions reproduce cancellation and lease replacement at that exact checkpoint and verify that subsequent work still collects successfully.
+
 The older manual-only publication procedure below is historical context for the validation and promotion implementation.
 
 **Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.

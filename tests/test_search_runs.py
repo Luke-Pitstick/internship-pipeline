@@ -437,3 +437,44 @@ def test_overlapping_searches_report_unique_inventory_and_filter_history(tmp_pat
     assert runs.history()["summary"]["collected"] == 1
     assert len(runs.history(saved["id"])["runs"]) == 2
     assert runs.history("0" * 32)["runs"] == []
+
+
+@pytest.mark.parametrize("transition", ["cancel", "new_lease"])
+def test_obsolete_fetch_rolls_back_without_stopping_collection(tmp_path, monkeypatch, transition):
+    store, runs, saved = setup(tmp_path)
+    run = runs.start(saved["id"])["run"]
+
+    async def fetch(*args):
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    original = store.ingest
+
+    def supersede(*args, **kwargs):
+        if transition == "cancel":
+            runs.cancel(run["id"])
+        else:
+            with store.transaction() as db:
+                db.execute("UPDATE tasks SET token='new-owner' WHERE kind='collection_run'")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(store, "ingest", supersede)
+    settings = Settings(database_path=store.path)
+    assert not asyncio.run(runs.process_next(settings))
+    assert not store.list_jobs()  # Ingestion and its observations must roll back together.
+    with store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM observations").fetchone()[0] == 0
+        task = db.execute("SELECT status,token FROM tasks WHERE kind='collection_run'").fetchone()
+        if transition == "cancel":
+            assert task["status"] == "done"
+        else:
+            assert task["status"] == "running" and task["token"] == "new-owner"
+    # The same collection service can process subsequent work after the cancelled task.
+    monkeypatch.setattr(store, "ingest", original)
+    with store.transaction() as db:
+        db.execute("UPDATE providers SET next_allowed=0")
+        db.execute("UPDATE tasks SET lease_until=0 WHERE kind='collection_run'")
+    if transition == "cancel":
+        runs.start(saved["id"])
+    assert asyncio.run(runs.process_next(settings))
+    assert len(store.list_jobs()) == 1
