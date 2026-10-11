@@ -1,10 +1,11 @@
-"""Resource-limited, text-only child process for untrusted PDF/DOCX input."""
+"""Resource-limited, text-only child process for untrusted résumé documents."""
 
 from __future__ import annotations
 
 import io
 import json
 import logging
+import re
 import resource
 import sys
 import zipfile
@@ -18,11 +19,47 @@ class DocumentError(ValueError):
     pass
 
 
+def tex_source(data: bytes) -> str:
+    try:
+        source = data.decode("utf-8-sig").replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        raise DocumentError("Save the .tex file as UTF-8 and upload it again.") from None
+    if len(source) > MAX_TEXT or "\x00" in source:
+        raise DocumentError("Use a UTF-8 .tex document of at most 100,000 characters.")
+    # Comments cannot supply the required document delimiters.
+    visible = re.sub(r"(?<!\\)%[^\n]*", "", source)
+    if r"\begin{document}" not in visible or r"\end{document}" not in visible:
+        raise DocumentError("Upload a complete .tex document with begin/end document.")
+    return source
+
+
 def extract(data: bytes, kind: str) -> list[dict[str, str]]:
     if not data or len(data) > MAX_UPLOAD:
         raise DocumentError("Upload a nonempty document of at most 5 MiB.")
     chunks: list[tuple[str, str]] = []
-    if kind == "pdf":
+    if kind == "tex":
+        from pylatexenc.latex2text import (
+            LatexNodes2Text,
+            MacroTextSpec,
+            get_default_latex_context_db,
+        )
+
+        source = tex_source(data)
+        body = source.partition(r"\begin{document}")[2].rpartition(r"\end{document}")[0]
+        context = get_default_latex_context_db()
+        context.add_context_category(
+            "resume-headings",
+            prepend=True,
+            macros=[
+                MacroTextSpec(name, simplify_repl="%(3)s")
+                for name in ("section", "subsection", "subsubsection")
+            ],
+        )
+        converter = LatexNodes2Text(latex_context=context)
+        # No TeX execution and no input search path: external files are never read.
+        for index, line in enumerate(body.splitlines()):
+            chunks.append((f"TeX body line {index + 1}", converter.latex_to_text(line)))
+    elif kind == "pdf":
         from pypdf import PdfReader
 
         if not data.startswith(b"%PDF-"):
@@ -85,7 +122,7 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
                 for paragraph in part.paragraphs:
                     chunks.append((f"Section {index + 1} {label}", paragraph.text))
     else:
-        raise DocumentError("Only PDF and DOCX are supported.")
+        raise DocumentError("Only PDF, DOCX and TEX are supported.")
     if sum(len(text) for _, text in chunks) > MAX_TEXT:
         raise DocumentError("Extracted text exceeds 100,000 characters. Use a shorter resume.")
     lines: list[dict[str, str]] = []

@@ -77,7 +77,14 @@ def test_confirmed_evidence_and_hard_soft_separation(tmp_path: Path) -> None:
         ],
     )
     preferences = Preferences.model_validate(
-        {"hard": {"countries": ["Canada"]}, "soft": {"skills": ["Rust"], "locations": ["Toronto"]}}
+        {
+            "hard": {"countries": ["Canada"]},
+            "soft": {
+                "skills": ["Rust"],
+                "locations": ["Toronto"],
+                "roles": ["Software engineering", "UX research"],
+            },
+        }
     )
     first = profiles.save(
         SaveSettings(expected_revision=0, profile=profile, preferences=preferences)
@@ -88,6 +95,7 @@ def test_confirmed_evidence_and_hard_soft_separation(tmp_path: Path) -> None:
     assert candidate.constraints.locations == []
     assert candidate.preferred_locations == ["Toronto"]
     assert candidate.preferred_skills == ["Rust"]
+    assert candidate.preferred_roles == ["Software engineering", "UX research"]
     assert candidate.constraints.requires_sponsorship is None
     assert candidate.constraints.graduation_date is None
     assert "Unverified" not in candidate.model_dump_json()

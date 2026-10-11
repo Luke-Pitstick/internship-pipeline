@@ -8,7 +8,6 @@ from pathlib import Path
 
 import httpx
 import uvicorn
-from ats_scrapers.fetch import Fetcher, FetchResponse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests"))
@@ -20,20 +19,21 @@ from internship_pipeline.model_connection_router import probe as actual_probe
 from internship_pipeline import model_connection_router
 from internship_pipeline.search_runs import SearchRuns
 from internship_pipeline.storage import Store
+from internship_pipeline.models import FetchResult, SourceJob
+from internship_pipeline.sources import jobspy
 
 
-async def perform(self, method, url, **kwargs):
-    if "brokenboard" in url:
-        return FetchResponse(403, "{}", {}, "synthetic")
-    return FetchResponse(200, json.dumps({"jobs": [{
-        "id": 1, "title": "Synthetic Python internship",
-        "absolute_url": "https://boards.greenhouse.io/example/jobs/1",
-        "content": "Python internship. All citizenships welcome.",
-        "location": {"name": "Remote"}, "updated_at": "2026-10-01T00:00:00Z",
-    }]}), {}, "synthetic")
+def fetch(query, timeout):
+    return FetchResult(jobs=[SourceJob(
+        source="jobspy:indeed", source_id="synthetic-1", board_id=query.id,
+        company="Synthetic", title="Synthetic Python internship",
+        description="Python internship. All citizenships welcome.",
+        apply_url="https://example.test/jobs/1", source_url="https://example.test/jobs/1",
+        locations=["Remote"],
+    )])
 
 
-Fetcher._perform = perform
+jobspy.fetch_search = fetch
 
 
 def capability(request):

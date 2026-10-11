@@ -17,7 +17,6 @@ from internship_pipeline.models import (
     Constraints,
     ExperienceFact,
     Record,
-    RoleFamily,
     utcnow,
 )
 from internship_pipeline.storage import Store
@@ -91,7 +90,7 @@ class HardConstraints(Record):
 
 
 class SoftPreferences(Record):
-    roles: list[RoleFamily] = Field(default_factory=list, max_length=4)
+    roles: list[str] = Field(default_factory=list, max_length=30)
     locations: list[str] = Field(default_factory=list, max_length=30)
     skills: list[str] = Field(default_factory=list, max_length=50)
 
@@ -113,6 +112,7 @@ class SaveSettings(Record):
             self.preferences.hard.countries,
             self.preferences.hard.locations,
             self.preferences.hard.term_keywords,
+            self.preferences.soft.roles,
             self.preferences.soft.locations,
             self.preferences.soft.skills,
         ]

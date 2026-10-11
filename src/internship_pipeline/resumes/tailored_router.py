@@ -72,4 +72,29 @@ def make_tailored_resume_router(
             },
         )
 
+    @router.get("/tailored-resume/{key}/tex")
+    def source(key: str) -> Response:
+        try:
+            content = service.source(key)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(404, "TeX source unavailable or stale. Generate again.") from None
+        return Response(
+            content,
+            media_type="text/plain; charset=utf-8",
+            headers={
+                "Content-Disposition": "attachment; filename=tailored-resume.tex",
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @router.post("/tailored-resume/{key}/render", status_code=202)
+    def render(key: str) -> dict[str, Any]:
+        try:
+            return service.render_pdf(key)
+        except FileNotFoundError:
+            raise HTTPException(404, "TeX draft unavailable or stale.") from None
+        except MasterConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+
     return router

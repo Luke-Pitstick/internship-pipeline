@@ -21,8 +21,8 @@
   const blocked = $derived(dirty || disabled || busy || conflict);
   function chooseFile(selected?: File) {
     file = selected; failure = false; feedback = '';
-    if (file && (!/\.(pdf|docx)$/i.test(file.name) || !file.size || file.size > 5 * 1024 * 1024)) {
-      failure = true; feedback = 'Choose a nonempty PDF or DOCX of at most 5 MiB.';
+    if (file && (!/\.(pdf|docx|tex)$/i.test(file.name) || !file.size || file.size > 5 * 1024 * 1024)) {
+      failure = true; feedback = 'Choose a nonempty PDF, DOCX or TEX of at most 5 MiB.';
       file = undefined;
       if (fileInput) fileInput.value = '';
     }
@@ -35,8 +35,8 @@
   async function upload() {
     if (!file || blocked) return;
     const extension = file.name.split('.').pop()?.toLowerCase();
-    if (!['pdf', 'docx'].includes(extension ?? '') || !file.size || file.size > 5 * 1024 * 1024) {
-      failure = true; feedback = 'Choose a nonempty PDF or DOCX of at most 5 MiB.'; return;
+    if (!['pdf', 'docx', 'tex'].includes(extension ?? '') || !file.size || file.size > 5 * 1024 * 1024) {
+      failure = true; feedback = 'Choose a nonempty PDF, DOCX or TEX of at most 5 MiB.'; return;
     }
     busy = true; failure = false; feedback = 'Uploading and reading your résumé…';
     try {
@@ -66,10 +66,10 @@
 
 <section class="resume-import" aria-labelledby="resume-import-title" aria-busy={busy}>
   <h3 id="resume-import-title">Import your resume</h3>
-  <p class="field-help">Upload a PDF or DOCX to fill your profile fields. Review and correct them below before saving.</p>
+  <p class="field-help">Upload a PDF, DOCX or LaTeX (.tex) file to fill your profile fields. Review and correct them before saving. A saved .tex import also becomes your template for AI tailoring.</p>
   <label class="upload-label" for="resume-document">Resume document</label>
-  <input id="resume-document" aria-describedby="resume-file-help" bind:this={fileInput} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={blocked} onchange={event => chooseFile(event.currentTarget.files?.[0])} />
-  <p class="field-help" id="resume-file-help">PDF or Word (.docx), up to 5 MiB. Scanned PDFs need selectable text. Choose a file, then fill your profile.</p>
+  <input id="resume-document" aria-describedby="resume-file-help" bind:this={fileInput} type="file" accept=".tex,.pdf,.docx,application/x-tex,text/x-tex,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={blocked} onchange={event => chooseFile(event.currentTarget.files?.[0])} />
+  <p class="field-help" id="resume-file-help">PDF or Word (.docx), up to 5 MiB; UTF-8 LaTeX (.tex), up to 100,000 characters. Scanned PDFs need selectable text. TeX is read without compiling; render a tailored PDF when you request it.</p>
   {#if file}<p class="selected-file">{file.name} <span>· {Math.max(1, Math.round(file.size / 1024))} KB</span></p>{/if}
   {#if file}<button type="button" class="subtle" disabled={busy || disabled} onclick={cancel}>Discard selected résumé file</button>{/if}
   <button type="button" class="secondary" disabled={!file || blocked} onclick={upload}>{busy ? 'Filling profile…' : 'Fill profile from resume'}</button>

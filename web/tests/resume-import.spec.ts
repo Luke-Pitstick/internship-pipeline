@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './workspace-fixture';
 import { readFile } from 'node:fs/promises';
 
 async function login(page: Page) {
@@ -171,7 +171,7 @@ test('edits and discard during extraction cannot be overwritten by a late autofi
 test('resume upload validates files and explains proxy failures before a successful retry', async ({page}) => {
   await login(page);
   await page.getByLabel('Resume document').setInputFiles({name:'resume.txt', mimeType:'text/plain', buffer:Buffer.from('synthetic')});
-  await expect(page.getByRole('alert').filter({hasText:'Choose a nonempty PDF or DOCX'})).toBeVisible();
+  await expect(page.getByRole('alert').filter({hasText:'Choose a nonempty PDF, DOCX or TEX'})).toBeVisible();
   await expect(page.getByRole('button', {name:'Fill profile from resume'})).toBeDisabled();
   await page.route('**/api/resume-imports/upload?*', route => route.fulfill({status:413, contentType:'text/html', body:'Request too large'}));
   await page.getByLabel('Resume document').setInputFiles('tests/fixtures/resume.synthetic.pdf');

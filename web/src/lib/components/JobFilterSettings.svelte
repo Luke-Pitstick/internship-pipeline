@@ -4,7 +4,6 @@
   import ChoiceField from './ChoiceField.svelte';
   import { countryOptions, skillOptions } from '#lib/input-options.ts';
   let { preferences = $bindable(), errors = {}, disabled = false }: {preferences: Preferences; errors?: FieldErrors; disabled?: boolean} = $props();
-  const roles = [{value: 'swe', label: 'Software engineering'}, {value: 'pm', label: 'Product management'}, {value: 'ml_ai', label: 'Machine learning & AI'}, {value: 'ds', label: 'Data science'}];
 </script>
 <p class="form-intro">Mandatory constraints and preferences are saved separately. Jev uses your saved settings when evaluating jobs; changes apply to future evaluations.</p>
 <div class="form-group">
@@ -15,7 +14,7 @@
 </div>
 <div class="form-group">
   <h3>Soft preferences</h3><p class="field-help">These describe what you prefer and cannot override a mandatory constraint.</p>
-  <fieldset class="role-options"><legend>Preferred roles</legend>{#each roles as role}<label class="toggle-label"><input type="checkbox" value={role.value} bind:group={preferences.soft.roles} />{role.label}</label>{/each}</fieldset>
+  <ListField {disabled} label="Preferred roles" name="preferences.soft.roles" error={errors['preferences.soft.roles']} bind:values={preferences.soft.roles} help="Add roles you’re interested in, such as Software engineering or UX research." />
   <ListField {disabled} label="Preferred locations" name="preferences.soft.locations" error={errors['preferences.soft.locations']} bind:values={preferences.soft.locations} help="Add each preferred city or region separately." />
   <ListField {disabled} options={skillOptions} max={50} label="Preferred skills to use" name="preferences.soft.skills" error={errors['preferences.soft.skills']} bind:values={preferences.soft.skills} help="These are interests, not claims that you possess a skill. Add confirmed skills in Profile." />
 </div>

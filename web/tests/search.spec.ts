@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './workspace-fixture';
 import {readFile} from 'node:fs/promises';
 test('saved searches persist backlog review budgets pause history and reconnect with real API worker',async({page})=>{
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results/search-setup.json','utf8')).token}`);

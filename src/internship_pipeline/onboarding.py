@@ -6,6 +6,7 @@ import hashlib
 import json
 import sqlite3
 import time
+import uuid
 from typing import Any, Literal
 
 from pydantic import Field
@@ -14,14 +15,15 @@ from internship_pipeline.email_integrations import EmailIntegrations
 from internship_pipeline.generation_policy import read_policy
 from internship_pipeline.model_connections import ModelConnectionStore
 from internship_pipeline.models import Record
+from internship_pipeline.preference_searches import preference_searches
 from internship_pipeline.profile_settings import ProfileSettings
-from internship_pipeline.search_runs import SearchRuns
+from internship_pipeline.search_runs import SearchRuns, SourceConfig
 from internship_pipeline.sheets_integration import SheetsIntegration
 from internship_pipeline.storage import Store
 
-Step = Literal["models", "profile", "filters", "search", "integrations", "review", "results"]
+Step = Literal["models", "profile", "filters", "integrations", "review"]
 Choice = Literal["skip", "connect"]
-STEPS = ("models", "profile", "filters", "search", "integrations", "review", "results")
+STEPS = ("models", "profile", "filters", "integrations", "review")
 
 
 class Checkpoint(Record):
@@ -31,9 +33,8 @@ class Checkpoint(Record):
     sheets: Choice | None = None
 
 
-class Start(Record):
+class Finish(Record):
     preview: str = Field(min_length=64, max_length=64)
-    search_id: str = Field(min_length=1, max_length=100)
 
 
 class Onboarding:
@@ -61,7 +62,6 @@ class Onboarding:
                             "defer_models": False,
                             "email": None,
                             "sheets": None,
-                            "run_id": None,
                             "complete": False,
                         }
                     ),
@@ -73,6 +73,11 @@ class Onboarding:
         state: dict[str, Any] = json.loads(
             db.execute("SELECT data FROM onboarding_state WHERE id=1").fetchone()[0]
         )
+        state["reviewed"] = [step for step in state["reviewed"] if step in STEPS[:-1]]
+        if state["step"] not in STEPS:
+            state["step"] = next(
+                (step for step in STEPS if step not in state["reviewed"]), "review"
+            )
         return state
 
     @staticmethod
@@ -96,7 +101,11 @@ class Onboarding:
             ).fetchone()
         profile = self.profiles.read()
         models = self.models.summary()
-        searches = self.searches.settings()["searches"]
+        search_error = None
+        try:
+            searches = [config.model_dump() for config in preference_searches(profile.preferences)]
+        except ValueError as exc:
+            searches, search_error = [], str(exc)
         email, sheets = self.email.summary(), self.sheets.summary()
         model_status = {
             kind: "ready"
@@ -139,14 +148,7 @@ class Onboarding:
                 }
                 for kind, item in models.items()
             },
-            "searches": [
-                {
-                    key: value
-                    for key, value in search.items()
-                    if key not in {"last_success", "next_run"}
-                }
-                for search in searches
-            ],
+            "searches": searches,
             "generation": {"revision": generation_revision, **generation.model_dump()},
             "email": {
                 "choice": state["email"],
@@ -164,7 +166,7 @@ class Onboarding:
         }
         token = hashlib.sha256(json.dumps(preview, sort_keys=True).encode()).hexdigest()
         blockers = []
-        for step in STEPS[:5]:
+        for step in STEPS[:-1]:
             if step not in state["reviewed"]:
                 blockers.append({"step": step, "message": "Review this setup step before running."})
         if not profile.revision:
@@ -174,8 +176,8 @@ class Onboarding:
                     "message": "Save your reviewed profile, including unknown fields.",
                 }
             )
-        if not any(not search["paused"] for search in searches):
-            blockers.append({"step": "search", "message": "Save and resume at least one search."})
+        if search_error:
+            blockers.append({"step": "filters", "message": search_error})
         if not state["defer_models"] and any(status != "ready" for status in model_status.values()):
             blockers.append(
                 {"step": "models", "message": "Test both models or explicitly defer model work."}
@@ -185,13 +187,11 @@ class Onboarding:
                 blockers.append(
                     {"step": "integrations", "message": f"Choose skip or finish testing {name}."}
                 )
-        run = self.searches.view(state["run_id"])["run"] if state["run_id"] else None
         return {
             **state,
             "preview": preview,
             "preview_token": token,
             "blockers": blockers,
-            "run": run,
             "has_jobs": has_jobs,
         }
 
@@ -204,7 +204,7 @@ class Onboarding:
                 if body.email is None or body.sheets is None:
                     raise ValueError("Choose connect or skip for both integrations.")
                 state["email"], state["sheets"] = body.email, body.sheets
-            if body.step not in state["reviewed"] and body.step in STEPS[:5]:
+            if body.step not in state["reviewed"] and body.step in STEPS[:-1]:
                 state["reviewed"].append(body.step)
             state["step"] = STEPS[min(STEPS.index(body.step) + 1, len(STEPS) - 1)]
             self._write(db, state)
@@ -217,31 +217,28 @@ class Onboarding:
             self._write(db, state)
         return self.view()
 
-    def start(self, body: Start) -> dict[str, Any]:
+    def finish(self, body: Finish) -> dict[str, Any]:
         with self.store.transaction() as db:
+            state = self._state(db)
+            if state["complete"]:
+                return self.view()
             current = self.view()
-            if current["blockers"]:
-                raise ValueError(current["blockers"][0]["message"])
             if current["preview_token"] != body.preview:
                 raise ValueError(
-                    "Settings changed. Review the current configuration before running."
+                    "Settings changed. Review the current configuration before finishing."
                 )
-            state = self._state(db)
-            # A replay never starts another run; an owner must explicitly return to review.
-            if state["run_id"] and state["step"] == "results":
-                return self.view()
-            run_id = self.searches._start(db, body.search_id, False, time.time())
-            state["run_id"], state["step"] = run_id, "results"
-            state["complete"] = False
-            self._write(db, state)
-        return self.view()
-
-    def finish(self) -> dict[str, Any]:
-        with self.store.transaction() as db:
-            view = self.view()
-            if not view["run"] or not view["run"]["collected"]:
-                raise ValueError("Wait for an observed job or correct the search and run it again.")
-            state = self._state(db)
+            if current["blockers"]:
+                raise ValueError(current["blockers"][0]["message"])
+            # Saving searches, queuing collection and completing setup are one commit.
+            # No source or model response is required to open the workspace.
+            for search in current["preview"]["searches"]:
+                config = SourceConfig.model_validate(search)
+                search_id = uuid.uuid4().hex
+                db.execute(
+                    "INSERT INTO saved_searches VALUES(?,1,?,0,NULL)",
+                    (search_id, config.model_dump_json()),
+                )
+                self.searches._start(db, search_id, False, time.time())
             state["complete"] = True
             self._write(db, state)
         return self.view()

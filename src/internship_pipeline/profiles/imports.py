@@ -28,7 +28,7 @@ from internship_pipeline.profile_settings import (
     SaveSettings,
     Snapshot,
 )
-from internship_pipeline.profiles.extract import MAX_UPLOAD, DocumentError
+from internship_pipeline.profiles.extract import MAX_UPLOAD, DocumentError, tex_source
 from internship_pipeline.storage import Store
 
 _PROCESS_SLOT = threading.BoundedSemaphore(1)
@@ -181,11 +181,15 @@ class ResumeImports:
                     digest TEXT NOT NULL, base_revision INTEGER NOT NULL, lines TEXT NOT NULL,
                     approved_revision INTEGER, evidence TEXT
                 );
+                CREATE TABLE IF NOT EXISTS resume_templates (
+                    import_id TEXT PRIMARY KEY REFERENCES resume_imports(id) ON DELETE CASCADE,
+                    source TEXT NOT NULL
+                );
             """)
 
     def upload(self, data: bytes, kind: str, expected_revision: int) -> dict[str, Any]:
-        if kind not in {"pdf", "docx"}:
-            raise DocumentError("Only PDF and DOCX are supported.")
+        if kind not in {"pdf", "docx", "tex"}:
+            raise DocumentError("Only PDF, DOCX and TEX are supported.")
         if not data or len(data) > MAX_UPLOAD:
             raise DocumentError("Upload a nonempty document of at most 5 MiB.")
         if self.settings.read().revision != expected_revision:
@@ -219,6 +223,10 @@ class ResumeImports:
                     json.dumps(lines),
                 ),
             )
+            if kind == "tex":
+                connection.execute(
+                    "INSERT INTO resume_templates VALUES(?,?)", (identifier, tex_source(data))
+                )
         return {
             "id": identifier,
             "expected_revision": expected_revision,
@@ -226,6 +234,16 @@ class ResumeImports:
             "suggestions": self.draft_suggestions(lines),
             "removable": self.removable(),
         }
+
+    def template(self) -> str | None:
+        """The most recently reviewed import chooses the template, atomically with profile save."""
+        with self.store.connection() as db:
+            row = db.execute(
+                "SELECT t.source FROM resume_imports i LEFT JOIN resume_templates t "
+                "ON t.import_id=i.id WHERE i.approved_revision IS NOT NULL "
+                "ORDER BY i.approved_revision DESC LIMIT 1"
+            ).fetchone()
+        return row[0] if row else None
 
     def draft_suggestions(self, lines: list[dict[str, str]]) -> list[dict[str, Any]]:
         proposed = suggestions(lines)

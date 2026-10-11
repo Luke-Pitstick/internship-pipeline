@@ -1,10 +1,11 @@
 import {test, expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
-test('fresh browser setup resumes imported facts, models, skips, failed source correction and useful jobs',async({page})=>{
+test('setup generates searches from preferences and opens Jobs with navigation only after completion',async({page})=>{
   test.setTimeout(90000);
   await page.goto(`/#setup=${JSON.parse(await readFile('test-results-setup/setup.json','utf8')).token}`);
 
+  await expect(page.getByRole('navigation',{name:'Main navigation'})).toHaveCount(0);
   await page.getByLabel('Username',{exact:true}).fill('synthetic-owner');
   await page.getByLabel('Password',{exact:true}).fill('synthetic-owner-password');
   await page.getByRole('button',{name:'Create owner account'}).click();
@@ -32,12 +33,9 @@ test('fresh browser setup resumes imported facts, models, skips, failed source c
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:/Saved · revision/})).toBeVisible();
   await page.getByRole('button',{name:'Save progress and continue'}).click();
-  await page.getByLabel('Search name',{exact:true}).fill('Synthetic first search');
-  await page.getByLabel('Company board token').fill('brokenboard');
-  await page.getByRole('button',{name:'Save search',exact:true}).click();
-  await expect(page.getByRole('status').filter({hasText:'Search saved.'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Run now'})).toHaveCount(0);
-  await page.getByRole('button',{name:'Save progress and continue'}).click();
+  await expect(page.getByRole('heading',{name:'Optional integrations',exact:true})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'Main navigation'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/Saved search/})).toHaveCount(0);
   await page.getByLabel('Email during setup').selectOption('connect');
   await page.getByLabel('SMTP host').fill('smtp.example.test');
   await page.getByLabel('Username',{exact:true}).fill('synthetic');
@@ -48,11 +46,11 @@ test('fresh browser setup resumes imported facts, models, skips, failed source c
   await page.getByRole('button',{name:'Send test email'}).click();
   await expect(page.getByText(/failed.*credential_unavailable|failed/i).first()).toBeVisible({timeout:12000});
   await page.getByRole('button',{name:'Save progress and continue'}).click();
-  await expect(page.getByRole('button',{name:'Confirm configuration and run first search'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Finish setup and find jobs'})).toBeDisabled();
   await page.getByRole('link',{name:'Correct integrations'}).click();
   await expect(page.getByRole('heading',{name:'Notifications & Integrations',exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Return to guided setup'}).click();
-  await page.getByRole('button',{name:'5. Optional integrations',exact:false}).click();
+  await page.getByRole('button',{name:'4. Optional integrations',exact:false}).click();
   await page.getByLabel('Email during setup').selectOption('skip');
   await page.getByLabel('Sheets during setup').selectOption('skip');
   await page.getByRole('button',{name:'Save progress and continue'}).click();
@@ -73,28 +71,35 @@ test('fresh browser setup resumes imported facts, models, skips, failed source c
   await page.getByRole('button',{name:'1. Models',exact:false}).click();
   await page.getByLabel('Defer model work and collect jobs first').uncheck();
   await page.getByRole('button',{name:'Save progress and continue'}).click();
-  await page.getByRole('button',{name:'6. Configuration preview',exact:false}).click();
-  await page.getByRole('button',{name:'Confirm configuration and run first search'}).click();
-  await expect(page.getByRole('link',{name:'Correct source connection'})).toBeVisible({timeout:15000});
-  await page.reload();
-  await expect(page.getByRole('link',{name:'Correct source connection'})).toBeVisible();
-  await page.getByRole('link',{name:'Correct source connection'}).click();
-  await expect(page.getByRole('heading',{name:'Sources',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Edit Synthetic first search'}).click();
-  await page.getByLabel('Company board token').fill('example');
-  await page.getByRole('button',{name:'Save search',exact:true}).click();
-  await expect(page.getByRole('status').filter({hasText:'Search saved.'})).toBeVisible();
-  await page.getByRole('link',{name:'Return to guided setup'}).click();
-  await page.getByRole('button',{name:'Return to configuration preview'}).click();
-  await expect(page.getByText(/greenhouse · example/)).toBeVisible();
-  await page.getByRole('button',{name:'Confirm configuration and run first search'}).click();
-  await expect(page.getByRole('button',{name:'Finish setup and view jobs'})).toBeVisible({timeout:15000});
+  await page.getByRole('button',{name:'5. Configuration preview',exact:false}).click();
+  await expect(page.getByText('internship · All locations · canada · indeed.',{exact:true})).toBeVisible();
+  // Simulate a preference correction from a second tab while this preview is open.
+  const session = await (await page.request.get('/api/session')).json();
+  const snapshot = await (await page.request.get('/api/profile-settings')).json();
+  snapshot.preferences.soft.roles = ['Software engineering'];
+  const saved = await page.request.post('/api/profile-settings', {
+    headers:{'X-CSRF-Token':session.csrf,'Origin':'http://127.0.0.1:4184'},
+    data:{expected_revision:snapshot.revision,profile:snapshot.profile,preferences:snapshot.preferences},
+  });
+  expect(saved.ok()).toBe(true);
+  await page.getByRole('button',{name:'Finish setup and find jobs'}).click();
+  await expect(page.getByRole('alert')).toContainText('Settings changed');
+  await expect(page.getByRole('navigation',{name:'Main navigation'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Refresh configuration preview'}).click();
+  await expect(page.getByText('Software engineering internship · All locations · canada · indeed.',{exact:true})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:'test-results-setup/t16-setup-mobile.png',fullPage:true});
-  await page.getByRole('button',{name:'Finish setup and view jobs'}).click();
+  await page.screenshot({path:'test-results-setup/setup-mobile.png',fullPage:true});
+  await page.getByRole('button',{name:'Finish setup and find jobs'}).click();
   await expect(page).toHaveURL(/\/(?:\?.*)?$/);
-  await expect(page.getByText('Synthetic Python internship',{exact:true}).first()).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'Main navigation'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Continue setup'})).toHaveCount(0);
+  await expect(page.getByText('Synthetic Python internship',{exact:true}).first()).toBeVisible({timeout:15000});
+  await page.getByRole('link',{name:'Settings',exact:true}).click();
+  await page.getByRole('link',{name:'Jobs',exact:true}).click();
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+  await page.goto('/setup/');
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
   await page.reload();
   await expect(page).toHaveURL(/\/(?:\?.*)?$/);
   const state=await (await page.request.get('/api/onboarding')).json();

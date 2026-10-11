@@ -16,6 +16,10 @@ class ResumeValidationError(ValueError):
     """The artifact is unsafe to deliver as a usable tailored resume."""
 
 
+class TexIsolationUnavailable(ResumeValidationError):
+    """Uploaded source cannot be compiled safely on this host."""
+
+
 @dataclass
 class ValidationReport:
     warnings: list[str] = field(default_factory=list)

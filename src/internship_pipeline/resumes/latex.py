@@ -11,7 +11,8 @@ import time
 from pathlib import Path
 
 from internship_pipeline.resumes.errors import DocumentCompileTimeout
-from internship_pipeline.resumes.validation import ResumeValidationError
+from internship_pipeline.resumes.tex_sandbox import command
+from internship_pipeline.resumes.validation import ResumeValidationError, TexIsolationUnavailable
 
 
 class LatexCompiler:
@@ -22,29 +23,38 @@ class LatexCompiler:
     def identity(self) -> dict[str, str]:
         return {"engine": self.executable, "flags_revision": "1"}
 
-    def compile(self, source: str, deadline: float) -> bytes:
+    def compile(self, source: str, deadline: float, *, untrusted: bool = False) -> bytes:
         with tempfile.TemporaryDirectory(prefix="internship-latex-") as directory:
             root = Path(directory)
             root.chmod(0o700)
             path = root / "resume.tex"
             path.write_bytes(source.encode("utf-8"))
             path.chmod(0o600)
-            environment = os.environ.copy()
+            environment = (
+                {"PATH": os.defpath, "HOME": str(root), "TMPDIR": str(root)}
+                if untrusted
+                else os.environ.copy()
+            )
             environment.update({"openin_any": "p", "openout_any": "p", "TEXMFOUTPUT": str(root)})
             for _ in range(2):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise DocumentCompileTimeout("LaTeX compilation deadline exceeded")
                 try:
+                    flags = [
+                        "-no-shell-escape",
+                        "-interaction=nonstopmode",
+                        "-halt-on-error",
+                        "-file-line-error",
+                        path.name,
+                    ]
+                    args = (
+                        command(self.executable, root, flags)
+                        if untrusted
+                        else [self.executable, *flags]
+                    )
                     process = subprocess.Popen(
-                        [
-                            self.executable,
-                            "-no-shell-escape",
-                            "-interaction=nonstopmode",
-                            "-halt-on-error",
-                            "-file-line-error",
-                            path.name,
-                        ],
+                        args,
                         cwd=root,
                         env=environment,
                         stdin=subprocess.DEVNULL,
@@ -52,7 +62,7 @@ class LatexCompiler:
                         stderr=subprocess.DEVNULL,
                         start_new_session=True,
                     )
-                except OSError as exc:
+                except (OSError, ValueError) as exc:
                     raise ResumeValidationError(
                         "LaTeX compiler is unavailable; install the application template "
                         "TeX dependencies"
@@ -68,6 +78,8 @@ class LatexCompiler:
                         os.killpg(process.pid, signal.SIGKILL)
                         process.communicate()
                     raise
+                if untrusted and process.returncode == 78:
+                    raise TexIsolationUnavailable("Isolated TeX rendering unavailable")
                 if process.returncode != 0:
                     raise ResumeValidationError(
                         "PDF compilation failed; check the deployment template packages"

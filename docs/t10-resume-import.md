@@ -1,10 +1,10 @@
-# T10 — Reviewed PDF/DOCX resume import
+# T10 — Reviewed PDF/DOCX/TeX resume import
 
-Implemented October 6, 2026; corrected October 11, 2026. Settings → Profile provides authenticated PDF/DOCX upload that fills the existing editable profile form. The owner reviews or corrects those fields and chooses the ordinary Save changes action to save an immutable profile revision. Settings → Resume Generation also mounts T11's independent master-resume component with the current saved revision and unsaved-draft guard.
+Implemented October 6, 2026; corrected October 11, 2026. Settings → Profile provides authenticated PDF/DOCX/TeX upload that fills the existing editable profile form. The owner reviews or corrects those fields and chooses the ordinary Save changes action to save an immutable profile revision. Settings → Resume Generation also mounts T11's independent master-resume component with the current saved revision and unsaved-draft guard.
 
 ## User flow and factual boundary
 
-The upload accepts a nonempty PDF or DOCX of at most 5 MiB. The existing `pypdf` dependency and maintained `python-docx` 1.2 parser extract text in a separate process. There is no model call, credential access, document execution, uploaded-template compilation, or external upload. The binary is discarded after extraction; SQLite retains the document hash, format, extracted source lines and locations, original profile revision, and confirmed field-to-source evidence.
+The upload accepts a nonempty PDF or DOCX of at most 5 MiB. The existing `pypdf` dependency and maintained `python-docx` 1.2 parser extract text in a separate process. There is no model call, credential access, document execution, uploaded-template compilation, or external upload. PDF/DOCX binaries are discarded after extraction; SQLite retains the document hash, format, extracted source lines and locations, original profile revision, and confirmed field-to-source evidence.
 
 The extractor selects literal names/email excerpts, experience/project claims under recognized headings, delimited acquired skills, and school/degree pairs readable on one or adjacent source lines. Skills with labels such as `Languages: Python, SQL` become the literal `Python` and `SQL` terms. Unrecognized sections, interests, and uncertain content remain excluded. Selection is bounded by remaining profile capacity, and the server rejects invented source excerpts and skills. Eligibility, availability and graduation dates are preserved as saved; absent information stays unknown and can be entered manually in the profile editor.
 
@@ -22,7 +22,7 @@ The extractor has a 12-second parent deadline, eight CPU seconds, one active pro
 
 All routes reuse the owner-session/CSRF dependency, deny cross-origin mutations, and return `Cache-Control: no-store`:
 
-- `POST /api/resume-imports/upload?format=pdf|docx&expected_revision=N` accepts a raw binary body, capped at 5 MiB both at the shared application boundary and import service.
+- `POST /api/resume-imports/upload?format=pdf|docx|tex&expected_revision=N` accepts a raw binary body, capped at 5 MiB both at the shared application boundary and import service.
 - `POST /api/resume-imports/{id}/preview` validates selections/removals and returns the saved and proposed profile alongside source evidence.
 - `POST /api/resume-imports/{id}/confirm` requires the same revision and explicit `confirmed: true`. The ordinary form save also supplies `settings` containing the reviewed profile and preferences; only evidence matching the final values is retained. Profile and provenance save atomically.
 - `GET /api/resume-imports/current` returns the last approved extracted source and provenance only to the authenticated owner. Preview/confirmation JSON bodies are capped at 256 KiB.
@@ -54,3 +54,7 @@ rtk proxy /tmp/internship-pipeline-audit-venv/bin/python -m mypy src/internship_
 From `web/`, run `rtk npm run check`, `rtk npm run build`, and `rtk proxy npx playwright test tests/models.spec.ts tests/profile.spec.ts tests/resume-import.spec.ts --output=test-results/import-regression`. Browser fixtures require localhost binding permission. The temporary space-free virtualenv path is a local verification convenience; use the project's synced environment elsewhere.
 
 The original T10 implementation was accepted October 6; the October 11 correction replaces its separate review-screen flow with the editable autofill flow described above. OCR/image-only import is intentionally unsupported with explicit feedback, as allowed by T10. Master document rendering is T11; job-specific model tailoring is T12; coordinated backup/restore packaging is T17. Those separate capabilities are not claimed by import. No live provider call, real profile read, external notification, commit, push, deployment or `.env` edit occurred. Shared whole-tree regression and Docker runtime validation remain parent/release verification gates; this document claims the focused and browser checks actually run.
+
+## October 11 — TeX source imports
+
+The file picker and API also accept UTF-8 `.tex` documents, capped at 100,000 characters with required document delimiters. `pylatexenc` reads body text without executing TeX or reading external inputs; ordinary reviewed profile save/provenance rules still apply. Source is kept privately in SQLite `resume_templates`. Only confirming the import activates that template for T12 AI tailoring. Preview and discard cannot activate it; a subsequently reviewed PDF/DOCX import chooses the application template again. The original uploaded source is preserved independently of each tailored draft. See [T12 source-first generation](t12-tailored-resumes.md#october-11--source-first-tex-tailoring) for rendering and verification.

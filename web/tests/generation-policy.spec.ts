@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './workspace-fixture';
 import {readFile} from 'node:fs/promises';
 test('off default, qualifying preview, automatic draft, persistent disable and manual action', async ({page}) => {
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-generation-policy/setup.json','utf8')).token}`);

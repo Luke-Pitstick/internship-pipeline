@@ -149,7 +149,5 @@
   :global(.fact-id) { overflow-wrap: anywhere; font-size: 11px; }
   :global(.field-error) { color: #a83424; font-size: 13px; margin: 6px 0; }
   :global([aria-invalid=true]) { border-color: #a83424; }
-  :global(.role-options) { border: 0; margin: 16px 0; padding: 0; }
-  :global(.role-options .toggle-label) { display: flex; gap: 10px; padding: 8px 0; }
   :global(.form-group select) { max-width: 100%; width: 100%; margin-top: 7px; }
 </style>

@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './workspace-fixture';
 import {readFile, writeFile} from 'node:fs/promises';
 
 test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API timing with progress', async ({page}) => {

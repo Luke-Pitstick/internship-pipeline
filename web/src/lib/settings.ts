@@ -25,6 +25,7 @@ export function validateSettings(snapshot: Snapshot): FieldErrors {
     ['preferences.hard.countries', snapshot.preferences.hard.countries, 30],
     ['preferences.hard.locations', snapshot.preferences.hard.locations, 30],
     ['preferences.hard.term_keywords', snapshot.preferences.hard.term_keywords, 30],
+    ['preferences.soft.roles', snapshot.preferences.soft.roles, 30],
     ['preferences.soft.locations', snapshot.preferences.soft.locations, 30],
     ['preferences.soft.skills', snapshot.preferences.soft.skills, 50],
     ...snapshot.profile.facts.map((fact, index): [string, string[], number] => [`profile.facts.${index}.skills`, fact.skills, 30])

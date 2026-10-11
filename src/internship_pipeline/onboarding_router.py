@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from internship_pipeline.models import Record
-from internship_pipeline.onboarding import Checkpoint, Onboarding, Start, Step
+from internship_pipeline.onboarding import Checkpoint, Finish, Onboarding, Step
 
 
 class Visit(Record):
@@ -34,12 +34,8 @@ def onboarding_router(setup: Onboarding, owner: Callable[..., Any]) -> APIRouter
     def visit(body: Visit) -> dict[str, Any]:
         return setup.visit(body.step)
 
-    @router.post("/start")
-    def start(body: Start) -> dict[str, Any]:
-        return invoke(lambda: setup.start(body))
-
     @router.post("/finish")
-    def finish() -> dict[str, Any]:
-        return invoke(setup.finish)
+    def finish(body: Finish) -> dict[str, Any]:
+        return invoke(lambda: setup.finish(body))
 
     return router

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './workspace-fixture';
 import { readFile } from 'node:fs/promises';
 
 test('model connections save, edit, test, persist and remove without revealing credentials', async ({ page }) => {

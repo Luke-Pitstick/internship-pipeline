@@ -9,6 +9,7 @@ import os
 import re
 import stat
 import time
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -16,6 +17,7 @@ import httpx
 from internship_pipeline.generation_policy import AutomationDenied, allows_automatic, task_allowed
 from internship_pipeline.model_connections import ModelConnectionStore
 from internship_pipeline.models import Settings, utcnow
+from internship_pipeline.profiles.imports import ResumeImports
 from internship_pipeline.queue import Queue, Task
 from internship_pipeline.resumes.errors import DocumentCompileTimeout
 from internship_pipeline.resumes.latex import LatexCompiler
@@ -27,7 +29,7 @@ from internship_pipeline.resumes.tailored_provider import (
     request_payload,
     select_facts,
 )
-from internship_pipeline.resumes.validation import ResumeValidationError
+from internship_pipeline.resumes.validation import ResumeValidationError, TexIsolationUnavailable
 from internship_pipeline.run_limits import RunLimitError, finish, reserve
 from internship_pipeline.storage import Store, enqueue
 
@@ -47,6 +49,7 @@ class TailoredResumes:
         self.store, self.settings = store, settings
         self.master = MasterResumes(store, settings, compiler=compiler)
         self.profiles = self.master.profiles
+        self.imports = ResumeImports(store)
         self.compiler = self.master.compiler
         self.queue = Queue(store, settings.lease_seconds, min(settings.max_attempts, 3))
         self.connections = connections or ModelConnectionStore(
@@ -82,7 +85,15 @@ class TailoredResumes:
         revision = hashlib.sha256(f"{job.content_hash}:{job.opening_revision}".encode()).hexdigest()
         key = hashlib.sha256(
             json.dumps(
-                [job.id, revision, snapshot.revision, model_revision, TEMPLATE_REVISION, POLICY]
+                [
+                    job.id,
+                    revision,
+                    snapshot.revision,
+                    model_revision,
+                    TEMPLATE_REVISION,
+                    POLICY,
+                    hashlib.sha256((self.imports.template() or "").encode()).hexdigest(),
+                ]
             ).encode()
         ).hexdigest()
         return key, job, snapshot, model_revision
@@ -108,7 +119,10 @@ class TailoredResumes:
         invalid = False
         if cached["state"] in {"draft", "reviewed"}:
             try:
-                self.pdf(key)
+                if cached.get("preview_url"):
+                    self.pdf(key)
+                else:
+                    self.source(key)
                 return cached
             except (ValueError, OSError):
                 invalid = True
@@ -186,7 +200,8 @@ class TailoredResumes:
                 "model_revision": model_revision,
             }
         state = row["status"]
-        if row["filename"] and state == "done":
+        selection = Selection.model_validate_json(row["selection"]) if row["selection"] else None
+        if (row["filename"] or (selection and selection.tex_source)) and state == "done":
             state = "reviewed" if row["reviewed_at"] else "draft"
         if key != self.identity(job_id)[0]:
             state = "stale"
@@ -204,6 +219,8 @@ class TailoredResumes:
         }
         if row["error"] and state in {"failed", "pending"}:
             result["error"] = row["error"]
+        if selection and selection.tex_source and state != "stale":
+            result["source_url"] = f"/api/tailored-resume/{key}/tex"
         if state in {"draft", "reviewed"}:
             info = json.loads(row["usage"]) if row["usage"] else [None, None, None]
             result["model_usage"] = {
@@ -215,9 +232,12 @@ class TailoredResumes:
             result.update(
                 changes=manifest["changes"],
                 warnings=manifest["warnings"],
-                preview_url=f"/api/tailored-resume/{key}/pdf",
-                download_url=f"/api/tailored-resume/{key}/pdf?download=true",
             )
+            if row["filename"]:
+                result.update(
+                    preview_url=f"/api/tailored-resume/{key}/pdf",
+                    download_url=f"/api/tailored-resume/{key}/pdf?download=true",
+                )
         return result
 
     def review(self, key: str) -> dict[str, Any]:
@@ -228,7 +248,10 @@ class TailoredResumes:
             status = self.status(key, row[0])
             if status["state"] not in {"draft", "reviewed"}:
                 raise MasterConflict("Only the current completed draft can be reviewed.")
-            self.pdf(key)
+            if status.get("source_url"):
+                self.source(key)
+            else:
+                self.pdf(key)
             db.execute(
                 "UPDATE tailored_resumes SET reviewed_at=? WHERE key=?", (utcnow().isoformat(), key)
             )
@@ -240,6 +263,42 @@ class TailoredResumes:
         if row is None or not row["filename"] or key != self.identity(row["job_id"])[0]:
             raise FileNotFoundError
         return self._read_pdf(row, key)
+
+    def source(self, key: str) -> str:
+        with self.store.connection() as db:
+            row = db.execute("SELECT * FROM tailored_resumes WHERE key=?", (key,)).fetchone()
+        if row is None or key != self.identity(row["job_id"])[0] or not row["selection"]:
+            raise FileNotFoundError
+        source = Selection.model_validate_json(row["selection"]).tex_source
+        if source is None:
+            raise FileNotFoundError
+        return source
+
+    def render_pdf(self, key: str) -> dict[str, Any]:
+        self.source(key)
+        with self.store.transaction() as db:
+            row = db.execute("SELECT job_id FROM tailored_resumes WHERE key=?", (key,)).fetchone()
+            if key != self.identity(row["job_id"])[0]:
+                raise MasterConflict("Draft changed. Reload before rendering.")
+            status = self.status(key, row["job_id"])
+            if status["state"] in {"pending", "running"}:
+                return status
+            if status.get("preview_url"):
+                try:
+                    self.pdf(key)
+                    return status
+                except (OSError, ValueError):
+                    pass
+            db.execute(
+                "UPDATE tasks SET status='pending',attempts=0,available_at=?,error=NULL,payload=? "
+                "WHERE key=? AND status IN ('done','failed')",
+                (
+                    utcnow().timestamp(),
+                    json.dumps({"key": key, "origin": "manual", "render_pdf": True}),
+                    "tailored:" + key,
+                ),
+            )
+        return self.status(key, row["job_id"])
 
     def process_next(self) -> bool:
         task = self.queue.claim(["tailored_resume"], guard=task_allowed)
@@ -283,11 +342,17 @@ class TailoredResumes:
                 self.queue.fail(task, message)
             else:
                 self.queue.needs_attention(task, message)
+        except TexIsolationUnavailable:
+            self.queue.needs_attention(
+                task,
+                "PDF rendering needs Linux Landlock ABI 4+ enabled on the host. "
+                "Your TeX source is retained and can be downloaded.",
+            )
         except (ResumeValidationError, DocumentCompileTimeout):
             self.queue.needs_attention(
                 task,
-                "PDF validation or compilation failed. Shorten confirmed facts "
-                "or check the compiler, then retry.",
+                "PDF rendering failed. The TeX source is retained. Check template packages "
+                "and compiler isolation, or shorten confirmed facts, then retry rendering.",
             )
         except ValueError:
             self.queue.needs_attention(
@@ -327,6 +392,7 @@ class TailoredResumes:
                 if not allows_automatic(db, job.id):
                     raise AutomationDenied
         config, secret = self.connections.ready_connection("general", model_revision)
+        template = self.imports.template()
         facts = [
             f.model_dump(mode="json") for f in snapshot.profile.facts if f.status == "confirmed"
         ]
@@ -346,6 +412,7 @@ class TailoredResumes:
                         "company": job.posting.company,
                         "description": job.posting.description,
                     },
+                    template,
                 )
                 reservation = reserve(
                     db,
@@ -369,6 +436,7 @@ class TailoredResumes:
                             "company": job.posting.company,
                             "description": job.posting.description,
                         },
+                        template=template,
                         transport=self.transport,
                     )
                 )
@@ -411,6 +479,8 @@ class TailoredResumes:
             }
         )
         document = render_master(selected)
+        if selection.tex_source:
+            document = replace(document, source=selection.tex_source)
         omitted = [f.id for f in snapshot.profile.facts if f.id not in selection.fact_ids]
         document.manifest.update(
             job_id=job.id,
@@ -426,8 +496,13 @@ class TailoredResumes:
                     for f in snapshot.profile.facts
                     if f.id in omitted
                 ],
-                "wording": "Confirmed wording preserved verbatim; selected facts "
-                "ordered within their sections.",
+                "wording": (
+                    "The AI edited a copy of your TeX template using original source blocks "
+                    "and confirmed wording. Review the source and omissions before rendering."
+                    if selection.tex_source
+                    else "Confirmed wording preserved verbatim; selected facts "
+                    "ordered within their sections."
+                ),
             },
             warnings=[
                 "Review every fact, omitted experience and the job requirements before applying.",
@@ -437,10 +512,25 @@ class TailoredResumes:
                 "draft does not establish eligibility.",
             ],
         )
+        if selection.tex_source and not task.payload.get("render_pdf"):
+            if key != self.identity(job.id)[0]:
+                raise MasterConflict("Stale completion")
+            if not self._checkpoint(
+                task,
+                manifest=json.dumps(document.manifest),
+                completed_at=utcnow().isoformat(),
+                stage="TeX draft ready; PDF rendering available on request",
+            ):
+                return
+            self.queue.complete(task)
+            return
         if not self._checkpoint(task, stage="compiling and validating PDF"):
             return
-        content = self.compiler.compile(
-            document.source, time.monotonic() + min(60, self.settings.generation_timeout_seconds)
+        deadline = time.monotonic() + min(60, self.settings.generation_timeout_seconds)
+        content = (
+            self.compiler.compile(document.source, deadline, untrusted=True)
+            if selection.tex_source
+            else self.compiler.compile(document.source, deadline)
         )
         pages = validate_master_pdf(content, selected, document)
         if key != self.identity(job.id)[0]:

@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './workspace-fixture';
 import {readFile} from 'node:fs/promises';
 test('Google setup/tab selection, preview, real queue and explicit inward review',async({page})=>{
   const setup=JSON.parse(await readFile('test-results-sheets/setup.json','utf8'));

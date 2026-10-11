@@ -46,7 +46,7 @@ class CandidateProfile(Record):
     settings_revision: int = 0
     availability_start: str | None = None
     availability_end: str | None = None
-    preferred_roles: list[RoleFamily] = Field(default_factory=list)
+    preferred_roles: list[str] = Field(default_factory=list)
     preferred_locations: list[str] = Field(default_factory=list)
     preferred_skills: list[str] = Field(default_factory=list)
     name: str = ""

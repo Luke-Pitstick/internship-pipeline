@@ -2,6 +2,7 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 const username='synthetic-security-owner', password='synthetic-security-password';
 async function owner(page:Page) {
+  await page.context().route('**/api/onboarding', route=>route.fulfill({json:{complete:true}}));
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-web-security/setup.json','utf8')).token}`);
   await expect(page.getByRole('button',{name:'Notifications & Integrations',exact:true}).or(page.getByLabel('Username',{exact:true}))).toBeVisible();
   if(await page.getByRole('button', {name: 'Create owner account'}).isVisible()) {
@@ -138,17 +139,16 @@ for(const [step,label,value] of [
  ['1. Models','#jev-model','jev-unsaved-setup'],
  ['2. Profile','#profile\\.name','Unsaved Setup Name'],
  ['3. Job filters','[id="preferences.hard.countries"]','Canada'],
- ['4. Saved search','#source-name','Unsaved Setup Source'],
- ['5. Optional integrations','input[placeholder="smtp.example.com"]','setup.example.test'],
- ['5. Optional integrations','input[placeholder="ID from the spreadsheet URL"]','setup-sheet-id'],
+ ['4. Optional integrations','input[placeholder="smtp.example.com"]','setup.example.test'],
+ ['4. Optional integrations','input[placeholder="ID from the spreadsheet URL"]','setup-sheet-id'],
 ]) test(`W4 setup ${step} guards the edited step (${label})`,async({page})=>{
-  await owner(page); await page.goto('/setup/');
+  await owner(page); await page.context().unroute('**/api/onboarding');await page.goto('/setup/');
   await page.getByRole('button',{name:new RegExp(step.replace('.','\\.'))}).click();
   await page.locator(label).fill(value);
   if(step==='3. Job filters') await page.getByRole('option',{name:value,exact:true}).click();
   await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
   page.once('dialog',d=>d.dismiss());
-  await page.getByRole('button',{name:/6\. Configuration preview/}).click();
+  await page.getByRole('button',{name:/5\. Configuration preview/}).click();
   await expect(page.locator(label)).toBeVisible();
   if(step==='3. Job filters') await expect(page.getByRole('button',{name:`Remove ${value}`,exact:true})).toBeVisible();
   else await expect(page.locator(label)).toHaveValue(value);
@@ -205,19 +205,19 @@ test('W4 secrets stay in memory, clear on saves and explicit discard, and do not
   await page.getByRole('button',{name:'Reload Sheets settings'}).click();
   await expect(page.getByLabel('Google service-account JSON key')).toHaveValue('');
   await page.getByRole('link',{name:'Jobs',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Find your next chapter.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Jobs',exact:true})).toBeVisible();
 });
 for(const choice of ['models','integrations']) test(`W4 setup ${choice} choices require explicit discard before leaving`,async({page})=>{
-  await owner(page);await page.goto('/setup/');
-  await page.getByRole('button',{name:choice==='models'?/1\. Models/:/5\. Optional integrations/}).click();
+  await owner(page);await page.context().unroute('**/api/onboarding');await page.goto('/setup/');
+  await page.getByRole('button',{name:choice==='models'?/1\. Models/:/4\. Optional integrations/}).click();
   const control=choice==='models'?page.getByLabel('Defer model work and collect jobs first'):page.getByLabel('Email during setup');
   if(choice==='models')await control.setChecked(!(await control.isChecked()));else await control.selectOption('connect');
   page.once('dialog',d=>d.dismiss());
-  await page.getByRole('button',{name:/6\. Configuration preview/}).click();
+  await page.getByRole('button',{name:/5\. Configuration preview/}).click();
   await expect(control).toBeVisible();
   expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
   page.once('dialog',d=>d.accept());
-  await page.getByRole('button',{name:/6\. Configuration preview/}).click();
+  await page.getByRole('button',{name:/5\. Configuration preview/}).click();
   await expect(page.getByRole('heading',{name:'Review before your first run'})).toBeVisible();
 });
 test('W4 selected résumé file is guarded before extraction',async({page})=>{
@@ -292,15 +292,15 @@ test('W9 email reload cannot replace a draft while its save is in flight',async(
 });
 
 test('W10 failed setup step navigation preserves dirty state and its draft',async({page})=>{
-  await owner(page);await page.goto('/setup/');
-  await page.getByRole('button',{name:/4\. Saved search/}).click();
-  await page.getByLabel('Search name').fill('Draft kept after failed visit');
+  await owner(page);await page.context().unroute('**/api/onboarding');await page.goto('/setup/');
+  await page.getByRole('button',{name:/2\. Profile/}).click();
+  await page.getByLabel('Name',{exact:true}).fill('Draft kept after failed visit');
   await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
   await page.route('**/api/onboarding/visit',route=>route.fulfill({status:409,json:{detail:'Synthetic visit rejected'}}));
   page.once('dialog',d=>d.accept());
-  await page.getByRole('button',{name:/6\. Configuration preview/}).click();
+  await page.getByRole('button',{name:/5\. Configuration preview/}).click();
   await expect(page.getByRole('alert')).toContainText('Synthetic visit rejected');
-  await expect(page.getByLabel('Search name')).toHaveValue('Draft kept after failed visit');
+  await expect(page.getByLabel('Name',{exact:true})).toHaveValue('Draft kept after failed visit');
   await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
 });
 test('W3 real cookie-free concurrent HTTP callers cannot evade admission with forwarded headers',async({page,playwright})=>{

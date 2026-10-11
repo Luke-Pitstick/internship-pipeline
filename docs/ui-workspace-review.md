@@ -20,7 +20,11 @@ The existing flat, light workspace is retained. Jobs take priority over operatio
 - `playwright.setup.config.ts` passes: owner setup, imported facts, model configuration, optional integration choices, failed-source correction and first results.
 - Two bounded visual passes covered Jobs/detail and all seven settings categories at 1440, 390 and 320 pixels. No horizontal overflow or uncaught browser errors. Captures: ignored `artifacts/ui-overhaul/`.
 - Impeccable detector reported only its generic Inter-font warning. The existing UI font stack was intentionally retained for this operational interface.
-- Combined built JavaScript measured 115,785 bytes gzip against the repository's 200,000-byte budget. This includes concurrent form-control additions and is a conservative sum across routes, not initial page transfer.
+- Combined built JavaScript measured 114,742 bytes gzip against the repository's 200,000-byte budget. This includes the final onboarding, form-control and TeX-resume additions and is a conservative sum across routes, not initial page transfer.
 - `git diff --check` passes.
 
 Browser tests use synthetic data and mocked provider transports where specified by the existing fixtures. They do not establish real provider, SMTP, Google Sheets, or production-container acceptance. The shared checkout contains concurrent edits; this evidence describes the build tested during this review.
+
+## October 11 combined commit verification
+
+After the concurrent onboarding and TeX-resume work finished, the combined checkout passed all 991 Python tests, Ruff, strict mypy across 60 source files, Svelte check with zero errors/warnings, the production build and the bundle budget. The default browser suite initially found an outdated PDF/DOCX-only validation assertion; after updating it for TEX support, all four upload tests passed. The other five default scenarios, guided-setup scenario and two tailored-resume scenarios also passed. Linux rendering of uploaded TeX remains unavailable on this Docker host because Landlock is unavailable; source download remains supported, as documented in T12.

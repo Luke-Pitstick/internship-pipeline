@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './workspace-fixture';
 import {readFile} from 'node:fs/promises';
 test('owner config, encrypted save, test worker, disable and mobile layout',async({page})=>{
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-email/setup.json','utf8')).token}`);

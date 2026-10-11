@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './workspace-fixture';
 import { readFile } from 'node:fs/promises';
 
 async function login(page: Page) {
@@ -45,7 +45,13 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
     await page.getByLabel('Preferred skills to use').fill(skill);
     await page.getByRole('option', {name:skill, exact:true}).click();
   }
-  await page.getByLabel('Software engineering', {exact: true}).check();
+  for (const role of ['Software engineering', 'UX research']) {
+    await page.getByLabel('Preferred roles', {exact: true}).fill(role);
+    await page.getByLabel('Preferred roles', {exact: true}).press('Enter');
+  }
+  await page.getByLabel('Preferred roles', {exact: true}).fill('Remove this role');
+  await page.getByLabel('Preferred roles', {exact: true}).press('Enter');
+  await page.getByRole('button', {name: 'Remove Remove this role', exact: true}).click();
   await page.getByRole('button', {name: 'Profile', exact: true}).click();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
@@ -61,6 +67,8 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   expect(saved.preferences.hard.countries).toEqual(['Canada', 'United States']);
   expect(saved.preferences.hard.locations).toEqual(['Denver, CO']);
   expect(saved.preferences.soft.skills).toEqual(['Rust', 'Python']);
+  expect(saved.preferences.soft.roles).toEqual(['Software engineering', 'UX research']);
+  await expect(page.getByRole('button', {name: 'Remove UX research', exact: true})).toBeVisible();
   await page.getByRole('button', {name:'Remove Canada', exact:true}).click();
   await page.getByRole('button', {name:'Discard changes', exact:true}).click();
   await expect(page.getByRole('button', {name:'Remove Canada', exact:true})).toBeVisible();

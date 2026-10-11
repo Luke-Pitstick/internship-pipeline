@@ -11,8 +11,11 @@
   let username = $state('');
   let password = $state('');
   let setupToken = $state('');
-  const api = new Api(() => { session = null; refresh(); });
-  let setupPending = $state(false);
+  const api = new Api(() => { session = null; setupPending = null; void refresh(); });
+  let setupPending = $state<boolean | null>(null);
+  const setupRoute = $derived(page.url.pathname.startsWith('/setup'));
+  const setupCorrection = $derived(page.url.pathname.startsWith('/settings') && page.url.searchParams.has('setup'));
+  const workspaceReady = $derived(session?.authenticated && setupPending === false && !setupRoute);
   setContext('api', api);
   function captureSetupLink() {
     const fragment = new URLSearchParams(location.hash.slice(1));
@@ -39,11 +42,14 @@
   }
   async function checkSetup() {
     try {
-      const setup = await api.request<{complete:boolean;has_jobs:boolean}>('/api/onboarding');
+      const setup = await api.request<{complete:boolean}>('/api/onboarding');
       setupPending = !setup.complete;
-      if (setupPending && !setup.has_jobs && page.url.pathname === '/') await goto('/setup/');
-    } catch { /* The setup screen exposes its own retry if unavailable. */ }
+      error = '';
+      if (setupPending && !setupRoute && !setupCorrection) await goto('/setup/', {replaceState:true});
+      else if (!setupPending && setupRoute) await goto('/', {replaceState:true});
+    } catch { setupPending = null; error = 'Setup status could not be loaded. Retry to open your workspace.'; }
   }
+
   onMount(() => {
     captureSetupLink(); void refresh();
     window.addEventListener('hashchange', captureSetupLink);
@@ -62,25 +68,28 @@
     finally { busy = false; }
   }
   async function logout() {
-    try { await api.request('/api/logout', {}); session = null; await refresh(); }
+    try { await api.request('/api/logout', {}); session = null; setupPending = null; await refresh(); }
     catch (reason) { error = (reason as Error).message; }
   }
 </script>
 <svelte:head><title>Internship Pipeline</title></svelte:head>
 <a class="skip-link" href="#main">Skip to content</a>
+{#if workspaceReady}
 <header class="app-header">
   <a class="brand" href="/" aria-label="Internship Pipeline jobs"><span class="monogram">IP</span><span>Internship<span class="brand-second">Pipeline</span></span></a>
   {#if session?.authenticated}<nav aria-label="Main navigation">
     <a href="/" class:active={page.url.pathname === '/'} aria-current={page.url.pathname === '/' ? 'page' : undefined}>Jobs</a>
     <a href="/settings/" class:active={page.url.pathname.startsWith('/settings')} aria-current={page.url.pathname.startsWith('/settings') ? 'page' : undefined}>Settings</a>
-    {#if setupPending}<a href="/setup/" class:active={page.url.pathname.startsWith('/setup')}>Continue setup</a>{/if}
     <button class="small-button" onclick={logout}>Log out</button>
   </nav>{/if}
 </header>
+{/if}
 <main id="main" tabindex="-1">
   {#if session?.authenticated}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-    {@render children()}
+    {#if workspaceReady || (setupPending === true && (setupRoute || setupCorrection))}
+      {@render children()}
+    {:else}<p role="status">Opening your workspace…</p>{#if error}<button class="primary" onclick={checkSetup}>Retry</button>{/if}{/if}
   {:else if session}
     <section class="auth-panel settings-panel">
       <h1>{session.claimed ? 'Welcome back.' : 'Make it yours.'}</h1>

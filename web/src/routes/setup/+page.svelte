@@ -12,14 +12,12 @@
   let deferModels = $state(false);
   let email = $state<'skip'|'connect'>('skip');
   let sheets = $state<'skip'|'connect'>('skip');
-  let chosenSearch = $state('');
   const choiceDirty = $derived(!!setup && ((setup.step==='models' && deferModels!==setup.defer_models) || (setup.step==='integrations' && (email!==(setup.email??'skip') || sheets!==(setup.sheets??'skip')))));
   const anyDirty = $derived(dirty || choiceDirty);
   let changingStep = false;
   beforeNavigate(({cancel})=>{if(anyDirty&&!confirm('You have unsaved setup changes. Leave without saving?'))cancel();});
   function assign(value:Setup) {
     setup=value; deferModels=value.defer_models; email=value.email??'skip'; sheets=value.sheets??'skip';
-    if (!value.preview.searches.some(s=>s.id===chosenSearch&&!s.paused)) chosenSearch=value.preview.searches.find(s=>!s.paused)?.id??'';
   }
   async function load() {try {assign(await api.request<Setup>('/api/onboarding'));error='';}catch(e){error=(e as Error).message;}}
   async function action(path:string, body:unknown) {
@@ -33,8 +31,8 @@
     if (!setup || dirty) return;
     await action('checkpoint',{step:setup.step,...(setup.step==='models'?{defer_models:deferModels}:{}),...(setup.step==='integrations'?{email,sheets}:{})});
   }
-  async function finish() {await action('finish',{});if(setup?.complete)await goto('/');}
-  onMount(()=>{const warn=(event:BeforeUnloadEvent)=>{if(anyDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);void load();const timer=setInterval(()=>{if(setup?.step==='results')void load();},2000);return()=>{clearInterval(timer);window.removeEventListener('beforeunload',warn);};});
+  async function finish() {if(await action('finish',{preview:setup?.preview_token}))await goto('/');}
+  onMount(()=>{const warn=(event:BeforeUnloadEvent)=>{if(anyDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);void load();return()=>{window.removeEventListener('beforeunload',warn);};});
 </script>
 <svelte:head><title>Guided setup · Internship Pipeline</title></svelte:head>
 <section class="settings-heading"><h1>Guided setup</h1><p class="intro">Save your settings once, review the configuration, then discover your first jobs. Your progress survives closing this page.</p></section>
@@ -47,7 +45,6 @@
     {#if setup.step==='models'}<p>Jev evaluates rubric fit and eligibility evidence. The general model creates tailored résumé drafts. Saving a connection does not call a provider; its test uses synthetic facts and may incur a provider charge.</p><label class="choice"><input type="checkbox" disabled={busy} bind:checked={deferModels}/> Defer model work and collect jobs first</label><p class="field-help">You can continue with unknown fit. Résumé import extracts text locally; tailored generation needs a tested general model, and evaluation needs a tested Jev connection. A failed test remains visible even when you choose to defer.</p>
     {:else if setup.step==='profile'}<p>Import a résumé and review the proposed facts, or enter facts manually below. Only confirmed supporting facts enter matching and generation. Unknown fields stay unknown, and job descriptions cannot add candidate claims.</p>
     {:else if setup.step==='filters'}<p>Hard country, location and term constraints affect eligibility filtering. Work authorization, availability and confirmed education also affect eligibility. Soft roles, locations and skills affect rubric fit, which measures alignment rather than interview probability. Unknown eligibility needs review.</p>
-    {:else if setup.step==='search'}<p>Save an active source to collect its full inventory independently of models and delivery. Model jobs, calls and token limits cap review work; they do not limit stored collection. Initial backlog evaluation requires your explicit review after collection.</p>
     {:else if setup.step==='integrations'}<p>Both integrations are optional. Skipping them permits search and leaves application status under your control. Email tests send a synthetic message; Sheets tests inspect access, and synchronization requires a separate preview.</p><div class="choices"><label class="form-group">Email during setup<select disabled={busy} bind:value={email}><option value="skip">Skip email</option><option value="connect">Connect and test email</option></select></label><label class="form-group">Sheets during setup<select disabled={busy} bind:value={sheets}><option value="skip">Skip Sheets</option><option value="connect">Connect and test Sheets</option></select></label></div><p>Saved service status: email {setup.preview.email.status}; Sheets {setup.preview.sheets.status}. Incomplete means not configured or not verified; failed means a recorded test or service operation needs attention.</p>
     {/if}
   </section>
@@ -67,24 +64,14 @@
       <p>Automatic résumé generation is {setup.preview.generation.enabled?'enabled':'off'}. Minimum fit {setup.preview.generation.minimum_fit}; recommendation {setup.preview.generation.recommendation}; eligibility {setup.preview.generation.eligibility}. Only confirmed facts support drafts, and every generated document needs review. <a href="/settings/?setup=1#Resume%20Generation">Correct generation policy</a></p>
       <p>Email: {setup.preview.email.choice||'not reviewed'} · {setup.preview.email.status} · alerts {setup.preview.email.enabled?'enabled':'off'}. Sheets: {setup.preview.sheets.choice||'not reviewed'} · {setup.preview.sheets.status} · automatic sync {setup.preview.sheets.enabled?'enabled':'off'}. <a href={correction('integrations')}>Correct integrations</a></p>
       <p>Skip removes an integration prerequisite from setup; an already enabled saved integration remains enabled. Inspect the statuses above before running.</p>
-      <label class="form-group">First search<select disabled={busy} bind:value={chosenSearch}><option value="">Choose an active search</option>{#each setup.preview.searches.filter(s=>!s.paused) as search}<option value={search.id}>{search.name}</option>{/each}</select></label>
-      {#each setup.preview.searches as search}<p>{search.name}: {search.source} · {search.board||search.search_term} · {search.paused?'paused':'active'} · {search.daily_at?`daily ${search.daily_at} ${search.timezone}`:'manual only'} · review limits {search.max_jobs} jobs, {search.max_calls} calls, {search.max_tokens} reserved tokens.</p>{/each}
-      <p><a href={correction('search')}>Correct sources and run limits</a></p>
+      <h3>Your automatic searches</h3>
+      <p>These searches use your saved roles and locations. Terms, skills, availability and eligibility preferences guide matching after collection. You can adjust searches later in Settings.</p>
+      {#each setup.preview.searches as search}<p>{search.search_term} · {search.location || 'All locations'} · {search.country} · {search.sites.join(', ')}.</p>{/each}
+      <p><a href={correction('filters')}>Correct search preferences</a></p>
       {#if setup.blockers.length}<ul>{#each setup.blockers as blocker}<li>{blocker.message} <button class="subtle" onclick={()=>visit(blocker.step)}>Review {labels[blocker.step]}</button></li>{/each}</ul>{/if}
       <p>Discovery, fit assessments, résumé drafts, delivered alerts and Applied are separate states. You mark Applied only after submitting an application yourself.</p>
-      <button class="primary" disabled={busy||!!setup.blockers.length||!chosenSearch} onclick={()=>action('start',{preview:setup?.preview_token,search_id:chosenSearch})}>Confirm configuration and run first search</button>
-      <button class="secondary" disabled={busy} onclick={()=>visit('review')}>Refresh configuration preview</button>
-    </section>
-  {:else if setup.step==='results'}
-    <section class="settings-panel" aria-label="First search results">
-      {#if setup.run}<h3>{setup.run.name}</h3><p role="status">Search status: {setup.run.stage.replaceAll('_',' ')}. {setup.run.collected} jobs collected · {setup.run.evaluated} evaluated · {setup.run.pending} pending · {setup.run.recommended} recommended.</p>
-        {#if setup.run.source_error}<p role="alert">The source failed: {setup.run.source_error}. Your saved setup remains available.</p><a href={correction('search')}>Correct source connection</a>{/if}
-        {#if setup.run.evaluation_error_codes.length}<p role="alert">Model service needs attention: {setup.run.evaluation_error_codes.join(', ')}.</p><a href={correction('models')}>Correct model connections</a>{/if}
-        {#if setup.run.stage==='awaiting_model_configuration'}<p>Collection worked. Evaluation is incomplete because a profile or tested model is still needed.</p><a href={correction('models')}>Configure models</a>{/if}
-        {#if setup.run.collected}<p>Your first jobs are ready to inspect. Initial inventory may be backlog, so approve review from Jobs when you want to use model capacity.</p><button class="primary" disabled={busy} onclick={finish}>Finish setup and view jobs</button>
-        {:else if !['queued','collecting','fetched'].includes(setup.run.stage)}<p>No jobs were observed. Check the source and search terms, then review and run again.</p><a href={correction('search')}>Correct search settings</a>{/if}
-      {:else}<p>Review the saved configuration before starting your first search.</p>{/if}
-      <p>Work continues when you close the browser. <button class="secondary" disabled={busy} onclick={()=>visit('review')}>Return to configuration preview</button></p>
+      <button class="primary" disabled={busy||!!setup.blockers.length} onclick={finish}>{busy?'Finishing setup…':'Finish setup and find jobs'}</button>
+      <button class="secondary" disabled={busy} onclick={()=>action('visit',{step:'review'})}>Refresh configuration preview</button>
     </section>
   {/if}
 {:else}<p role="status">Loading saved setup…</p>{#if error}<button class="secondary" onclick={load}>Retry setup</button>{/if}{/if}
