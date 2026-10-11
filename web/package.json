@@ -24,5 +24,9 @@
     "svelte-check": "^4.3.0",
     "typescript": "^6.0.0",
     "vite": "^8.0.12"
+  },
+  "dependencies": {
+    "i18n-iso-countries": "^7.14.0",
+    "svelte-multiselect": "^11.8.0"
   }
 }

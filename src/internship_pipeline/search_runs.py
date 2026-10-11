@@ -14,6 +14,7 @@ from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException
+from jobspy.model import Country
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from internship_pipeline.assessments import current_revisions, resolved_model, stored_view
@@ -73,6 +74,10 @@ class SourceConfig(BaseModel):
         ):
             raise ValueError("Enter a daily schedule as HH:MM")
         if self.source == "jobspy":
+            try:
+                Country.from_string(self.country)
+            except ValueError:
+                raise ValueError("Choose a supported search country") from None
             if not self.search_term.strip():
                 raise ValueError("Enter a search term")
             if (
@@ -180,6 +185,14 @@ class SearchRuns:
             "searches": items,
             "sources": ["greenhouse", "lever", "ashby", "jobspy"],
             "sites": sorted(SUPPORTED_SITES),
+            "countries": [
+                {
+                    "value": "USA" if country is Country.USA else country.value[0].split(",")[0],
+                    "code": country.value[1].split(":")[-1].upper(),
+                }
+                for country in Country
+                if country not in {Country.US_CANADA, Country.WORLDWIDE}
+            ],
         }
 
     def save(self, body: SourceSave) -> dict[str, Any]:

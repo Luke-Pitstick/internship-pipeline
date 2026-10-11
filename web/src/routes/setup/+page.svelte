@@ -37,7 +37,7 @@
   onMount(()=>{const warn=(event:BeforeUnloadEvent)=>{if(anyDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);void load();const timer=setInterval(()=>{if(setup?.step==='results')void load();},2000);return()=>{clearInterval(timer);window.removeEventListener('beforeunload',warn);};});
 </script>
 <svelte:head><title>Guided setup · Internship Pipeline</title></svelte:head>
-<section class="settings-heading"><p class="eyebrow">GET STARTED · ACCOUNT CLAIMED</p><h1>Guided setup</h1><p class="intro">Save your settings once, review the configuration, then discover your first jobs. Your progress survives closing this page.</p></section>
+<section class="settings-heading"><h1>Guided setup</h1><p class="intro">Save your settings once, review the configuration, then discover your first jobs. Your progress survives closing this page.</p></section>
 {#if error}<p class="error" role="alert">{error}</p>{/if}
 {#if setup}
   <nav class="setup-steps" aria-label="Setup steps">

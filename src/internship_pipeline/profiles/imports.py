@@ -49,6 +49,7 @@ class Review(Record):
     selections: list[Selection] = Field(default_factory=list, max_length=120)
     remove_ids: list[str] = Field(default_factory=list, max_length=120)
     confirmed: bool = False
+    settings: SaveSettings | None = None
 
 
 def extract_bounded(data: bytes, kind: str) -> list[dict[str, str]]:
@@ -407,6 +408,19 @@ class ResumeImports:
                 "Explicitly confirm that you reviewed these changes against the source."
             )
         data, evidence = self.prepare(identifier, review)
+        if review.settings is not None:
+            if review.settings.expected_revision != review.expected_revision:
+                raise RevisionConflict("Settings changed. Reload saved settings and upload again.")
+            # The owner reviews and edits the ordinary profile form. Only unchanged
+            # extracted values retain document provenance; corrections are manual facts.
+            data = review.settings
+            items: list[Fact | Education] = [*data.profile.facts, *data.profile.education]
+            values = {
+                "name": data.profile.name,
+                "email": data.profile.email,
+                **{item.id: item.model_dump(mode="json") for item in items},
+            }
+            evidence = [item for item in evidence if values.get(item["field"]) == item["value"]]
 
         def record(connection: sqlite3.Connection, revision: int) -> None:
             result = connection.execute(

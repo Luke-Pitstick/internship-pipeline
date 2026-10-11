@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext, onMount, tick } from 'svelte';
   import TailoredResume from '#lib/components/TailoredResume.svelte';
+  import Icon from '#lib/components/Icon.svelte';
   import SearchRun from '#lib/components/SearchRun.svelte';
   import { Api } from '#lib/api.ts';
   import { formatDate, type Job, type JobStatus, type JobsPage, type JobsQuery, type Evaluation } from '#lib/jobs.ts';
@@ -86,15 +87,16 @@
     catch (reason) { error = (reason as Error).message; }
     finally { updating = false; }
   }
-  async function refresh() {
+  async function refresh(background = false) {
     const sequence = ++requestSequence;
-    loading = true;
+    if (!background) loading = true;
     const params = new URLSearchParams({page: String(query.page), page_size: String(query.pageSize), search: query.search, view: query.status, sort: query.sort, direction: query.direction});
     const selectedId = detailOpen ? selected?.id ?? new URLSearchParams(location.search).get('selected') : null;
     if (selectedId) params.set('selected', selectedId);
     try {
       const data = await api.request<{jobs: StoredJob[]; selected: StoredJob | null; pagination: {total: number; page: number; pages: number}}>(`/api/jobs?${params}`);
       if (sequence !== requestSequence) return;
+      error = '';
       result = {...data.pagination, rows: data.jobs.map(mapJob)};
       if (query.page !== result.page) pageDraft = result.page;
       query.page = result.page;
@@ -111,19 +113,18 @@
     readUrl(); refresh();
     const restore = async () => {selected = null; readUrl(); await refresh();if (!detailOpen) {await tick();if (selectedButton?.isConnected) selectedButton.focus();else document.querySelector<HTMLButtonElement>('[data-job]')?.focus();}};
     window.addEventListener('popstate', restore);
-    const interval = setInterval(() => { if (!updating && !loading) refresh(); }, 5000);
+    const interval = setInterval(() => { if (!document.hidden && !updating && !loading) void refresh(true); }, 5000);
     return () => {requestSequence++; clearInterval(interval); window.removeEventListener('popstate', restore);};
   });
 </script>
 
 <svelte:window onkeydown={(event) => { if (event.key === 'Escape' && detailOpen) closeDetail(); }} />
 <section class="search-hero">
-  <p class="eyebrow">YOUR INTERNSHIP SEARCH</p>
-  <h1>Find your next chapter.</h1>
-  <p class="intro">A clearer view of the opportunities ahead.</p>
+  <h1>Jobs</h1>
+  <p class="intro">Review opportunities, save your shortlist, and track applications.</p>
   <form class="search-form" onsubmit={(event) => { event.preventDefault(); query.search = searchDraft; changeQuery(); }}>
-    <label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Role, company, or location</span><input bind:value={searchDraft} placeholder="Role, company, or location" type="search" /></label>
-    <button class="primary" type="submit">Search jobs <span aria-hidden="true">→</span></button>
+    <label class="search-field"><Icon name="search" /><span class="sr-only">Role, company, or location</span><input bind:value={searchDraft} placeholder="Role, company, or location" type="search" /></label>
+    <button class="primary" type="submit">Search jobs</button>
   </form>
 </section>
 <SearchRun />
@@ -138,11 +139,11 @@
     <label>Sort by <select bind:value={query.sort} onchange={changeQuery} aria-label="Sort field">
       <option value="postedAt">Date posted</option><option value="firstObservedAt">First observed</option><option value="company">Company</option><option value="title">Role title</option><option value="location">Location</option><option value="deadline">Deadline</option><option value="score">Match score</option>
     </select></label>
-    <button aria-label="Reverse sort direction" class="small-button" onclick={() => { query.direction = query.direction === 'desc' ? 'asc' : 'desc'; changeQuery(); }}>{query.direction === 'desc' ? '↓ Descending' : '↑ Ascending'}</button>
+    <button aria-label="Reverse sort direction" class="small-button" onclick={() => { query.direction = query.direction === 'desc' ? 'asc' : 'desc'; changeQuery(); }}><Icon name={query.direction === 'desc' ? 'descending' : 'ascending'} />{query.direction === 'desc' ? 'Descending' : 'Ascending'}</button>
   </div>
 </section>
 <div class="results-heading"><h2>{result.total.toLocaleString()} opportunities</h2><span class="muted" role="status">{loading ? 'Loading jobs…' : `Page ${result.page} of ${result.pages}`}</span></div>
-{#if error}<p role="alert" class="error">{error}</p>{/if}
+{#if error}<div class="request-error" role="alert"><p>{error}</p><button class="small-button" onclick={() => refresh()}>Retry loading jobs</button></div>{/if}
 <div class="jobs-workspace" class:has-selection={!!selected} class:detail-open={detailOpen}>
   <section class="jobs-list" aria-label="Job results" aria-busy={loading}>
     <div class="job-cards">
@@ -154,7 +155,14 @@
           <span class="job-dates"><span>Posted {formatDate(job.postedAt)}</span><span>First observed {formatDate(job.firstObservedAt)}</span></span>
           <span class="job-meta"><span class:review={job.eligibility === 'Needs review'} class:eligible={job.eligibility === 'Eligible'} class="eligibility">{job.eligibility}</span><span>{job.status}{job.appliedAt ? ` · ${formatDate(job.appliedAt)}` : ''}</span></span>
         </button>
-      {:else}<div class="empty-state"><h3>{loading ? 'Loading opportunities…' : 'No opportunities yet'}</h3><p>Your stored jobs will appear here. If you already have jobs, try another filter. A fresh workspace starts empty.</p></div>{/each}
+      {:else}
+        {#if loading}<div class="jobs-skeleton" role="status"><span class="sr-only">Loading opportunities…</span>{#each [1, 2, 3] as row}<div class="skeleton-row" aria-hidden="true"><span></span><span></span><span></span></div>{/each}</div>
+        {:else if !error}<div class="empty-state">
+          <h3>{query.search || query.status !== 'All' ? 'No matching opportunities' : 'No opportunities yet'}</h3>
+          {#if query.search || query.status !== 'All'}<p>Try a different search or clear your filters to see all stored jobs.</p><button class="secondary" onclick={() => {query.search = ''; searchDraft = ''; query.status = 'All'; changeQuery();}}>Clear filters</button>
+          {:else}<p>Configure a source, then run a search to collect your first opportunities.</p><a class="secondary" href="/settings/#Sources">Set up a source</a>{/if}
+        </div>{/if}
+      {/each}
     </div>
     {#if result.total > 0}<div class="pagination">
       <div class="pagination-summary">{result.total ? `${(result.page - 1) * query.pageSize + 1}–${Math.min(result.page * query.pageSize, result.total)}` : '0'} of {result.total.toLocaleString()}<label>Rows <select aria-label="Rows per page" bind:value={query.pageSize} onchange={changeQuery}><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label></div>
@@ -163,15 +171,15 @@
     </div>{/if}
   </section>
   {#if selected}<aside class="job-detail" aria-label="Selected job details">
-      <button class="back-button" onclick={closeDetail}>← Back to results</button>
+      <button class="back-button" onclick={closeDetail}><Icon name="back" /> Back to results</button>
       <div class="detail-top"><h2 bind:this={detailHeading} tabindex="-1">{selected.title}</h2><span class="eligibility" class:review={selected.eligibility === 'Needs review'} class:eligible={selected.eligibility === 'Eligible'}>{selected.eligibility}</span></div>
       <p class="detail-company">{selected.company}</p><p class="muted">{selected.location ?? 'Location not provided'}</p>
-      <div class="detail-actions"><button class="primary" disabled={updating} onclick={() => status(selected?.status === 'Applied' ? 'To review' : 'Applied')}>{selected.status === 'Applied' ? 'Undo applied' : 'Mark as applied'}</button></div>
+      <div class="detail-actions"><a class="primary" href={selected.applicationUrl} target="_blank" rel="noopener noreferrer">Open original application <Icon name="external" /></a><button class="secondary" disabled={updating} onclick={() => status(selected?.status === 'Applied' ? 'To review' : 'Applied')}>{selected.status === 'Applied' ? 'Undo applied' : 'Mark as applied'}</button></div>
       <div class="detail-actions">
         <button class="small-button" disabled={updating} onclick={() => workspace({saved: !selected?.workspace?.saved})}>{selected.workspace?.saved ? 'Unsave job' : 'Save job'}</button>
         <button class="small-button" disabled={updating} onclick={() => workspace({dismissed: !selected?.workspace?.dismissed})}>{selected.workspace?.dismissed ? 'Restore dismissed job' : 'Dismiss job'}</button>
       </div>
-      <form onsubmit={(event) => {event.preventDefault(); void workspace({notes: notesDraft});}}>
+      <form class="job-notes" onsubmit={(event) => {event.preventDefault(); void workspace({notes: notesDraft});}}>
         <label>Private job notes <textarea bind:value={notesDraft} maxlength="10000" rows="3"></textarea></label><button class="small-button" disabled={updating}>Save notes</button>
       </form>
       <details><summary>Record a decision override</summary>
@@ -185,7 +193,7 @@
       </details>
       <p class="status-note" role="status">Application status: <strong>{selected.status}</strong>{selected.appliedAt ? ` · Applied ${formatDate(selected.appliedAt)}` : ''}. Mark applied only after you submit.</p>
       <dl class="detail-facts"><div><dt>Match score</dt><dd>{selected.score === null ? 'Not evaluated' : `${selected.score} / 100`}</dd></div><div><dt>Posted</dt><dd>{formatDate(selected.postedAt)}</dd></div><div><dt>First observed</dt><dd>{formatDate(selected.firstObservedAt)}</dd></div><div><dt>Deadline</dt><dd>{formatDate(selected.deadline)}</dd></div></dl>
-      <div class="detail-copy"><h3>Original posting</h3><p>{selected.description}</p>{#if selected.descriptionTruncated}<p>Posting text was shortened for this view. Open the original application link to inspect the full posting.</p>{/if}<h3>Jev assessment</h3>
+      <div class="detail-copy"><details class="original-posting" open><summary>Original posting</summary><p>{selected.description}</p>{#if selected.descriptionTruncated}<p>Posting text was shortened for this view. Open the original application link to inspect the full posting.</p>{/if}</details><h3>Jev assessment</h3>
         <button class="small-button" disabled={updating || selected.status === 'Applied' || ['queued', 'evaluating'].includes(selected.evaluation?.state ?? '')} onclick={evaluate}>Evaluate job</button>
         <p role="status">{selected.evaluation?.state ?? 'pending'}{selected.evaluation?.error ? ` · ${selected.evaluation.error.replaceAll('_', ' ')}` : ''}</p>
         {#if selected.evaluation?.result}
@@ -214,7 +222,7 @@
           </details>
         {/if}</div>
       <TailoredResume jobId={selected.id} />
-      <div class="detail-footer"><a href={selected.applicationUrl} target="_blank" rel="noopener noreferrer">Open original application ↗</a>{#if selected.resumeUrl} · <a href={selected.resumeUrl}>Download résumé</a>{/if}<br />Opening these links does not mark the job as applied.</div>
+      <div class="detail-footer">{#if selected.resumeUrl}<a href={selected.resumeUrl}>Download résumé</a><br />{/if}Opening a posting or downloading a résumé does not mark the job as applied.</div>
   </aside>{/if}
 </div>
 

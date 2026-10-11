@@ -66,7 +66,7 @@ for (const narrow of [false, true]) {
     await page.getByRole('button', {name: 'Undo applied', exact: true}).click();
     await expect(page.locator('[data-job]')).toHaveCount(0);
     await page.getByRole('button', {name: 'All jobs', exact: true}).click();
-    if (narrow) await page.getByRole('button', {name: '← Back to results', exact: true}).click();
+    if (narrow) await page.getByRole('button', {name: 'Back to results', exact: true}).click();
     await page.locator('[data-job]').click();
     state = 'error'; await page.reload();
     if (narrow) await expect(page.locator('.job-detail')).toBeVisible();

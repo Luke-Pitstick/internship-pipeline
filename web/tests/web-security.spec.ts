@@ -145,11 +145,13 @@ for(const [step,label,value] of [
   await owner(page); await page.goto('/setup/');
   await page.getByRole('button',{name:new RegExp(step.replace('.','\\.'))}).click();
   await page.locator(label).fill(value);
+  if(step==='3. Job filters') await page.getByRole('option',{name:value,exact:true}).click();
   await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
   page.once('dialog',d=>d.dismiss());
   await page.getByRole('button',{name:/6\. Configuration preview/}).click();
   await expect(page.locator(label)).toBeVisible();
-  await expect(page.locator(label)).toHaveValue(value);
+  if(step==='3. Job filters') await expect(page.getByRole('button',{name:`Remove ${value}`,exact:true})).toBeVisible();
+  else await expect(page.locator(label)).toHaveValue(value);
 });
 test('W5 bookmarked mobile selection opens detail and supports back/history/focus',async({page})=>{
   await owner(page);

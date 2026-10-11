@@ -48,3 +48,22 @@ rtk proxy .venv/bin/mypy src/internship_pipeline/onboarding.py src/internship_pi
 From `web/`, run `rtk npm run check`, `rtk npm run build`, then `rtk proxy npx playwright test --config playwright.setup.config.ts`. Its fixture binds loopback port 4184 and uses isolated ignored `test-results-setup/` output, preventing other Playwright suites from deleting its synthetic setup token. The default Playwright configuration excludes this dedicated test. Existing Settings regression uses `rtk proxy npx playwright test --config playwright.config.ts`.
 
 T18 consumes the ready setup route/API and native evidence for image/CI checks; its image runner can preserve a deferred-model checkpoint across restart and fresh restore. Retrying the still-open T16 boundary requires a responsive Docker engine, the supported image on a new persistent volume, browser-only owner claim and configuration with owner-supplied authorized credentials, connection correction/reload and independent integration skips, then a first observed useful job. Live tests require bounded explicit authorization for any inference, external email or remote spreadsheet write. No `.env`, actual résumé, private candidate input, live credential, paid model request, external email, remote sheet mutation, commit, push or deployment was used here. No T19/T20 installer work is included.
+
+## October 11, 2026 — Purpose-built onboarding inputs
+
+Onboarding and Settings now share `svelte-multiselect` controls, with country names and aliases from `i18n-iso-countries`. Required countries offer name/code search, flags and removable selections. Locations, terms, skills and authorization descriptions use explicit tags added with Enter; commas remain part of a single entry, so “Denver, CO” survives saving and reloading. Skills offer suggestions without treating preferences as confirmed evidence. Native date, email, number and short select controls retain their platform behavior.
+
+Saved searches use searchable timezones, named job-site choices, and country choices supplied by the installed JobSpy country enum. The backend validates country support before saving. Composite controls explicitly disable during saves. The existing résumé autofill work is preserved: PDF/DOCX extraction fills the ordinary editable profile, then Save changes confirms the review. File selection now validates format/size immediately, describes the selectable-text requirement, displays the selected filename/size and processing stages, and explains non-JSON proxy upload failures with a retry path.
+
+Verification: 68 focused Python tests passed (46 résumé-import/onboarding and 22 search-run tests). Nine targeted Chromium cases passed: five profile/upload cases, two saved-search cases, the complete fresh-installation setup journey, and the setup country-field unsaved-change guard. The setup journey includes keyboard country selection, reviewed résumé saving/reload, failed connection correction, independent integration skips and a first observed job. Tests use temporary native installations, synthetic credentials/documents and synthetic provider transports. They do not establish actual-container or live-provider acceptance. Svelte check passed with zero errors/warnings; production build, focused Ruff and mypy checks passed. Impeccable's detector reported no findings. Desktop and 390px mobile captures were inspected; overflow assertions passed.
+
+Reproduce from `web/` with `rtk npm run check`, `rtk npm run build`, then:
+
+```sh
+rtk proxy npx playwright test profile.spec.ts resume-import.spec.ts --config playwright.config.ts
+rtk proxy npx playwright test --config playwright.search.config.ts
+rtk proxy npx playwright test --config playwright.setup.config.ts
+rtk proxy npx playwright test --config playwright.web-security.config.ts -g 'W4 setup 3'
+```
+
+Run suites sharing `test-results/` sequentially. Screenshots are generated in ignored `web/test-results/`, including `onboarding-countries-desktop.png`, `t04-filters-mobile.png` and `t10-resume-import-mobile.png`. No production deployment was performed.

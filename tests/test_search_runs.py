@@ -309,3 +309,14 @@ def test_broad_source_uses_connector_and_does_not_close_inventory(tmp_path, monk
     assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
     assert runs.view()["run"]["collected"] == 1
     assert store.list_jobs()[0].applied_at is None
+
+
+def test_search_country_choices_are_supported_and_invalid_countries_fail(tmp_path):
+    _, searches, _ = setup(tmp_path)
+    choices = searches.settings()["countries"]
+    assert {"value": "USA", "code": "US"} in choices
+    for choice in choices:
+        assert len(choice["code"]) == 2
+        SourceConfig(name="Country", source="jobspy", search_term="intern", country=choice["value"])
+    with pytest.raises(ValueError, match="Choose a supported search country"):
+        SourceConfig(name="Invalid", source="jobspy", search_term="intern", country="Atlantis")

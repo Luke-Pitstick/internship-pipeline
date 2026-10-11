@@ -10,7 +10,9 @@ test('saved searches persist backlog review budgets pause history and reconnect 
   await page.getByLabel('Search name',{exact:true}).fill('Synthetic Company');
   await page.getByLabel('Company board token').fill('example');
   await page.getByLabel('Daily run time').fill('09:00');
-  await page.getByLabel('IANA timezone').fill('America/Denver');
+  await page.getByRole('button', {name:'Remove UTC', exact:true}).click();
+  await page.getByLabel('IANA timezone').fill('Denver');
+  await page.getByRole('option', {name:'America/Denver', exact:true}).click();
   await page.getByRole('button',{name:'Save search',exact:true}).click();
   await page.getByRole('button',{name:'Run now',exact:true}).click();
   await expect(page.getByText('2 backlog jobs await explicit review.')).toBeVisible({timeout:15000});
@@ -24,6 +26,7 @@ test('saved searches persist backlog review budgets pause history and reconnect 
   await page.getByRole('button',{name:'Resume Synthetic Company',exact:true}).click();
   await page.getByRole('button',{name:'Run now',exact:true}).click();
   await expect(page.getByText(/2 collected · 2 evaluated/)).toBeVisible({timeout:15000});
+  await page.getByText('Run details and history',{exact:true}).click();
   await page.getByRole('button',{name:'Cancel remaining run work'}).click();
   await expect(page.getByText('Run status: cancelled.')).toBeVisible();
   await page.getByLabel('Search name',{exact:true}).fill('Broken source');
@@ -41,6 +44,37 @@ test('saved searches persist backlog review budgets pause history and reconnect 
   expect(await page.locator('body').textContent()).not.toContain('synthetic-secret-token');
   await page.getByRole('button',{name:/Retry task/}).first().click();
   await expect(page.getByRole('button',{name:/Retry task/})).toHaveCount(0);
-  await page.goto('/');await page.getByText('Run history',{exact:true}).click();
+  await page.goto('/');await page.getByText('Run details and history',{exact:true}).click();
   await expect(page.getByText(/Synthetic Company · cancelled/)).toBeVisible();
+});
+
+
+test('broad search uses supported countries, sites and searchable timezones', async ({page}) => {
+  await page.goto('/settings/');
+  await page.getByLabel('Username', {exact:true}).fill('synthetic-owner');
+  await page.getByLabel('Password', {exact:true}).fill('synthetic-owner-password');
+  await page.getByRole('button', {name:'Sign in', exact:true}).click();
+  await page.getByRole('button', {name:'Sources', exact:true}).click();
+  await page.getByLabel('Search name', {exact:true}).fill('Synthetic broad search');
+  await page.getByLabel('Source', {exact:true}).selectOption('jobspy');
+  await page.getByLabel('Search term', {exact:true}).fill('Software internship');
+  await page.getByRole('button', {name:'Remove United States', exact:true}).click();
+  await page.getByLabel('Country', {exact:true}).fill('Canada');
+  await page.getByRole('option', {name:'Canada', exact:true}).click();
+  await page.getByRole('button', {name:'Remove Indeed', exact:true}).click();
+  await page.getByLabel('Job sites', {exact:true}).fill('LinkedIn');
+  await page.getByRole('option', {name:'LinkedIn', exact:true}).click();
+  await page.getByRole('button', {name:'Remove UTC', exact:true}).click();
+  await page.getByLabel('IANA timezone').fill('Toronto');
+  await page.getByRole('option', {name:'America/Toronto', exact:true}).click();
+  await page.getByRole('button', {name:'Save search', exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Search saved.'})).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', {name:'Sources', exact:true}).click();
+  await page.getByRole('button', {name:'Edit Synthetic broad search', exact:true}).click();
+  await expect(page.getByRole('button', {name:'Remove Canada', exact:true})).toBeVisible();
+  await expect(page.getByRole('button', {name:'Remove LinkedIn', exact:true})).toBeVisible();
+  await expect(page.getByRole('button', {name:'Remove America/Toronto', exact:true})).toBeVisible();
+  const data = await (await page.request.get('/api/search-settings')).json();
+  expect(data.searches.find((search: {name:string})=>search.name==='Synthetic broad search')).toMatchObject({country:'canada',sites:['linkedin'],timezone:'America/Toronto'});
 });

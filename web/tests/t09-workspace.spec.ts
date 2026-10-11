@@ -72,3 +72,39 @@ test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API t
   await writeFile('test-results-t09/t09-real-api.json',JSON.stringify({...report,summary},null,2));
   expect(errors).toEqual([]);
 });
+
+test('filter recovery, retry, settings bookmarks and persistent run errors', async ({page}) => {
+  await page.goto('/');
+  await page.getByLabel('Username', {exact:true}).fill('synthetic-owner');
+  await page.getByLabel('Password', {exact:true}).fill('synthetic-password-long');
+  await page.getByRole('button', {name:'Sign in', exact:true}).click();
+  await expect(page.locator('[data-job]')).toHaveCount(25);
+  await page.getByRole('searchbox').fill('no-such-synthetic-opportunity');
+  await page.getByRole('button', {name:'Search jobs', exact:true}).click();
+  await expect(page.getByRole('heading', {name:'No matching opportunities'})).toBeVisible();
+  await page.getByRole('button', {name:'Clear filters'}).click();
+  await expect(page.locator('[data-job]')).toHaveCount(25);
+  await expect(page.getByRole('searchbox')).toHaveValue('');
+
+  await page.route('**/api/jobs?*', route => route.fulfill({status:503,json:{detail:'Synthetic jobs connection failure'}}), {times:1});
+  await page.getByRole('button', {name:'Search jobs', exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('Synthetic jobs connection failure');
+  await page.getByRole('button', {name:'Retry loading jobs'}).click();
+  await expect(page.getByText('Synthetic jobs connection failure')).toHaveCount(0);
+  await expect(page.locator('[data-job]')).toHaveCount(25);
+
+  await page.getByRole('link', {name:'Manage sources'}).click();
+  await expect(page.locator('.settings-panel-header h2')).toHaveText('Sources');
+  await page.getByRole('button', {name:'AI Models',exact:true}).click();
+  await expect(page).toHaveURL(/#AI%20Models$/);
+  await page.reload();
+  await expect(page.locator('.settings-panel-header h2')).toHaveText('AI Models');
+
+  await page.goto('/');
+  await page.getByText('Run details and history', {exact:true}).click();
+  await page.route('**/api/search-runs/*/cancel', route => route.fulfill({status:409,json:{detail:'Synthetic cancellation failure'}}));
+  await page.getByRole('button', {name:'Cancel remaining run work'}).click();
+  await expect(page.getByRole('alert')).toContainText('Synthetic cancellation failure');
+  await page.waitForResponse(response => response.url().endsWith('/api/search-runs') && response.request().method()==='GET');
+  await expect(page.getByRole('alert')).toContainText('Synthetic cancellation failure');
+});

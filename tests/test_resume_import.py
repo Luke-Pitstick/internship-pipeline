@@ -108,6 +108,60 @@ def reviewed(draft: dict, **changes) -> Review:
     )
 
 
+def test_filled_form_saves_owner_edits_with_only_matching_source_provenance(
+    service: ResumeImports,
+) -> None:
+    draft = service.upload(docx_bytes(), "docx", 0)
+    review = reviewed(draft)
+    filled, _ = service.prepare(draft["id"], review)
+    assert service.settings.read().revision == 0
+    removed_id = filled.profile.facts[0].id
+    filled.profile.facts.pop(0)
+    edited = filled.profile.facts[0]
+    edited.text = "Owner-corrected supporting fact."
+    filled.profile.name = "Reviewed Synthetic Candidate"
+    filled.profile.education[0].field = "Computing"
+    filled.profile.requires_sponsorship = False
+    filled.preferences.soft.skills = ["Rust"]
+    review.settings = filled
+    saved = service.confirm(draft["id"], review)
+    assert saved.profile == filled.profile
+    assert saved.preferences == filled.preferences
+    assert saved.revision == 1
+    evidence = service.current()["import"]["evidence"]
+    fields = {item["field"] for item in evidence}
+    assert "email" in fields
+    assert saved.profile.facts[-1].id in fields
+    assert fields.isdisjoint({"name", removed_id, edited.id, saved.profile.education[0].id})
+    assert {item["id"] for item in service.removable()} == {saved.profile.facts[-1].id}
+
+
+def test_filled_form_rejects_stale_revision_and_unconfirmed_save(service: ResumeImports) -> None:
+    draft = service.upload(docx_bytes(), "docx", 0)
+    review = reviewed(draft)
+    filled, _ = service.prepare(draft["id"], review)
+    review.settings = filled
+    review.confirmed = False
+    with pytest.raises(DocumentError, match="Explicitly confirm"):
+        service.confirm(draft["id"], review)
+    review.confirmed = True
+    filled.expected_revision = 1
+    with pytest.raises(RevisionConflict):
+        service.confirm(draft["id"], review)
+    assert service.settings.read().revision == 0
+    assert service.current()["import"] is None
+    filled.expected_revision = 0
+    service.settings.save(
+        SaveSettings(
+            expected_revision=0, profile=Profile(name="New saved name"), preferences=Preferences()
+        )
+    )
+    with pytest.raises(RevisionConflict):
+        service.confirm(draft["id"], review)
+    assert service.settings.read().profile.name == "New saved name"
+    assert service.current()["import"] is None
+
+
 @pytest.mark.parametrize(
     "kind,data", [("pdf", pdf_bytes()), ("docx", docx_bytes())], ids=["pdf", "docx"]
 )

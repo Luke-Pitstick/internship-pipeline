@@ -31,8 +31,20 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await page.getByLabel('Will you need employer sponsorship?').selectOption('unknown');
   await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Job Filters', exact: true})).toBeFocused();
-  await page.getByLabel('Required countries').fill('Canada, United States');
-  await page.getByLabel('Preferred skills to use').fill('Rust, Python');
+  await page.getByLabel('Required countries').fill('Canada');
+  await page.getByRole('option', {name:'Canada', exact:true}).click();
+  await page.getByLabel('Required countries').fill('USA');
+  await page.getByRole('option', {name:'United States', exact:true}).click();
+  await page.getByLabel('Required countries').fill('Atlantis');
+  await expect(page.getByText('No matches. Try another name.')).toBeVisible();
+  await page.getByLabel('Required countries').press('Escape');
+  await page.getByLabel('Required countries').fill('');
+  await page.getByLabel('Required locations').fill('Denver, CO');
+  await page.getByLabel('Required locations').press('Enter');
+  for (const skill of ['Rust', 'Python']) {
+    await page.getByLabel('Preferred skills to use').fill(skill);
+    await page.getByRole('option', {name:skill, exact:true}).click();
+  }
   await page.getByLabel('Software engineering', {exact: true}).check();
   await page.getByRole('button', {name: 'Profile', exact: true}).click();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
@@ -44,8 +56,18 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await expect(page.locator('.fact-id').first()).toHaveText(factId!);
   await expect(page.getByLabel('Will you need employer sponsorship?')).toHaveValue('unknown');
   await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
-  await expect(page.getByLabel('Required countries')).toHaveValue('Canada, United States');
-  await expect(page.getByLabel('Preferred skills to use')).toHaveValue('Rust, Python');
+  for (const country of ['Canada', 'United States']) await expect(page.getByRole('button', {name:`Remove ${country}`, exact:true})).toBeVisible();
+  const saved = await (await page.request.get('/api/profile-settings')).json();
+  expect(saved.preferences.hard.countries).toEqual(['Canada', 'United States']);
+  expect(saved.preferences.hard.locations).toEqual(['Denver, CO']);
+  expect(saved.preferences.soft.skills).toEqual(['Rust', 'Python']);
+  await page.getByRole('button', {name:'Remove Canada', exact:true}).click();
+  await page.getByRole('button', {name:'Discard changes', exact:true}).click();
+  await expect(page.getByRole('button', {name:'Remove Canada', exact:true})).toBeVisible();
+  await page.getByLabel('Required countries').fill('un');
+  await page.screenshot({path:'test-results/onboarding-countries-desktop.png', fullPage:true, animations:'disabled'});
+  await page.getByLabel('Required countries').press('Escape');
+  await page.getByLabel('Required countries').fill('');
   await page.getByRole('button', {name: 'Profile', exact: true}).click();
   const second = await page.context().newPage();
   await second.goto('/settings/');
@@ -66,7 +88,10 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await page.screenshot({path: 'test-results/t04-profile-mobile.png', fullPage: true});
   await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({path: 'test-results/t04-filters-mobile.png', fullPage: true});
+  await page.getByLabel('Required countries').fill('un');
+  await page.screenshot({path: 'test-results/t04-filters-mobile.png', fullPage: true, animations:'disabled'});
+  await page.getByLabel('Required countries').press('Escape');
+  await page.getByLabel('Required countries').fill('');
   await page.getByRole('button', {name: 'Profile', exact: true}).click();
   await page.getByLabel('Name', {exact: true}).fill('Discard me');
   await page.getByRole('button', {name: 'Discard changes'}).click();
@@ -78,8 +103,8 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await page.getByRole('button', {name: 'Discard changes'}).click();
   await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
   await page.getByLabel('Preferred skills to use').fill('x'.repeat(201));
-  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
-  await expect(page.getByLabel('Preferred skills to use')).toBeFocused();
-  await expect(page.getByText('Each entry must contain 1–200 characters.', {exact: true})).toBeVisible();
+  await expect(page.getByLabel('Preferred skills to use')).toHaveValue('x'.repeat(200));
+  await page.getByLabel('Preferred skills to use').press('Enter');
+  await expect(page.getByRole('button', {name: `Remove ${'x'.repeat(200)}`, exact:true})).toBeVisible();
   await page.getByRole('button', {name: 'Discard changes'}).click();
 });

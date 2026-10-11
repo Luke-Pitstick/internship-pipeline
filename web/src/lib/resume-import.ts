@@ -18,6 +18,7 @@ export interface ImportPreview {
   before: Snapshot; after: {profile: Snapshot['profile']; preferences: Snapshot['preferences']};
   evidence: {field: string; source_text: string; location: string}[];
 }
+export interface PendingImport { id: string; review: ImportReview }
 export function review(draft: ImportDraft, removeIds: string[], confirmed: boolean): ImportReview {
   return {expected_revision: draft.expected_revision, remove_ids: removeIds, confirmed,
     selections: draft.suggestions.filter(item => item.selected).map(({selected: _selected, ...item}) => item)};

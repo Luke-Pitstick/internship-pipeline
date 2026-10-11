@@ -22,11 +22,14 @@ export class Api {
   async upload<T>(path: string, file: File): Promise<T> {
     const response = await fetch(path, {method: 'POST', credentials: 'same-origin', cache: 'no-store',
       headers: {'Content-Type': 'application/octet-stream', 'X-CSRF-Token': this.csrf}, body: file});
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
     if (!response.ok) {
       if (response.status === 401) this.expired();
-      throw new ApiError(typeof result.detail === 'string' ? result.detail : 'Upload failed. Please retry.', response.status);
+      throw new ApiError(typeof result?.detail === 'string' ? result.detail : response.status === 413
+        ? 'The server rejected this file as too large. Choose a smaller PDF or DOCX.'
+        : 'The upload could not be completed. Check the connection and try again.', response.status);
     }
+    if (!result) throw new ApiError('The server returned an unreadable upload response. Please try again.', response.status);
     return result as T;
   }
 }
