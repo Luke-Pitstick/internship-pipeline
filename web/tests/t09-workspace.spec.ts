@@ -49,7 +49,10 @@ test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API t
     await page.keyboard.press('Escape');
     await page.locator('[data-job]').first().click();
     await expect(page.locator('.job-detail h2')).toBeFocused();
-    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')]
+      .filter(element => {const box=element.getBoundingClientRect();return box.width>0&&(box.right>innerWidth+1||element.scrollWidth>element.clientWidth+1);})
+      .map(element => ({tag:element.tagName,classes:element.className,text:element.textContent?.slice(0,80),right:element.getBoundingClientRect().right,scroll:element.scrollWidth,client:element.clientWidth})));
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),JSON.stringify(overflow)).toBe(true);
     await page.keyboard.press('Escape'); await expect(page.locator('[data-job]').first()).toBeFocused();
     await page.screenshot({path:`test-results-t09/t09-mobile-${width}.png`,fullPage:true});
   }

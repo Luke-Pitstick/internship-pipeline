@@ -69,6 +69,8 @@ jobs:
         working-directory: web
       - run: npx playwright install --with-deps chromium
         working-directory: web
+      - run: npx playwright test --config playwright.t09.config.ts
+        working-directory: web
       - run: npm test
         working-directory: web
       - run: npx playwright test --config playwright.setup.config.ts
@@ -86,6 +88,4 @@ jobs:
       - run: npx playwright test --config playwright.tailored.config.ts
         working-directory: web
       - run: npx playwright test --config playwright.search.config.ts
-        working-directory: web
-      - run: npx playwright test --config playwright.t09.config.ts
         working-directory: web
