@@ -199,6 +199,7 @@ jobs:
   publish:
     needs: install
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
       actions: read
@@ -222,9 +223,18 @@ jobs:
               --output "$RUNNER_TEMP/$asset"
             cmp "$RUNNER_TEMP/$asset" "$RUNNER_TEMP/staging/release/$asset"
           done
-          sh install.sh --help > "$RUNNER_TEMP/current-installer.txt"
-          python3 - <<'CHECK'
+          # The anonymous releases API can briefly retain its pre-publication response.
+          for attempt in {1..20}; do
+            if sh install.sh --help > "$RUNNER_TEMP/current-installer.txt" && python3 - <<'CHECK'
           import os, pathlib
           text = (pathlib.Path(os.environ['RUNNER_TEMP']) / 'current-installer.txt').read_text()
           assert os.environ['PIPELINE_SOURCE_SHA'][:12] in text, 'Curl command resolved another container release'
           CHECK
+            then
+              cat "$RUNNER_TEMP/current-installer.txt"
+              exit 0
+            fi
+            if [ "$attempt" -lt 20 ]; then sleep 5; fi
+          done
+          echo 'Anonymous curl resolution did not converge to the accepted source commit.' >&2
+          exit 1
