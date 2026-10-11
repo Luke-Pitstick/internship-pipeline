@@ -20,7 +20,7 @@ The existing flat, light workspace is retained. Jobs take priority over operatio
 - `playwright.setup.config.ts` passes: owner setup, imported facts, model configuration, optional integration choices, failed-source correction and first results.
 - Two bounded visual passes covered Jobs/detail and all seven settings categories at 1440, 390 and 320 pixels. No horizontal overflow or uncaught browser errors. Captures: ignored `artifacts/ui-overhaul/`.
 - Impeccable detector reported only its generic Inter-font warning. The existing UI font stack was intentionally retained for this operational interface.
-- Combined built JavaScript measured 115,546 bytes gzip against the repository's 200,000-byte budget. This includes concurrent form-control additions and is a conservative sum across routes, not initial page transfer.
+- Combined built JavaScript measured 115,785 bytes gzip against the repository's 200,000-byte budget. This includes concurrent form-control additions and is a conservative sum across routes, not initial page transfer.
 - `git diff --check` passes.
 
 Browser tests use synthetic data and mocked provider transports where specified by the existing fixtures. They do not establish real provider, SMTP, Google Sheets, or production-container acceptance. The shared checkout contains concurrent edits; this evidence describes the build tested during this review.
