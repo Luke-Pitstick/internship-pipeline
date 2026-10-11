@@ -13,8 +13,9 @@ jobs:
       - name: Install application PDF compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended lmodern
+          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended lmodern cm-super
           kpsewhich lmodern.sty
+          kpsewhich sfrm1000.pfb
           pdflatex --version
       - uses: astral-sh/setup-uv@v6
         with:
@@ -49,8 +50,9 @@ jobs:
       - name: Install application PDF compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended lmodern
+          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended lmodern cm-super
           kpsewhich lmodern.sty
+          kpsewhich sfrm1000.pfb
           pdflatex --version
       - uses: actions/setup-node@v4
         with:

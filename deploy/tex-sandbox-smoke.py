@@ -10,7 +10,8 @@ from internship_pipeline.resumes.tex_sandbox import command
 with tempfile.TemporaryDirectory(prefix="synthetic-tex-smoke-") as directory:
     root = Path(directory)
     (root / "resume.tex").write_text(
-        r"\documentclass{article}\begin{document}Synthetic compiler check.\end{document}"
+        r"\documentclass{article}\begin{document}Synthetic compiler check."
+        r"\begin{itemize}\item Synthetic bullet.\end{itemize}\end{document}"
     )
     result = subprocess.run(
         command(

@@ -16,6 +16,8 @@ Existing installations retain their saved container image, runtime and data when
 
 Local verification covers selection of a complete public release, refusal of draft/incomplete/corrupt identities, literal option forwarding, partial-download safety, and exact-source publication admission. Hosted container and installer acceptance is recorded in the corresponding GitHub Actions runs rather than inferred from these synthetic tests.
 
+The Linux checks also exposed two TeX prerequisites missed by macOS-only verification: Landlock must permit the system ELF loader as well as the compiler, and CM-Super fonts must be installed so standard article bullets do not require a font-generation subprocess. The image and CI install the fonts; private-file reads, arbitrary executable admission and network access remain restricted. A fixed synthetic compiler check exercises the bullet font before the full suite.
+
 The older manual-only publication procedure below is historical context for the validation and promotion implementation.
 
 **Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.
