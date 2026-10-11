@@ -22,6 +22,7 @@ jobs:
       - run: uv sync --python 3.12 --frozen
       - run: uv run --frozen ruff check src tests deploy
       - run: uv run --frozen mypy --strict src/internship_pipeline
+      - run: uv run --frozen python deploy/tex-sandbox-smoke.py
       - run: uv run --frozen pytest -q
       - run: uv build
       - name: Verify distributable contents
