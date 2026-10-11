@@ -42,6 +42,10 @@ def restrict_linux(root: Path, engine: str) -> None:
     if get_abi_version() < 4:
         raise ValueError("TeX rendering requires Linux Landlock ABI 4 or newer")
     policy = Landlock().allow_read_write(root).allow_execute(Path(engine).resolve())
+    # ELF execution also checks EXECUTE on its interpreter, even when libraries are readable.
+    for loader in ["/lib64/ld-linux-x86-64.so.2", "/lib/ld-linux-aarch64.so.1"]:
+        if Path(loader).exists():
+            policy.allow_execute(Path(loader).resolve())
     for path in ["/usr", "/lib", "/lib64", "/etc/texmf", "/etc/fonts", "/var/lib/texmf"]:
         if Path(path).exists():
             policy.allow_read(path)
