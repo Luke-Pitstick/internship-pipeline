@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -20,16 +21,28 @@ from internship_pipeline.supervisor import supervise
 
 def configured_roles(settings: Settings) -> list[str]:
     """Absent inputs disable only their dependent worker roles."""
-    roles = ["search-runs", "email-delivery", "sheets-sync"]
-    try:
-        load_companies(settings.companies_path)
-        load_searches(settings.searches_path)
-        roles.extend(["collector", "discovery"])
-    except ConfigurationError:
-        pass
+    # Integration tests need their queues during setup; discovery starts at completion.
+    roles = ["email-delivery", "sheets-sync"]
     from internship_pipeline.assessments import current_revisions
 
     with Store(settings.database_path).connection() as db:
+        has_setup = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='onboarding_state'"
+        ).fetchone()
+        complete = (
+            has_setup
+            and db.execute(
+                "SELECT json_extract(data,'$.complete') FROM onboarding_state WHERE id=1"
+            ).fetchone()
+        )
+        if complete and complete[0]:
+            roles.insert(0, "search-runs")
+            try:
+                load_companies(settings.companies_path)
+                load_searches(settings.searches_path)
+                roles.extend(["collector", "discovery"])
+            except ConfigurationError:
+                pass
         profile, revision = current_revisions(db)
         if profile:
             roles.extend(["master-resumes", "tailored-resumes"])
@@ -46,7 +59,7 @@ def configured_roles(settings: Settings) -> list[str]:
     return roles
 
 
-def _main() -> int:
+def _main(*, reload: bool = False) -> int:
     os.umask(0o077)
     root = Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
     root.mkdir(parents=True, exist_ok=True)
@@ -72,13 +85,15 @@ def _main() -> int:
             "internship_pipeline.app:create_app",
             "--factory",
             "--host",
-            "0.0.0.0",
+            "127.0.0.1" if reload else "0.0.0.0",
             "--port",
             os.getenv("PORT", "8080"),
             "--no-proxy-headers",
             "--no-access-log",
         ]
     }
+    if reload:
+        commands["web"].extend(["--reload", "--reload-dir", str(Path(__file__).parents[1])])
 
     def current_commands() -> dict[str, list[str]]:
         result = dict(commands)
@@ -98,12 +113,15 @@ def _main() -> int:
     return supervise(commands, status_path=status_path, command_provider=current_commands)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     from internship_pipeline.operations import installation_lock
 
+    parser = argparse.ArgumentParser(description="Run the application and its configured workers")
+    parser.add_argument("--reload", action="store_true", help="Reload the local development API")
+    args = parser.parse_args(argv)
     root = Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
     with installation_lock(root):
-        return _main()
+        return _main(reload=args.reload)
 
 
 if __name__ == "__main__":

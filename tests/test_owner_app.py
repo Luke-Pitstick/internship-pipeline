@@ -238,7 +238,7 @@ def test_readiness_distinguishes_missing_assets_db_and_supervisor(tmp_path: Path
 def test_unconfigured_worker_capabilities_remain_inactive(tmp_path: Path) -> None:
     assert configured_roles(
         Settings(database_path=tmp_path / "state.db", companies_path=tmp_path / "absent")
-    ) == ["search-runs", "email-delivery", "sheets-sync"]
+    ) == ["email-delivery", "sheets-sync"]
 
 
 def test_cookie_free_session_burst_is_bounded_and_survives_restart(client: TestClient) -> None:

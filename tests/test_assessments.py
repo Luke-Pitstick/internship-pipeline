@@ -336,6 +336,12 @@ def test_cached_assessment_invalidates_and_stale_task_makes_no_call(tmp_path):
 def test_readiness_is_independent_and_requires_tested_current_jev(tmp_path):
     service, job = setup(tmp_path)
     settings = Settings(database_path=service.store.path, companies_path=tmp_path / "missing")
+    from internship_pipeline.app import create_app
+
+    create_app(tmp_path, origin="http://localhost", settings=settings)
+    assert "search-runs" not in configured_roles(settings)
+    with service.store.transaction() as db:
+        db.execute("UPDATE onboarding_state SET data=json_set(data,'$.complete',json('true'))")
     assert configured_roles(settings) == [
         "search-runs",
         "email-delivery",

@@ -16,7 +16,7 @@ The setup explanations distinguish hard eligibility constraints and confirmed au
 
 GET `/api/onboarding` reads authoritative current profile, model, generation, email and Sheets state and derives broad searches from saved preferences. Each role/country/location combination becomes an internship query; required locations take precedence over preferred locations. Supported countries use Indeed; unrestricted or unsupported countries use LinkedIn location searches without assuming US eligibility. Empty roles produce a general internship query. Terms, skills and candidate eligibility remain matching inputs. More than 100 combinations or oversized query fields require correcting preferences. The final preview includes profile and connection revisions, confirmed-fact count, hard/soft preferences, selected models/readiness, generated searches, model-work limits, generation rules and integration choices/enablement. It contains no model key, SMTP password, service-account material or private path. It is owner authenticated and uses the existing no-store response boundary.
 
-POST `/checkpoint` persists review choices, and POST `/visit` saves the current step. POST `/finish` requires the displayed preview fingerprint and all setup prerequisites. One SQLite transaction saves the generated searches, queues their collection and marks setup complete. A replay cannot create duplicate searches or runs. The browser immediately opens Jobs while collection continues independently. Empty results, source failures and deferred models do not reopen setup. Existing manually configured sources are preserved. The obsolete start/first-results setup flow is removed. All mutations retain owner, session, CSRF and origin protection.
+POST `/checkpoint` persists review choices, and POST `/visit` saves the current step. POST `/finish` requires the displayed preview fingerprint and all setup prerequisites. One SQLite transaction saves the generated searches, queues their collection and marks setup complete. A replay cannot create duplicate searches or runs. The browser immediately opens Jobs while collection continues independently. The application supervisor checks the durable completion state every two seconds and starts collection workers automatically, without restarting the application. Email/Sheets workers remain available during setup for connection tests, and profile-dependent résumé workers follow their own readiness gates. Native previews use `python -m internship_pipeline.bootstrap --reload` so API reloads retain worker supervision. Empty results, source failures and deferred models do not reopen setup. Existing manually configured sources are preserved. The obsolete start/first-results setup flow is removed. All mutations retain owner, session, CSRF and origin protection.
 
 Correction links open `/settings/?setup=1#<category>`. Settings includes a return link to the saved setup step and the main navbar remains hidden. Returning to the preview recomputes searches from the latest saved preferences; stale previews cannot finish setup.
 
@@ -24,6 +24,18 @@ Correction links open `/settings/?setup=1#<category>`. Settings includes a retur
 
 The Saved search and First results setup steps are removed. “Finish setup and find jobs” completes setup before collection returns. Local verification uses synthetic candidates and provider responses; live collection and container deployment remain separate acceptance gates. Historical acceptance below describes the earlier flow. The current flow passes 90 focused Python tests, the complete fresh-installation browser journey, 9 main browser cases and 24 navigation/security cases. Svelte check reports zero errors/warnings; the production build, scoped Ruff, strict mypy and whitespace checks pass. A 390px setup preview was visually inspected with no horizontal overflow. The saved-search browser suite adds 2 passing cases. A broader run completed with 976 Python passes and one failure in concurrent résumé-import work: the old `test_document_rejections[anything-tex-Only PDF]` expectation conflicts with newly supported `.tex` validation. That unrelated work was preserved.
 
+
+## Automatic worker activation
+
+October 11: collection workers activate after durable onboarding completion; the supervisor
+checks readiness every two seconds. The development `--reload` launcher uses the same supervisor.
+The native subprocess regression claims an owner, confirms collection is inactive, completes
+onboarding over HTTP, observes a queued search become collected through a real CLI worker with
+synthetic provider I/O, then restarts the app and verifies persisted jobs and worker recovery.
+Both normal and reload modes pass. The combined bootstrap, supervisor, onboarding, owner and
+assessment suite passes 101 tests; scoped Ruff, strict mypy and whitespace checks pass. The current
+local preview also reached 39 collected jobs after replacing the web-only process with the
+supervised launcher; this is local runtime evidence, not container acceptance.
 
 ## Per-criterion evidence
 

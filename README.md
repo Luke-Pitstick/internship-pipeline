@@ -252,6 +252,10 @@ uv run --frozen python -m internship_pipeline.bootstrap
 Keep that terminal running and open the local URL. The command creates an ignored local
 installation, prints its private **Owner setup URL** and supervises the app and ready workers. Open that full
 link to choose your username and password.
+For API auto-reload, add `--reload` to the bootstrap command. This binds the API to loopback
+and keeps the worker supervisor running while source edits reload the API. Collection workers
+start automatically when onboarding is complete; integration workers can run during setup to
+process connection tests. Use this supervised launcher for previews so queued searches are consumed.
 Use synthetic profiles and provider transports for development.
 
 Run the core checks from the repository root:
