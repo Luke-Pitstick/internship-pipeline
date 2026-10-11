@@ -1,5 +1,23 @@
 # Curl installer publication
 
+## October 11 — automatic verified previews
+
+The current install command is:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Luke-Pitstick/internship-pipeline/main/install.sh | sh
+```
+
+Each push to `main` runs offline checks and native amd64/arm64 container lifecycle and recovery checks. A successful candidate triggers `publish-release.yml`, which checks out the candidate's exact source SHA, revalidates its artifacts and attestations, and stages a unique `v{package-version}-rc.{candidate-run-id}` release. Docker and rootless Podman then exercise the generated bundle, installation, saved reruns and backup/restore on both architectures. Only successful installation acceptance publishes the preview. PR/fork, failed, wrong-branch and mismatched-source candidates cannot publish.
+
+The public entry point selects one complete published preview, verifies its launcher against that release's metadata, and delegates to the immutable versioned launcher. That launcher pins the bootstrap hash, bundle hash and combined multi-architecture image digest. Failed candidates leave the prior published preview available. The publication workflow checks anonymous asset bytes and confirms that the public entry point resolves the accepted commit. It never rewrites older releases or their image tags. The versioned curl command remains available for reproducible installation.
+
+Existing installations retain their saved container image, runtime and data when the installer is rerun; this is fresh-install publication, not an automatic upgrade mechanism. RC4's recorded host/provider limitations remain applicable. Manual publication dispatch still stages a draft for explicit release handling. The downloaded-installation workflow now requires an explicit version and source SHA instead of silently testing RC4.
+
+Local verification covers selection of a complete public release, refusal of draft/incomplete/corrupt identities, literal option forwarding, partial-download safety, and exact-source publication admission. Hosted container and installer acceptance is recorded in the corresponding GitHub Actions runs rather than inferred from these synthetic tests.
+
+The older manual-only publication procedure below is historical context for the validation and promotion implementation.
+
 **Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.
 
 **October 9 execution update:** [RC1 staging evidence](rc1-staging.md) records the accepted 949-test/35-browser main candidate, both native runtime matrices, verified GHCR promotion and downloaded draft installer checks. The release remains draft; live, public-hosting, redistribution and operator/trial gates remain open. Older preparation snapshots below are historical.

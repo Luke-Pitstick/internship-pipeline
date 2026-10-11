@@ -2,6 +2,18 @@ name: Downloaded release installation
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: Immutable release tag to test
+        type: string
+        required: true
+      source_sha:
+        description: Exact accepted container source commit
+        type: string
+        required: true
+      publication_run_id:
+        description: Publication run ID required for staged-bundle delivery
+        type: string
+        required: false
       delivery:
         description: Explicit delivery being accepted; authenticated mode does not certify public access
         type: choice
@@ -14,6 +26,10 @@ permissions:
   packages: read
 jobs:
   install:
+    env:
+      VERSION: ${{ inputs.version }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      PUBLICATION_RUN: ${{ inputs.publication_run_id }}
     strategy:
       fail-fast: false
       matrix:
@@ -25,6 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source_sha }}
       - name: Prepare isolated engine configuration
         env:
           ENGINE: ${{ matrix.engine }}
@@ -45,8 +62,8 @@ jobs:
           ENGINE: ${{ matrix.engine }}
         run: |
           set -eu
-          gh run download 38077039698 --name curl-release-38077039698 --dir "$RUNNER_TEMP/staging"
-          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.4.tar.gz; do
+          gh run download "$PUBLICATION_RUN" --name "curl-release-$PUBLICATION_RUN" --dir "$RUNNER_TEMP/staging"
+          for asset in install.sh release-metadata.json bootstrap_installer.py "internship-pipeline-installer-$VERSION.tar.gz"; do
             cp "$RUNNER_TEMP/staging/release/$asset" "$RUNNER_TEMP/release-assets/$asset"
           done
           printf '%s' "$GH_TOKEN" | "$ENGINE" login ghcr.io -u "$ACTOR" --password-stdin
@@ -54,9 +71,9 @@ jobs:
         if: inputs.delivery == 'public-launcher'
         run: |
           set -eu
-          for asset in install.sh bootstrap_installer.py internship-pipeline-installer-v0.1.0-rc.4.tar.gz; do
+          for asset in install.sh release-metadata.json bootstrap_installer.py "internship-pipeline-installer-$VERSION.tar.gz"; do
             curl --fail --location --proto '=https' --proto-redir '=https' \
-              "https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.4/$asset" \
+              "https://github.com/Luke-Pitstick/internship-pipeline/releases/download/$VERSION/$asset" \
               --output "$RUNNER_TEMP/release-assets/$asset"
           done
       - name: Execute downloaded installer and exact-image recovery
@@ -65,6 +82,7 @@ jobs:
           DELIVERY: ${{ inputs.delivery }}
         run: |
           python3 deploy/release-install-smoke.py --engine "$ENGINE" --delivery "$DELIVERY" \
+            --version "$VERSION" --source-commit "$SOURCE_SHA" \
             --assets "$RUNNER_TEMP/release-assets" --work "$RUNNER_TEMP/release-install" \
             --report "evidence/$ENGINE.json"
       - name: Retain bounded runtime failure evidence

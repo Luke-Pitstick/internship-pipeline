@@ -1,10 +1,15 @@
 name: Container image candidates
 on:
+  push:
+    branches: [main]
   pull_request:
     paths: ["Dockerfile", ".dockerignore", "compose.yaml", "deploy/**", "src/**", "tests/**", "web/**", "pyproject.toml", "uv.lock", ".github/workflows/**"]
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: container-candidate-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   checks:
     uses: ./.github/workflows/checks.yml

@@ -8,10 +8,15 @@
 ## Install with one command
 
 ```sh
-curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.4/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Luke-Pitstick/internship-pipeline/main/install.sh | sh
 ```
 
-**RC4 preview:** public installation and backup/restore have passed on Ubuntu 24.04 with Docker
+The command selects the newest published preview and verifies its installer hash. Each preview pins
+the container image by digest to its tested source commit. Pushes to `main` publish a new preview only
+after offline checks, both native container builds, and Docker/Podman installation and recovery pass.
+Existing installations retain their saved image and data when rerun; this command does not upgrade them.
+
+**RC4 acceptance baseline:** public installation and backup/restore have passed on Ubuntu 24.04 with Docker
 and rootless Podman on amd64/arm64. Installation and Docker lifecycle/recovery also passed on
 macOS arm64. Remaining release checks are tracked in the [acceptance record](docs/release/rc4-status.md).
 
@@ -298,7 +303,7 @@ before starting it. Confirm `podman info` succeeds. The installer preserves your
 connection and does not create or start VMs. If both engines are healthy, select one explicitly:
 
 ```sh
-curl -fsSL https://github.com/Luke-Pitstick/internship-pipeline/releases/download/v0.1.0-rc.4/install.sh | sh -s -- --runtime docker
+curl -fsSL https://raw.githubusercontent.com/Luke-Pitstick/internship-pipeline/main/install.sh | sh -s -- --runtime docker
 ```
 
 ### The browser cannot connect

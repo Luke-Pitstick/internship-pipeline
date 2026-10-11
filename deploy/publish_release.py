@@ -63,8 +63,8 @@ def validate_run(
     )
     require(run["path"].split("@", 1)[0] == WORKFLOW, "Unexpected candidate workflow.")
     require(
-        run["event"] == "workflow_dispatch" and run["head_branch"] == default_branch,
-        "Use a manually accepted candidate from the default branch.",
+        run["event"] in {"push", "workflow_dispatch"} and run["head_branch"] == default_branch,
+        "Use a successful push or manual candidate from the default branch.",
     )
 
 

@@ -1,5 +1,8 @@
-name: Stage curl installation prerelease
+name: Publish verified curl preview
 on:
+  workflow_run:
+    workflows: [Container image candidates]
+    types: [completed]
   workflow_dispatch:
     inputs:
       candidate_run_id:
@@ -21,29 +24,40 @@ concurrency:
   group: curl-release-publication
   cancel-in-progress: false
 env:
-  PIPELINE_RUN_ID: ${{ inputs.candidate_run_id }}
-  PIPELINE_SOURCE_SHA: ${{ inputs.source_sha }}
+  PIPELINE_RUN_ID: ${{ github.event.workflow_run.id || inputs.candidate_run_id }}
+  PIPELINE_SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha }}
   PIPELINE_VERSION: ${{ inputs.version }}
   PIPELINE_REPOSITORY: ${{ github.repository }}
   PIPELINE_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-  PIPELINE_WORKFLOW_SHA: ${{ github.sha }}
+  PIPELINE_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 jobs:
   validate:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ env.PIPELINE_SOURCE_SHA }}
       - name: Validate candidate identity before downloading artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           python3 - <<'PY'
-          import os, re
+          import os, re, tomllib
           assert re.fullmatch(r'[1-9][0-9]*', os.environ['PIPELINE_RUN_ID']), 'Invalid run ID'
           assert os.environ['PIPELINE_SOURCE_SHA'] == os.environ['PIPELINE_WORKFLOW_SHA'], 'Dispatch the accepted source revision'
+          if not os.environ['PIPELINE_VERSION']:
+              package = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']
+              with open(os.environ['GITHUB_ENV'], 'a') as output:
+                  output.write(f"PIPELINE_VERSION=v{package}-rc.{os.environ['PIPELINE_RUN_ID']}\n")
           PY
           mkdir -p "$RUNNER_TEMP/publication"
           gh api "repos/$PIPELINE_REPOSITORY/actions/runs/$PIPELINE_RUN_ID" > "$RUNNER_TEMP/publication/run.json"
@@ -81,6 +95,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ env.PIPELINE_SOURCE_SHA }}
+      - name: Select the immutable preview version
+        run: |
+          python3 - <<'PY'
+          import os, tomllib
+          if not os.environ['PIPELINE_VERSION']:
+              package = tomllib.load(open('pyproject.toml', 'rb'))['project']['version']
+              with open(os.environ['GITHUB_ENV'], 'a') as output:
+                  output.write(f"PIPELINE_VERSION=v{package}-rc.{os.environ['PIPELINE_RUN_ID']}\n")
+          PY
       - name: Install OCI copy tools
         run: |
           sudo apt-get update
@@ -129,3 +153,78 @@ jobs:
         run: |
           docker logout ghcr.io
           skopeo logout ghcr.io
+
+  install:
+    needs: promote
+    if: github.event_name == 'workflow_run'
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        engine: [docker, podman]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ env.PIPELINE_SOURCE_SHA }}
+      - name: Prepare the isolated runtime and download exact staged assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENGINE: ${{ matrix.engine }}
+          PUBLICATION_RUN: ${{ github.run_id }}
+        run: |
+          set -eu
+          if [ "$ENGINE" = podman ] && ! command -v podman >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+          gh run download "$PUBLICATION_RUN" --name "curl-release-$PUBLICATION_RUN" --dir "$RUNNER_TEMP/staging"
+          VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$RUNNER_TEMP/staging/release/release-metadata.json")
+          python3 deploy/release-install-smoke.py --engine "$ENGINE" --delivery staged-bundle \
+            --version "$VERSION" --source-commit "$PIPELINE_SOURCE_SHA" \
+            --assets "$RUNNER_TEMP/staging/release" --work "$RUNNER_TEMP/release-install" \
+            --report "evidence/$ENGINE.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preview-install-${{ matrix.runner }}-${{ matrix.engine }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
+  publish:
+    needs: install
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ env.PIPELINE_SOURCE_SHA }}
+      - name: Publish the accepted preview and verify anonymous curl resolution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLICATION_RUN: ${{ github.run_id }}
+        run: |
+          set -eu
+          gh run download "$PUBLICATION_RUN" --name "curl-release-$PUBLICATION_RUN" --dir "$RUNNER_TEMP/staging"
+          VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$RUNNER_TEMP/staging/release/release-metadata.json")
+          gh release edit "$VERSION" --draft=false --prerelease --latest=false
+          for asset in install.sh release-metadata.json; do
+            curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+              "https://github.com/$PIPELINE_REPOSITORY/releases/download/$VERSION/$asset" \
+              --output "$RUNNER_TEMP/$asset"
+            cmp "$RUNNER_TEMP/$asset" "$RUNNER_TEMP/staging/release/$asset"
+          done
+          sh install.sh --help > "$RUNNER_TEMP/current-installer.txt"
+          python3 - <<'CHECK'
+          import os, pathlib
+          text = (pathlib.Path(os.environ['RUNNER_TEMP']) / 'current-installer.txt').read_text()
+          assert os.environ['PIPELINE_SOURCE_SHA'][:12] in text, 'Curl command resolved another container release'
+          CHECK

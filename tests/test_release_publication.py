@@ -154,6 +154,12 @@ def test_nested_candidate_archives_bind_tested_configs_and_attestations(tmp_path
         assert platform["config_digest"] == platform["smoke_reports"][0]["image_id"]
 
 
+def test_default_branch_push_can_publish_its_exact_tested_candidate(tmp_path: Path) -> None:
+    fixture = candidate_fixture(tmp_path)
+    fixture[3]["event"] = "push"
+    assert validate(fixture)["source_commit"] == fixture[1]
+
+
 @pytest.mark.parametrize(
     "image_id", ["a" * 12, "sha256:" + "g" * 64, "sha512:" + "a" * 64, "", None]
 )

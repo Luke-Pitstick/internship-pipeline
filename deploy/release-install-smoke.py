@@ -1,4 +1,4 @@
-"""Exercise downloaded RC4 installers on disposable GitHub-hosted Linux runners.
+"""Exercise downloaded installers on disposable GitHub-hosted Linux runners.
 
 This is release acceptance tooling, never a user's upgrade/cleanup command. It
 prints only aggregate results; the runner owns all synthetic data until teardown.
@@ -19,12 +19,7 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "v0.1.0-rc.4"
-IMAGE = ("ghcr.io/luke-pitstick/internship-pipeline@sha256:"
-         "fa6699ac2501879026bf3604718aa920dc60195aeff0031c9065e372159e8955")
-LAUNCHER_SHA = "eeb310d281e30e7b1101a189796de62a5bd357cc7e21c0c0efa570f1adae359d"
-BOOTSTRAP_SHA = "431a9dc06b838fb93d94a698226ba6e6edc86772c4b1586566216b1c9c0fcca2"
-BUNDLE_SHA = "6944a906ce23ed723c6678e51ff7c42e882e1b3642f028e40d7cb055617a63bb"
+from release_launcher import render_launcher
 
 
 def load(name: str, path: Path):
@@ -54,11 +49,12 @@ def checked_file(path: Path, expected: str) -> bytes:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=("docker", "podman"), required=True)
-    parser.add_argument("--delivery", choices=("staged-bundle", "public-launcher"),
-                        required=True)
+    parser.add_argument("--delivery", choices=("staged-bundle", "public-launcher"), required=True)
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--source-commit", required=True)
     args = parser.parse_args()
     if os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux":
         raise RuntimeError("Run only on an isolated GitHub-hosted Linux runner")
@@ -66,34 +62,64 @@ def main() -> None:
     args.work.mkdir(mode=0o700)  # Refuse reuse rather than adopting existing resources.
     root = args.work.resolve()
     assets = args.assets.resolve()
-    checked_file(assets / "install.sh", LAUNCHER_SHA)
-    checked_file(assets / "bootstrap_installer.py", BOOTSTRAP_SHA)
-    bundle = checked_file(assets / f"internship-pipeline-installer-{VERSION}.tar.gz", BUNDLE_SHA)
+    metadata = json.loads((assets / "release-metadata.json").read_bytes())
+    if (
+        metadata["version"] != args.version
+        or metadata["source_commit"] != args.source_commit
+        or metadata["repository"] != "Luke-Pitstick/internship-pipeline"
+    ):
+        raise RuntimeError("Installer metadata differs from the accepted candidate")
+    version, image = metadata["version"], metadata["image"]
+    launcher_bytes = checked_file(assets / "install.sh", metadata["launcher_sha256"])
+    expected_launcher = render_launcher(
+        repository=metadata["repository"],
+        version=version,
+        image=image,
+        bootstrap_sha256=metadata["bootstrap_sha256"],
+        bundle_sha256=metadata["bundle_sha256"],
+    ).encode()
+    if launcher_bytes != expected_launcher:
+        raise RuntimeError("Installer does not pin the accepted image and assets")
+    checked_file(assets / "bootstrap_installer.py", metadata["bootstrap_sha256"])
+    bundle = checked_file(
+        assets / f"internship-pipeline-installer-{version}.tar.gz", metadata["bundle_sha256"]
+    )
     smoke = load("container_smoke", Path(__file__).with_name("container-smoke.py"))
     smoke.ENGINE = args.engine
     bootstrap = load("released_bootstrap", assets / "bootstrap_installer.py")
     extracted = root / "bundle"
     extracted.mkdir()
-    local_launcher = bootstrap.unpack(bundle, extracted, VERSION) / "install.sh"
+    local_launcher = bootstrap.unpack(bundle, extracted, version) / "install.sh"
     launcher = assets / "install.sh" if args.delivery == "public-launcher" else local_launcher
     base = ["sh", str(launcher), "--no-open"]
     source = root / "source"
     source_command = root / "source-command"
     restored = root / "restored"
     restored_command = root / "restored-command"
-    first = [*base, "--runtime", args.engine, "--install-dir", str(source),
-             "--command-dir", str(source_command), "--port", "18080"]
+    first = [
+        *base,
+        "--runtime",
+        args.engine,
+        "--install-dir",
+        str(source),
+        "--command-dir",
+        str(source_command),
+        "--port",
+        "18080",
+    ]
     if args.delivery == "staged-bundle":
-        first += ["--image", IMAGE]
+        first += ["--image", image]
     started = time.monotonic()
     installation_output = command(*first)
     installed_seconds = round(time.monotonic() - started, 3)
     manifest = json.loads((source / "installation.json").read_text())
-    smoke.require(manifest["image"] == IMAGE, "Installer selected another image")
+    smoke.require(manifest["image"] == image, "Installer selected another image")
     container, volume = manifest["container_name"], manifest["volume_name"]
     raw_image_id = smoke.docker("inspect", "--format", "{{.Image}}", container)
-    smoke.require(bool(re.fullmatch(r"(?:sha256:)?[a-f0-9]{64}", raw_image_id)),
-                  "Engine returned an invalid image identity")
+    smoke.require(
+        bool(re.fullmatch(r"(?:sha256:)?[a-f0-9]{64}", raw_image_id)),
+        "Engine returned an invalid image identity",
+    )
     image_id = "sha256:" + raw_image_id.removeprefix("sha256:")
     manager = str(source_command / "internship-pipeline")
     browser = smoke.Browser(manifest["origin"])
@@ -103,18 +129,24 @@ def main() -> None:
     smoke.require(browser.request("/")[0] == 200, "Frontend unavailable")
     smoke.require(browser.request("/api/jobs")[0] == 401, "Jobs exposed before claim")
     tokens = re.findall(
-        rb"Open your workspace: " + re.escape(manifest["origin"].encode())
-        + rb"/#setup=([A-Za-z0-9_-]{43})", installation_output,
+        rb"Open your workspace: "
+        + re.escape(manifest["origin"].encode())
+        + rb"/#setup=([A-Za-z0-9_-]{43})",
+        installation_output,
     )
     smoke.require(len(tokens) == 1, "Missing unique private browser setup link")
     credentials = {"username": "synthetic-owner", "password": "synthetic-release-password"}
     csrf = browser.json("/api/session")["csrf"]
     csrf = browser.json(
-        "/api/claim", {**credentials, "setup_token": tokens[0].decode()}, csrf,
+        "/api/claim",
+        {**credentials, "setup_token": tokens[0].decode()},
+        csrf,
     )["csrf"]
     browser.json("/api/onboarding/checkpoint", {"step": "models", "defer_models": True}, csrf)
-    smoke.require(json.loads(command(manager, "status"))["ready"] is True,
-                  "Installed status did not report readiness")
+    smoke.require(
+        json.loads(command(manager, "status"))["ready"] is True,
+        "Installed status did not report readiness",
+    )
     command(manager, "url")
     command(manager, "logs", "--lines", "10")
     command(manager, "stop")
@@ -123,26 +155,63 @@ def main() -> None:
     rerun = [*base, "--install-dir", str(source), "--command-dir", str(source_command)]
     command(*rerun)
     smoke.ready(browser, "owner")
-    smoke.require(json.loads((source / "installation.json").read_text()) == manifest,
-                  "Rerun changed installation identity")
+    smoke.require(
+        json.loads((source / "installation.json").read_text()) == manifest,
+        "Rerun changed installation identity",
+    )
     smoke.require(browser.json("/api/session")["authenticated"], "Restart lost owner session")
     command(manager, "stop")
 
     # The existing recovery fixture writes only synthetic secrets and disabled transports.
     fixture = Path(__file__).with_name("container-recovery-fixture.py").read_bytes()
+
     def maintenance(volume_name: str, *argv: str, data: bytes | None = None) -> bytes:
-        return command(args.engine, "run", "--rm", "-i", "--pull", "never", "--network", "none",
-                       "--read-only", "--tmpfs", "/tmp", "--entrypoint", "python", "--mount",
-                       f"type=volume,src={volume_name},dst=/var/data", image_id, *argv, data=data)
+        return command(
+            args.engine,
+            "run",
+            "--rm",
+            "-i",
+            "--pull",
+            "never",
+            "--network",
+            "none",
+            "--read-only",
+            "--tmpfs",
+            "/tmp",
+            "--entrypoint",
+            "python",
+            "--mount",
+            f"type=volume,src={volume_name},dst=/var/data",
+            image_id,
+            *argv,
+            data=data,
+        )
 
     metrics = json.loads(maintenance(volume, "-", "seed", data=fixture))
     interrupted = container + "-interrupted"
     fixture_path = Path(__file__).with_name("container-recovery-fixture.py").resolve()
-    smoke.docker("run", "--detach", "--name", interrupted, "--pull", "never", "--network",
-                 "none", "--read-only", "--tmpfs", "/tmp", "--entrypoint", "python",
-                 "--mount", f"type=volume,src={volume},dst=/var/data", "--mount",
-                 f"type=bind,src={fixture_path},dst=/fixture.py,readonly", image_id,
-                 "/fixture.py", "interrupt")
+    smoke.docker(
+        "run",
+        "--detach",
+        "--name",
+        interrupted,
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--entrypoint",
+        "python",
+        "--mount",
+        f"type=volume,src={volume},dst=/var/data",
+        "--mount",
+        f"type=bind,src={fixture_path},dst=/fixture.py,readonly",
+        image_id,
+        "/fixture.py",
+        "interrupt",
+    )
     deadline = time.monotonic() + 25
     while "CHECKPOINT_PERSISTED" not in smoke.docker("logs", interrupted):
         if time.monotonic() > deadline:
@@ -152,18 +221,46 @@ def main() -> None:
     smoke.require(smoke.docker("wait", interrupted) == "137", "Worker was not interrupted")
     maintenance(volume, "-", "resume", data=fixture)
     backup_volume = container + "-backup"
-    smoke.docker("volume", "create", "--label",
-                 f"io.internship-pipeline.install-id={manifest['install_id']}", backup_volume)
-    maintenance(backup_volume, "-c",
-                "from pathlib import Path; Path('/var/data/backup').mkdir(mode=0o700)")
-    command(args.engine, "run", "--rm", "--pull", "never", "--network", "none", "--read-only",
-            "--tmpfs", "/tmp", "--entrypoint", "internship-pipeline", "--mount",
-            f"type=volume,src={volume},dst=/var/data", "--mount",
-            f"type=volume,src={backup_volume},dst=/recovery", image_id, "backup",
-            "/recovery/backup/snapshot", "--data-dir", "/var/data")
-    archive = maintenance(backup_volume, "-c", "import sys,tarfile; "
-                          "t=tarfile.open(fileobj=sys.stdout.buffer,mode='w|'); "
-                          "t.add('/var/data/backup/snapshot',arcname='snapshot'); t.close()")
+    smoke.docker(
+        "volume",
+        "create",
+        "--label",
+        f"io.internship-pipeline.install-id={manifest['install_id']}",
+        backup_volume,
+    )
+    maintenance(
+        backup_volume, "-c", "from pathlib import Path; Path('/var/data/backup').mkdir(mode=0o700)"
+    )
+    command(
+        args.engine,
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--entrypoint",
+        "internship-pipeline",
+        "--mount",
+        f"type=volume,src={volume},dst=/var/data",
+        "--mount",
+        f"type=volume,src={backup_volume},dst=/recovery",
+        image_id,
+        "backup",
+        "/recovery/backup/snapshot",
+        "--data-dir",
+        "/var/data",
+    )
+    archive = maintenance(
+        backup_volume,
+        "-c",
+        "import sys,tarfile; "
+        "t=tarfile.open(fileobj=sys.stdout.buffer,mode='w|'); "
+        "t.add('/var/data/backup/snapshot',arcname='snapshot'); t.close()",
+    )
     backup_parent = root / "backups"
     backup_parent.mkdir(mode=0o700)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
@@ -172,11 +269,24 @@ def main() -> None:
         tar.extractall(backup_parent, filter="data")
     backup = backup_parent / "snapshot"
     backup.chmod(0o700)
-    backup_hashes = {str(p.relative_to(backup)): hashlib.sha256(p.read_bytes()).hexdigest()
-                     for p in backup.rglob("*") if p.is_file()}
-    command(*base, "--restore-source", str(source), "--restore-from", str(backup),
-            "--install-dir", str(restored), "--command-dir", str(restored_command),
-            "--port", "18081")
+    backup_hashes = {
+        str(p.relative_to(backup)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in backup.rglob("*")
+        if p.is_file()
+    }
+    command(
+        *base,
+        "--restore-source",
+        str(source),
+        "--restore-from",
+        str(backup),
+        "--install-dir",
+        str(restored),
+        "--command-dir",
+        str(restored_command),
+        "--port",
+        "18081",
+    )
     destination = json.loads((restored / "installation.json").read_text())
     smoke.require(destination["image"] == image_id, "Restore changed exact local image")
     smoke.require(destination["volume_name"] != volume, "Restore reused source volume")
@@ -187,46 +297,88 @@ def main() -> None:
     session = recovered.json("/api/session")
     smoke.require(session["claimed"] and not session["authenticated"], "Invalid restored identity")
     recovered.json("/api/login", credentials, session["csrf"])
-    smoke.require(len(recovered.json("/api/jobs")["jobs"]) == 1,
-                  "Restored job missing or duplicated")
+    smoke.require(
+        len(recovered.json("/api/jobs")["jobs"]) == 1, "Restored job missing or duplicated"
+    )
     recovered_manager = str(restored_command / "internship-pipeline")
-    smoke.require(json.loads(command(recovered_manager, "status"))["ready"] is True,
-                  "Recovered installed status did not report readiness")
+    smoke.require(
+        json.loads(command(recovered_manager, "status"))["ready"] is True,
+        "Recovered installed status did not report readiness",
+    )
     command(recovered_manager, "stop")
-    maintenance(destination["volume_name"], "-", "verify", "--root", "/var/data/restored",
-                data=fixture)
+    maintenance(
+        destination["volume_name"], "-", "verify", "--root", "/var/data/restored", data=fixture
+    )
     command(recovered_manager, "start")
     smoke.ready(recovered, "owner")
     command(recovered_manager, "stop")
     smoke.stopped(container)
-    smoke.require(json.loads((source / "installation.json").read_text()) == manifest,
-                  "Restore modified source manifest")
-    smoke.require(backup_hashes == {
-        str(p.relative_to(backup)): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in backup.rglob("*") if p.is_file()}, "Restore modified host backup")
+    smoke.require(
+        json.loads((source / "installation.json").read_text()) == manifest,
+        "Restore modified source manifest",
+    )
+    smoke.require(
+        backup_hashes
+        == {
+            str(p.relative_to(backup)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in backup.rglob("*")
+            if p.is_file()
+        },
+        "Restore modified host backup",
+    )
     # Preserve actual runtime license/source inventory for review, not a legal-clearance assertion.
-    inventory = maintenance(volume, "-c", "import pathlib,subprocess,json; "
+    inventory = maintenance(
+        volume,
+        "-c",
+        "import pathlib,subprocess,json; "
         "print(json.dumps({'debian':subprocess.check_output(['dpkg-query','-W',"
         "'-f=${binary:Package}\\t${Version}\\t${source:Package}\\t${source:Version}\\n'],text=True),"
         "'project_license':pathlib.Path('/app/LICENSE').read_text(),"
-        "'frontend_notices':pathlib.Path('/app/web/build/third-party-licenses.md').read_text()}))")
+        "'frontend_notices':pathlib.Path('/app/web/build/third-party-licenses.md').read_text()}))",
+    )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.with_suffix(".notices.json").write_bytes(inventory)
-    args.report.write_text(json.dumps({
-        "version": VERSION, "image": IMAGE, "config_digest": image_id,
-        "engine": args.engine, "architecture": platform.machine(), "delivery": args.delivery,
-        "engine_version": json.loads(smoke.docker("version", "--format", "{{json .}}")),
-        "native_state_keys": sorted(native_state),
-        "native_health_status": (native_state.get("Health") or {}).get("Status"),
-        "install_seconds": installed_seconds, "synthetic_pdf_metrics": metrics,
-        "passed": ["asset_hashes", "fresh_install", "owner_claim", "saved_rerun", "management",
-                   "stopped_backup", "fresh_installer_restore", "revoked_source_session",
-                   "restored_login", "synthetic_job",
-                   "encrypted_connections_and_pdf", "source_and_backup_preserved", "image_notices"],
-        "live_providers": False, "unfamiliar_operator": False,
-    }, indent=2) + "\n")
-    print(f"PASS {args.engine}/{platform.machine()} {args.delivery}: "
-          "install, owner, rerun, backup, restore")
+    args.report.write_text(
+        json.dumps(
+            {
+                "version": version,
+                "source_commit": args.source_commit,
+                "image": image,
+                "config_digest": image_id,
+                "engine": args.engine,
+                "architecture": platform.machine(),
+                "delivery": args.delivery,
+                "engine_version": json.loads(smoke.docker("version", "--format", "{{json .}}")),
+                "native_state_keys": sorted(native_state),
+                "native_health_status": (native_state.get("Health") or {}).get("Status"),
+                "install_seconds": installed_seconds,
+                "synthetic_pdf_metrics": metrics,
+                "passed": [
+                    "asset_hashes",
+                    "fresh_install",
+                    "owner_claim",
+                    "saved_rerun",
+                    "management",
+                    "stopped_backup",
+                    "fresh_installer_restore",
+                    "revoked_source_session",
+                    "restored_login",
+                    "synthetic_job",
+                    "encrypted_connections_and_pdf",
+                    "source_and_backup_preserved",
+                    "image_notices",
+                ],
+                "live_providers": False,
+                "unfamiliar_operator": False,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    print(
+        f"PASS {args.engine}/{platform.machine()} {args.delivery}: "
+        "install, owner, rerun, backup, restore"
+    )
 
 
 if __name__ == "__main__":
