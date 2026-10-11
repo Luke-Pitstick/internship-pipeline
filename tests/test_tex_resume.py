@@ -1,6 +1,7 @@
 """Source import/review, bounded AI edits, and explicitly requested PDF rendering."""
 
 import json
+import subprocess
 import time
 
 import httpx
@@ -266,7 +267,22 @@ def test_unavailable_isolation_retains_source_with_actionable_error(service):
     assert service.source(draft["key"])
 
 
-def test_untrusted_compiler_cannot_read_private_file_or_run_shell(tmp_path):
+def test_untrusted_compiler_cannot_read_private_file_or_run_shell(tmp_path, monkeypatch):
+    class SyntheticCompilerProcess(subprocess.Popen):
+        def __init__(self, *args, **kwargs):
+            super().__init__(
+                *args, **(kwargs | {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE})
+            )
+
+        def communicate(self, *args, **kwargs):
+            stdout, stderr = super().communicate(*args, **kwargs)
+            if self.returncode:
+                # This test compiles only fixed synthetic source; never print user documents.
+                print(stdout.decode(errors="replace")[-6000:])
+                print(stderr.decode(errors="replace")[-2000:])
+            return stdout, stderr
+
+    monkeypatch.setattr(subprocess, "Popen", SyntheticCompilerProcess)
     secret = tmp_path / "candidate-secret.tex"
     secret.write_text("private-candidate-marker")
     source = SOURCE.replace("Synthetic Candidate", rf"\input{{{secret}}}")
