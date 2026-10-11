@@ -44,6 +44,8 @@ test('stored 10k workspace URL, explicit actions, keyboard/mobile and real API t
   await expect(page.getByRole('status').filter({hasText:'Page 400 of 400'})).toBeVisible();
   await expect(page).toHaveURL(/page=400/); await page.reload();
   await expect(page.getByRole('status').filter({hasText:'Page 400 of 400'})).toBeVisible();
+  // Wide glyphs reproduce the native Linux search-input minimum without depending on host fonts.
+  await page.addStyleTag({content: '.search-field input {font-family:monospace}'});
   for (const width of [320, 390]) {
     await page.setViewportSize({width,height:844});
     await page.keyboard.press('Escape');

@@ -18,6 +18,8 @@ Local verification covers selection of a complete public release, refusal of dra
 
 The Linux checks also exposed two TeX prerequisites missed by macOS-only verification: Landlock must permit the system ELF loader as well as the compiler, and CM-Super fonts must be installed so standard article bullets do not require a font-generation subprocess. The image and CI install the fonts; private-file reads, arbitrary executable admission and network access remain restricted. A fixed synthetic compiler check exercises the bullet font before the full suite.
 
+The hosted Python suite passes 1,032 tests after those corrections. Linux mobile QA also exposed a search-field flex minimum that pushed the Search button beyond a 320px viewport. The field now allows shrinking, and the workspace browser regression uses wide input glyphs to reproduce the original failure independently of host fonts while retaining the viewport-overflow assertion. The existing desktop/mobile workspace, pagination, keyboard and API timing checks remain required.
+
 The older manual-only publication procedure below is historical context for the validation and promotion implementation.
 
 **Current status (October 10):** [RC3 acceptance](rc3-status.md) supersedes older preparation results below. RC3 is a public prerelease; anonymous Linux installation/recovery and one macOS arm64 Docker journey pass. Live, remaining host/operator and trial gates remain open. RC1 and RC2 are held drafts.

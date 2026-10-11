@@ -183,6 +183,7 @@ main {
 }
 .search-field {
   display:flex;
+  min-width:0;
   align-items:center;
   background:#fff;
   border:1px solid #b9c1d3;
