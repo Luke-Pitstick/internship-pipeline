@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
@@ -120,7 +120,7 @@ jobs:
         env:
           ENGINE: ${{ matrix.engine }}
         run: '"$ENGINE" logout ghcr.io'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: release-install-${{ matrix.runner }}-${{ matrix.engine }}-${{ inputs.delivery }}

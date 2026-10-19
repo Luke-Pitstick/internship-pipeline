@@ -127,7 +127,15 @@ test('all settings sections fit mobile and desktop with visible navigation and k
         const bounds = await section(page, name).boundingBox();
         expect(bounds!.height).toBeGreaterThanOrEqual(44);
       } else await expect(page.getByLabel('Settings section')).toHaveCSS('font-size','16px');
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const layout = await page.evaluate(() => ({
+        width: innerWidth, content: document.documentElement.scrollWidth,
+        overflow: [...document.querySelectorAll<HTMLElement>('main *')].filter(element => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.width > 0 && bounds.right > innerWidth + 1;
+        }).slice(0, 12).map(element => ({tag:element.tagName,id:element.id,
+          class:element.className,right:element.getBoundingClientRect().right}))
+      }));
+      expect(layout.content, `${name} at ${width}px: ${JSON.stringify(layout.overflow)}`).toBeLessThanOrEqual(layout.width);
       if (width === 1440 || width === 390) await page.screenshot({path:`test-results-settings/${name.toLowerCase().replaceAll(/[^a-z]+/g,'-')}-${width}.png`,animations:'disabled'});
     }
     if (width === 1440 || width === 390) {

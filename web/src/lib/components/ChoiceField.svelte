@@ -44,6 +44,7 @@
   .choice-field :global(input:focus-visible) { outline: none; }
   .choice-field :global(.multiselect:focus-within) { outline: 2px solid var(--accent); outline-offset: 2px; }
   .choice-field :global(button) { min-width: 28px; min-height: 28px; }
+  .choice-field :global(ul.selected) { min-width: 0; }
   .choice-field :global(ul.selected > li) { max-width: 100%; white-space: normal; }
   .choice-label { display: inline-flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
   @media (pointer: coarse) { .choice-field :global(button) { min-width: 36px; min-height: 36px; } }

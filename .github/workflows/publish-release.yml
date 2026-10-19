@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           ref: ${{ env.PIPELINE_SOURCE_SHA }}
@@ -92,7 +92,7 @@ jobs:
       actions: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           ref: ${{ env.PIPELINE_SOURCE_SHA }}
@@ -109,7 +109,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y skopeo
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4.4.1
       - name: Download the accepted run artifacts again for validation
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,7 +139,7 @@ jobs:
             --version "$PIPELINE_VERSION" --output-dir "$RUNNER_TEMP/publication/release"
       - name: Preserve publication evidence, including partial failure
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: curl-release-${{ github.run_id }}
           path: |
@@ -167,7 +167,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           ref: ${{ env.PIPELINE_SOURCE_SHA }}
@@ -188,7 +188,7 @@ jobs:
             --version "$VERSION" --source-commit "$PIPELINE_SOURCE_SHA" \
             --assets "$RUNNER_TEMP/staging/release" --work "$RUNNER_TEMP/release-install" \
             --report "evidence/$ENGINE.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: preview-install-${{ matrix.runner }}-${{ matrix.engine }}
@@ -203,7 +203,7 @@ jobs:
       contents: write
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           ref: ${{ env.PIPELINE_SOURCE_SHA }}

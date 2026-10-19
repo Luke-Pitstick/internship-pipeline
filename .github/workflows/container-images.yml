@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Record candidate source and runner
         run: |
           mkdir -p evidence
@@ -45,9 +45,9 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('version=' + version + '\n')
           PY
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4.4.1
       - name: Build native test image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -89,7 +89,7 @@ jobs:
             --report evidence/podman-${{ matrix.arch }}.json \
             2>&1 | tee evidence/podman-${{ matrix.arch }}.log
       - name: Export versioned OCI candidate with dependency attestations
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -124,7 +124,7 @@ jobs:
           PY
           cp pyproject.toml uv.lock web/package-lock.json evidence/
           sha256sum /tmp/pipeline-${{ matrix.arch }}.tar > evidence/oci-${{ matrix.arch }}.sha256
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: image-${{ steps.version.outputs.version }}-${{ matrix.arch }}-${{ github.sha }}
           path: |
@@ -133,7 +133,7 @@ jobs:
           retention-days: 7
       - name: Retain platform evidence even after failure
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: container-evidence-${{ matrix.arch }}-${{ github.sha }}
           path: evidence/
