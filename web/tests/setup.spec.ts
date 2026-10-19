@@ -24,6 +24,8 @@ test('setup generates searches from preferences and opens Jobs with navigation o
   test.setTimeout(90000);
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
+  await page.route('**/api/model-connections/general/models', route =>
+    route.fulfill({json:{models:[{id:'test-model',name:'Test model'}]}}));
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto(`/#setup=${JSON.parse(await readFile('test-results-setup/setup.json','utf8')).token}`);
 
@@ -129,8 +131,10 @@ test('setup generates searches from preferences and opens Jobs with navigation o
   await jev.getByRole('button',{name:'Test Jev',exact:true}).click();
   await expect(jev.getByText('Capability test passed',{exact:true})).toBeVisible();
   const general=page.locator('form').filter({has:page.getByRole('heading',{name:'General LLM',exact:true})});
-  await general.getByLabel('Model',{exact:true}).fill('test-model');
   await general.getByLabel(/^API key/).fill('synthetic-general-valid');
+  await general.getByLabel('Model',{exact:true}).fill('test-model');
+  await general.getByLabel('Model',{exact:true}).press('ArrowDown');
+  await general.getByLabel('Model',{exact:true}).press('Enter');
   await general.getByRole('button',{name:'Save General LLM',exact:true}).click();
   await general.getByRole('button',{name:'Test General LLM',exact:true}).click();
   await expect(general.getByText('Capability test passed',{exact:true})).toBeVisible();
