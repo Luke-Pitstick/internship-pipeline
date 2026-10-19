@@ -303,6 +303,7 @@ def rollback(
             if current.exists():
                 raise Failure("Cannot restore command directory over an unrelated path.")
             os.rename(source_bundle, current)
+            sync_directory(folder)
             sync_directory(root)
         else:
             replace_command(root, source_bundle)
@@ -494,6 +495,7 @@ def apply(root: Path, release: Release | None = None) -> dict[str, Any]:
     secure_directory(updates, allow_nonempty=True)
     folder = updates / token
     folder.mkdir(mode=0o700)
+    sync_directory(updates)
     # Downloads and pulls happen while the original app remains available.
     bundle = release.stage(folder)
     hashes = {}

@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 import httpx
@@ -77,7 +77,10 @@ class ChatGPTAccounts:
 
     def decrypt(self, value: bytes) -> dict[str, Any]:
         try:
-            return json.loads(self.cipher.decrypt(value))
+            decoded = json.loads(self.cipher.decrypt(value))
+            if not isinstance(decoded, dict):
+                raise ValueError
+            return decoded
         except (InvalidToken, TypeError, ValueError):
             raise ChatGPTError(
                 "ChatGPT credentials are unavailable. Restore the instance key."
@@ -97,7 +100,7 @@ class ChatGPTAccounts:
             row = db.execute("SELECT * FROM chatgpt_accounts WHERE id=?", (account_id,)).fetchone()
         if row is None:
             raise ChatGPTError("Select a saved ChatGPT account or connect one first.")
-        return row
+        return cast(sqlite3.Row, row)
 
     def connected(self, account_id: str | None) -> bool:
         return bool(
@@ -383,7 +386,7 @@ class ChatGPTAccounts:
                 raise ChatGPTError("Reconnect this ChatGPT account in AI settings.")
             bundle = self.decrypt(row["encrypted"])
             if row["expires_at"] > time.time() + 60:
-                return bundle["access_token"]
+                return cast(str, bundle["access_token"])
             try:
                 refreshed = request_json(
                     "POST",
@@ -413,7 +416,7 @@ class ChatGPTAccounts:
                         account_id,
                     ),
                 )
-            return updated["access_token"]
+            return cast(str, updated["access_token"])
 
     def models(self, account_id: str) -> list[dict[str, str]]:
         token = self.access_token(account_id)

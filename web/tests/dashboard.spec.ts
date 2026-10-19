@@ -30,11 +30,11 @@ test('owner claim, separate settings, logout and login work without profile or m
   await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
   await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
   await page.getByRole('button', {name: 'Create owner account'}).click();
-  await expect(page.getByRole('heading', {name: 'Guided setup', exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Set up your workspace', exact: true})).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('pipeline-setup'))).toBeNull();
   await expect(page.getByLabel('Defer model work and collect jobs first')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', {name: 'Guided setup', exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Set up your workspace', exact: true})).toBeVisible();
   await expect(page.getByRole('navigation', {name:'Main navigation'})).toHaveCount(0);
   // The dedicated setup suite exercises completion against the real API.
   await page.route('**/api/onboarding', route=>route.fulfill({json:{complete:true}}));

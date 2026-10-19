@@ -39,7 +39,10 @@ async def read_body(response: httpx.Response, *, chatgpt: bool, limit: int) -> d
             data.extend(chunk)
             if len(data) > limit:
                 raise ProviderFailure("output")
-        return json.loads(data)
+        decoded = json.loads(data)
+        if not isinstance(decoded, dict):
+            raise ProviderFailure("output")
+        return decoded
     # Count before SSE line decoding; even a stream without newlines stays bounded.
     bounded = httpx.Response(
         200,
@@ -51,9 +54,13 @@ async def read_body(response: httpx.Response, *, chatgpt: bool, limit: int) -> d
             if not event.data:
                 continue
             body = json.loads(event.data)
+            if not isinstance(body, dict):
+                raise ProviderFailure("output")
             event_type = body.get("type", event.event)
             if event_type == "response.completed":
                 result = body["response"]
+                if not isinstance(result, dict):
+                    raise ProviderFailure("output")
                 if result.get("status") != "completed":
                     raise ProviderFailure("output")
                 return result

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getContext, onMount, tick, untrack } from 'svelte';
-  import { beforeNavigate, goto } from '$app/navigation';
+  import { getContext, onMount, tick } from 'svelte';
+  import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
   import { Api, ApiError } from '#lib/api.ts';
   import { categories, validateSettings, type Category, type Snapshot, type FieldErrors } from '#lib/settings.ts';
@@ -69,17 +69,17 @@
   const anyDirty = $derived(dirty || importPending || !!pendingImport || Object.values(childDirty).some(Boolean));
   $effect(() => { ondirty(anyDirty); });
   $effect(() => { onready(!!saved && !saving && !importPending); });
-  $effect(() => {
-    if (!guided) {
-      let chosen = '';
-      try { chosen = decodeURIComponent((page.shallow?.url ?? page.url).hash.slice(1)); } catch { /* Malformed bookmarks use Profile. */ }
-      const [section, connection] = chosen.split('/');
-      const target = categories.includes(section as Category) ? section as Category : 'Profile';
-      untrack(() => {
-        if (target === 'Notifications & Integrations') integration = connection === 'Google Sheets' ? 'sheets' : 'email';
-        if (target !== category) void selectCategory(target);
-      });
-    }
+  function selectHash(hash: string) {
+    let chosen = '';
+    try { chosen = decodeURIComponent(hash.slice(1)); } catch { /* Malformed bookmarks use Profile. */ }
+    const [section, connection] = chosen.split('/');
+    const target = categories.includes(section as Category) ? section as Category : 'Profile';
+    if (target === 'Notifications & Integrations') integration = connection === 'Google Sheets' ? 'sheets' : 'email';
+    if (target !== category) void selectCategory(target);
+  }
+  afterNavigate(() => {
+    // Router state can lag native fragment changes; use the current address bar.
+    if (!guided) selectHash(location.hash);
   });
   async function selectCategory(value: Category) {
     category = value;
@@ -91,15 +91,16 @@
     if (value === category) return;
     if (guided) await selectCategory(value);
     else {
-      const url = new URL((page.shallow?.url ?? page.url).href); url.hash = value === 'Notifications & Integrations' && integration === 'sheets' ? `${value}/Google Sheets` : value;
-      await goto(url, {shallow: true, state: page.state, reset: false});
+      const url = new URL(page.url.href); url.hash = value === 'Notifications & Integrations' && integration === 'sheets' ? `${value}/Google Sheets` : value;
+      await goto(url, {state: page.state, reset: false});
       await selectCategory(value);
     }
   }
   async function navigateIntegration(value: 'email' | 'sheets') {
-    const url = new URL((page.shallow?.url ?? page.url).href);
+    if (value === integration) return;
+    const url = new URL(page.url.href);
     url.hash = `Notifications & Integrations/${value === 'sheets' ? 'Google Sheets' : 'Email alerts'}`;
-    await goto(url, {shallow: true, state: page.state, reset: false});
+    await goto(url, {state: page.state, reset: false});
     integration = value;
   }
   async function load() {
@@ -172,12 +173,14 @@
   });
   onMount(() => {
     if (guided) { category = initialCategory; importOpen = true; }
+    else selectHash(location.hash);
     void load();
     const warn = (event: BeforeUnloadEvent) => { if (!guided && anyDirty) event.preventDefault(); };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   });
 </script>
+<svelte:window onhashchange={() => {if (!guided) selectHash(location.hash);}} />
 {#if !guided}<section class="settings-heading"><h1>Settings</h1><p class="intro">Your facts, preferences and connections, in one place.</p></section>{/if}
 <div class="settings-layout" class:guided class:settings-workspace={!guided}>
   {#if !guided}

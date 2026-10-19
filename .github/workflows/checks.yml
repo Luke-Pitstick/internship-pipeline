@@ -73,6 +73,10 @@ jobs:
         working-directory: web
       - run: npm test
         working-directory: web
+      - run: npx playwright test --config playwright.chatgpt.config.ts
+        working-directory: web
+      - run: npx playwright test --config playwright.settings.config.ts
+        working-directory: web
       - run: npx playwright test --config playwright.setup.config.ts
         working-directory: web
       - run: npx playwright test --config playwright.web-security.config.ts

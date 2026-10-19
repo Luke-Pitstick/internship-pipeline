@@ -1,7 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 const username='synthetic-security-owner', password='synthetic-security-password';
-async function owner(page:Page) {
+async function owner(page:Page, integration='Email alerts') {
   await page.context().route('**/api/onboarding', route=>route.fulfill({json:{complete:true}}));
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results-web-security/setup.json','utf8')).token}`);
   await expect(page.getByRole('button',{name:'Notifications & Integrations',exact:true}).or(page.getByLabel('Username',{exact:true}))).toBeVisible();
@@ -15,7 +15,8 @@ async function owner(page:Page) {
     await page.getByRole('button',{name:'Sign in',exact:true}).click();
   }
   await page.getByRole('button',{name:'Notifications & Integrations',exact:true}).click();
-  await expect(page.getByLabel('SMTP host')).toBeVisible();
+  await page.getByRole('button',{name:integration,exact:true}).click();
+  await expect(page.getByLabel(integration==='Google Sheets'?'Spreadsheet ID':'SMTP host',{exact:true})).toBeVisible();
 }
 test.beforeAll(async({browser})=>{
   const context=await browser.newContext({storageState:{cookies:[],origins:[]}});const page=await context.newPage();
@@ -50,14 +51,14 @@ test('W1 email stale draft cannot reenable delivery after another browser disabl
   const persisted=await(await page.request.get('/api/email')).json();
   expect(persisted.config.enabled).toBe(false); expect(persisted.config.recipient).toBe('current@example.test');
   page.once('dialog',d=>d.accept());
-  await page.getByRole('button',{name:'Reload email settings'}).click();
+  await page.getByRole('button',{name:'Discard email changes'}).click();
   await expect(page.getByLabel('Enable automatic email delivery')).not.toBeChecked();
   await expect(page.getByLabel('Recipient email')).toHaveValue('current@example.test');
   await contextB.close();
 });
 
 test('W2 saved Sheets connection reopens with populated editable fields',async({page})=>{
-  await owner(page);
+  await owner(page,'Google Sheets');
   const fixture=JSON.parse(await readFile('test-results-web-security/setup.json','utf8'));
   await page.getByLabel('Spreadsheet ID',{exact:true}).fill('synthetic-sheet-id');
   await page.getByLabel('Google service-account JSON key').fill(fixture.service_account);
@@ -70,23 +71,26 @@ test('W2 saved Sheets connection reopens with populated editable fields',async({
   await expect.poll(async()=> (await(await page.request.get('/api/sheets')).json()).config.tab).toBe('Jobs');
   await page.reload();
   await page.getByRole('button',{name:'Notifications & Integrations',exact:true}).click();
+  await page.getByRole('button',{name:'Google Sheets',exact:true}).click();
   await expect(page.getByLabel('Spreadsheet ID',{exact:true})).toHaveValue('synthetic-sheet-id');
   await expect(page.getByLabel('Destination tab')).toHaveValue('Jobs');
   await page.getByLabel('Inward notes column').selectOption('K');
   await page.getByRole('button',{name:'Save Sheets connection'}).click();
   await expect.poll(async()=> (await(await page.request.get('/api/sheets')).json()).config.inward_notes).toBe('K');
-  await page.getByRole('button',{name:'Reload Sheets settings'}).click();
+  await page.getByLabel('Inward notes column').selectOption('L');
+  page.once('dialog',d=>d.accept());
+  await page.getByRole('button',{name:'Discard Sheets changes'}).click();
   await expect(page.getByLabel('Inward notes column')).toHaveValue('K');
 });
 
 test('W1 Sheets stale draft cannot overwrite another browser mapping',async({page,browser})=>{
-  await owner(page);
+  await owner(page,'Google Sheets');
   const fixture=JSON.parse(await readFile('test-results-web-security/setup.json','utf8'));
   await page.getByLabel('Spreadsheet ID',{exact:true}).fill('synthetic-sheet-id');
   await page.getByLabel('Google service-account JSON key').fill(fixture.service_account);
   await page.getByRole('button',{name:'Save Sheets connection'}).click();
   await expect(page.getByText('Sheets connection saved. Test current access before previewing.',{exact:true})).toBeVisible();
-  const contextB=await browser.newContext({storageState:{cookies:[],origins:[]}}); const tabB=await contextB.newPage(); await owner(tabB);
+  const contextB=await browser.newContext({storageState:{cookies:[],origins:[]}}); const tabB=await contextB.newPage(); await owner(tabB,'Google Sheets');
   // Fill the saved ID explicitly so the independent W2 clone failure cannot mask W1.
   await tabB.getByLabel('Spreadsheet ID',{exact:true}).fill('synthetic-sheet-id');
   await tabB.getByLabel(/^company outward column/).selectOption('N');
@@ -101,7 +105,7 @@ test('W1 Sheets stale draft cannot overwrite another browser mapping',async({pag
   const persisted=await(await page.request.get('/api/sheets')).json();
   expect(persisted.config.mapping.company).toBe('N'); expect(persisted.config.interval_minutes).toBe(60);
   page.once('dialog',d=>d.accept());
-  await page.getByRole('button',{name:'Reload Sheets settings'}).click();
+  await page.getByRole('button',{name:'Discard Sheets changes'}).click();
   await expect(page.getByLabel(/^company outward column/)).toHaveValue('N');
   await contextB.close();
 });
@@ -115,6 +119,7 @@ for(const [category,label,value] of [
 ]) test(`W4 ${category} retains ordinary drafts and guards leaving Settings (${label})`,async({page})=>{
   await owner(page);
   await page.getByRole('button',{name:category,exact:true}).click();
+  if(label.includes('spreadsheet URL')) await page.getByRole('button',{name:'Google Sheets',exact:true}).click();
   await page.locator(label).fill(value);
   expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
   await page.getByRole('button',{name:'Profile',exact:true}).click();
@@ -126,13 +131,17 @@ for(const [category,label,value] of [
   await expect(page.locator(label)).toHaveValue(value);
 });
 test('W6 malformed percent hash keeps Settings usable',async({page})=>{
+  const runtimeErrors:string[]=[];
+  page.on('pageerror',error=>runtimeErrors.push(error.message));
   await owner(page);
   await page.goto('/settings/#%E0%A4%A');
   await expect(page.getByRole('heading',{name:'Settings',exact:true})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Profile',exact:true})).toBeVisible();
+  await expect(page).toHaveURL(/#%E0%A4%A$/);
   await expect(page.getByLabel('Name',{exact:true})).toBeVisible();
   await page.goto('/settings/#unknown');
   await expect(page.getByRole('heading',{name:'Profile',exact:true})).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
 });
 
 for(const [step,label,value] of [
@@ -144,9 +153,12 @@ for(const [step,label,value] of [
 ]) test(`W4 setup ${step} guards the edited step (${label})`,async({page})=>{
   await owner(page); await page.context().unroute('**/api/onboarding');await page.goto('/setup/');
   await page.getByRole('button',{name:new RegExp(step.replace('.','\\.'))}).click();
+  if(step==='4. Optional integrations') await page.getByLabel(label.includes('spreadsheet URL')?'Sheets during setup':'Email during setup').selectOption('connect');
   await page.locator(label).fill(value);
   if(step==='3. Job filters') await page.getByRole('option',{name:value,exact:true}).click();
-  await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
+  const next=page.getByRole('button',{name:/^(Save and continue|Continue)$/});
+  if(step==='2. Profile'||step==='3. Job filters') await expect(next).toBeEnabled();
+  else await expect(next).toBeDisabled();
   page.once('dialog',d=>d.dismiss());
   await page.getByRole('button',{name:/5\. Configuration preview/}).click();
   await expect(page.locator(label)).toBeVisible();
@@ -181,6 +193,7 @@ test('W4 secrets stay in memory, clear on saves and explicit discard, and do not
   await owner(page);
   const secret='synthetic-web-security-secret';
   await page.getByLabel('Password',{exact:true}).fill(secret);
+  await page.getByRole('button',{name:'Google Sheets',exact:true}).click();
   await page.getByLabel('Google service-account JSON key').fill(secret);
   await page.getByRole('button',{name:'AI Models',exact:true}).click();
   await page.locator('#jev-key').fill(secret);
@@ -194,15 +207,17 @@ test('W4 secrets stay in memory, clear on saves and explicit discard, and do not
   await page.getByRole('button',{name:'Save Jev',exact:true}).click();
   await expect(page.locator('#jev-key')).toHaveValue('');
   await page.getByRole('button',{name:'Notifications & Integrations',exact:true}).click();
+  await page.getByRole('button',{name:'Email alerts',exact:true}).click();
   await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
   page.once('dialog',d=>d.dismiss());
-  await page.getByRole('button',{name:'Reload email settings'}).click();
+  await page.getByRole('button',{name:'Discard email changes'}).click();
   await expect(page.getByLabel('Password',{exact:true})).toHaveValue(secret);
   page.once('dialog',d=>d.accept());
-  await page.getByRole('button',{name:'Reload email settings'}).click();
+  await page.getByRole('button',{name:'Discard email changes'}).click();
   await expect(page.getByLabel('Password',{exact:true})).toHaveValue('');
+  await page.getByRole('button',{name:'Google Sheets',exact:true}).click();
   page.once('dialog',d=>d.accept());
-  await page.getByRole('button',{name:'Reload Sheets settings'}).click();
+  await page.getByRole('button',{name:'Discard Sheets changes'}).click();
   await expect(page.getByLabel('Google service-account JSON key')).toHaveValue('');
   await page.getByRole('link',{name:'Jobs',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Jobs',exact:true})).toBeVisible();
@@ -218,13 +233,17 @@ for(const choice of ['models','integrations']) test(`W4 setup ${choice} choices 
   expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
   page.once('dialog',d=>d.accept());
   await page.getByRole('button',{name:/5\. Configuration preview/}).click();
-  await expect(page.getByRole('heading',{name:'Review before your first run'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Configuration preview',exact:true})).toBeVisible();
 });
-test('W4 selected résumé file is guarded before extraction',async({page})=>{
+test('W4 selected résumé file survives sections and guards leaving before extraction',async({page})=>{
   await owner(page);await page.getByRole('button',{name:'Profile',exact:true}).click();
+  await page.locator('summary').filter({hasText:'Import from a résumé'}).click();
   await page.getByLabel('Resume document').setInputFiles({name:'synthetic.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 synthetic test only')});
-  page.once('dialog',d=>d.dismiss());
   await page.getByRole('button',{name:'Sources',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Sources',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Profile',exact:true}).click();
+  page.once('dialog',d=>d.dismiss());
+  await page.getByRole('link',{name:'Jobs',exact:true}).click();
   await expect(page.getByLabel('Resume document')).toBeVisible();
   expect(await page.getByLabel('Resume document').evaluate((element:HTMLInputElement)=>element.files?.[0]?.name)).toBe('synthetic.pdf');
 });
@@ -241,6 +260,7 @@ test('W7 generation preview cannot advance a stale policy draft revision',async(
   await tabB.getByLabel('Minimum fit',{exact:true}).fill('92');
   await tabB.getByRole('button',{name:'Save generation rules'}).click();
   await expect(tabB.getByText('Generation rules saved. Manual generation remains available.')).toBeVisible();
+  await page.getByLabel('Minimum fit',{exact:true}).fill('83');
   await page.getByRole('button',{name:'Preview qualifying jobs'}).click();
   await expect(page.getByText('Preview updated for the rules shown below.')).toBeVisible();
   const response=page.waitForResponse(r=>r.url().endsWith('/api/generation-policy')&&r.request().method()==='POST');
@@ -248,7 +268,8 @@ test('W7 generation preview cannot advance a stale policy draft revision',async(
   expect((await response).status()).toBe(409);
   const persisted=await(await page.request.get('/api/generation-policy')).json();
   expect(persisted.policy.enabled).toBe(false);expect(persisted.policy.minimum_fit).toBe(92);
-  await page.getByRole('button',{name:'Reload rules'}).click();
+  page.once('dialog',d=>d.accept());
+  await page.getByRole('button',{name:'Discard rule changes'}).click();
   await expect(page.getByLabel('Automatically generate qualifying drafts')).not.toBeChecked();
   await expect(page.getByLabel('Minimum fit',{exact:true})).toHaveValue('92');
   await contextB.close();
@@ -285,7 +306,7 @@ test('W9 email reload cannot replace a draft while its save is in flight',async(
   await page.route('**/api/email/save',async route=>{admitted();await held;await route.continue();});
   await page.getByLabel('Recipient email').fill('inflight@example.test');
   await page.getByRole('button',{name:'Save email settings'}).click();await started;
-  try {await expect(page.getByRole('button',{name:'Reload email settings'})).toBeDisabled();}
+  try {await expect(page.getByRole('button',{name:'Discard email changes'})).toBeDisabled();}
   finally {release();}
   await expect.poll(async()=> (await(await page.request.get('/api/email')).json()).config.recipient).toBe('inflight@example.test');
   await expect(page.getByLabel('Recipient email')).toHaveValue('inflight@example.test');
@@ -295,13 +316,14 @@ test('W10 failed setup step navigation preserves dirty state and its draft',asyn
   await owner(page);await page.context().unroute('**/api/onboarding');await page.goto('/setup/');
   await page.getByRole('button',{name:/2\. Profile/}).click();
   await page.getByLabel('Name',{exact:true}).fill('Draft kept after failed visit');
-  await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Save and continue',exact:true})).toBeEnabled();
   await page.route('**/api/onboarding/visit',route=>route.fulfill({status:409,json:{detail:'Synthetic visit rejected'}}));
   page.once('dialog',d=>d.accept());
   await page.getByRole('button',{name:/5\. Configuration preview/}).click();
   await expect(page.getByRole('alert')).toContainText('Synthetic visit rejected');
   await expect(page.getByLabel('Name',{exact:true})).toHaveValue('Draft kept after failed visit');
-  await expect(page.getByRole('button',{name:'Save progress and continue'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Save and continue',exact:true})).toBeEnabled();
+  expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
 });
 test('W3 real cookie-free concurrent HTTP callers cannot evade admission with forwarded headers',async({page,playwright})=>{
   const statuses=await Promise.all(Array.from({length:28},async(_,index)=>{

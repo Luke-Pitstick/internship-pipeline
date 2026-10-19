@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from internship_pipeline.providers.connections import ConnectionInput, probe
+from internship_pipeline.providers.response_body import ProviderFailure, read_body
 from internship_pipeline.resumes.tailored_provider import (
     TailoringFailure,
     request_payload,
@@ -208,6 +209,24 @@ def test_json_response_refusal_missing_usage_and_malformed_stream_fail_closed():
             ).status
             == "output"
         )
+
+
+@pytest.mark.parametrize(
+    "chatgpt,payload",
+    [
+        (False, b"[]"),
+        (True, b"data: []\n\n"),
+        (True, b'data: {"type":"response.completed","response":[]}\n\n'),
+    ],
+)
+def test_nonobject_json_or_streamed_response_is_refused(chatgpt, payload):
+    response = httpx.Response(
+        200,
+        content=payload,
+        headers={"content-type": "text/event-stream" if chatgpt else "application/json"},
+    )
+    with pytest.raises(ProviderFailure, match="output"):
+        asyncio.run(read_body(response, chatgpt=chatgpt, limit=65536))
 
 
 def test_chatgpt_connection_rejects_api_key_or_other_provider():

@@ -328,6 +328,12 @@ def test_missing_instance_key_is_not_recreated_for_oauth_only_installation(fixtu
     assert not fixture.store.key_path.exists()
 
 
+def test_encrypted_nonobject_credentials_are_refused(fixture):
+    encrypted = fixture.accounts.cipher.encrypt(b"[]")
+    with pytest.raises(ChatGPTError, match="credentials are unavailable"):
+        fixture.accounts.decrypt(encrypted)
+
+
 def test_pending_authorization_also_requires_the_original_encryption_key(fixture):
     fixture.accounts.begin(0, None)
     fixture.store.key_path.unlink()

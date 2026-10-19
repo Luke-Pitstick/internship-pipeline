@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['web-security.spec.ts', 'master.spec.ts', 'tailored.spec.ts', 'search.spec.ts', 't09-workspace.spec.ts', 'email.spec.ts', 'sheets.spec.ts', 'generation-policy.spec.ts', 'setup.spec.ts', 'settings.spec.ts'],
+  testIgnore: ['web-security.spec.ts', 'master.spec.ts', 'tailored.spec.ts', 'search.spec.ts', 't09-workspace.spec.ts', 'email.spec.ts', 'sheets.spec.ts', 'generation-policy.spec.ts', 'setup.spec.ts', 'settings.spec.ts', 'chatgpt.spec.ts'],
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
