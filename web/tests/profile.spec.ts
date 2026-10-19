@@ -18,10 +18,11 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await expect(page.getByLabel('Email', {exact: true})).toBeFocused();
   await expect(page.getByText('Enter a valid email or leave it unknown.', {exact: true})).toBeVisible();
   await page.getByLabel('Email', {exact: true}).fill('synthetic@example.test');
-  await page.getByRole('button', {name: 'Add fact or skill'}).click();
-  await page.getByLabel('Supporting fact').fill('Built a synthetic Python project.');
-  await page.getByLabel('Confirmation', {exact: true}).selectOption('confirmed');
-  const factId = await page.locator('.fact-id').first().textContent();
+  await page.getByRole('button', {name: 'Add experience', exact: true}).click();
+  const experience = page.getByRole('group', {name: 'Experience 1', exact: true});
+  await experience.getByLabel('Responsibilities & accomplishments', {exact: true}).fill('Built a synthetic Python project.');
+  await experience.getByRole('checkbox', {name: 'I confirm this experience', exact: true}).check();
+  const factId = await experience.getByLabel('Job title', {exact: true}).getAttribute('id');
   await page.getByRole('button', {name: 'Add education'}).click();
   await page.getByLabel('Institution', {exact: true}).fill('Example University');
   await page.getByLabel('Degree', {exact: true}).fill('Bachelor');
@@ -39,8 +40,9 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await expect(page.getByText('No matches. Try another name.')).toBeVisible();
   await page.getByLabel('Required countries').press('Escape');
   await page.getByLabel('Required countries').fill('');
-  await page.getByLabel('Required locations').fill('Denver, CO');
-  await page.getByLabel('Required locations').press('Enter');
+  await page.getByLabel('Locations', {exact: true}).fill('Denver, CO');
+  await page.getByLabel('Locations', {exact: true}).press('Enter');
+  await page.getByRole('checkbox', {name: 'I’m open to locations beyond those selected'}).uncheck();
   for (const skill of ['Rust', 'Python']) {
     await page.getByLabel('Preferred skills to use').fill(skill);
     await page.getByRole('option', {name:skill, exact:true}).click();
@@ -61,7 +63,7 @@ test('profile and filters save revisions, preserve drafts and stable facts, and 
   await expect(page.getByRole('button', {name: 'Save changes', exact: true})).toBeDisabled();
   await page.reload();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
-  await expect(page.locator('.fact-id').first()).toHaveText(factId!);
+  await expect(experience.getByLabel('Job title', {exact: true})).toHaveAttribute('id', factId!);
   await expect(page.getByLabel('Will you need employer sponsorship?')).toHaveValue('unknown');
   await page.getByRole('button', {name: 'Job Filters', exact: true}).click();
   for (const country of ['Canada', 'United States']) await expect(page.getByRole('button', {name:`Remove ${country}`, exact:true})).toBeVisible();

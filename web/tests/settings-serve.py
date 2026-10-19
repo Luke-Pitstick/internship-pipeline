@@ -12,6 +12,8 @@ from internship_pipeline.app import create_app
 with tempfile.TemporaryDirectory(prefix="pipeline-settings-browser-") as directory:
     app = create_app(Path(directory), origin="http://127.0.0.1:4195",
                      static_dir=Path("build").resolve())
+    # Form suites log in repeatedly; identity/security suites cover throttling separately.
+    app.state.identity.attempt = lambda address: None
     token = app.state.identity.setup_token()
     Path("test-results-settings").mkdir(exist_ok=True)
     Path("test-results-settings/setup.json").write_text(json.dumps({"token": token}))
