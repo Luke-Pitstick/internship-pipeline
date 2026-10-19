@@ -41,3 +41,15 @@ States: authenticated Jobs with three synthetic opportunities and Northstar Labs
 - Focused region review used the reported search control; full captures were sufficiently readable for the remaining flat-layout decisions.
 
 The preview remains at http://127.0.0.1:8080/. Temporary viewport overrides were reset. This QA does not claim live model evaluation, résumé generation, collection configuration, notifications, or deployment verification.
+
+## October 19, 2026 — complete onboarding audit
+
+The reported lines through links, placeholders and labels came from using the section-level `.form-group` class on inline field labels. Email, Sheets and setup choice labels now use block-level `.form-field` styling, with spacing between labels and controls and no section divider. Intentional dividers remain between sections.
+
+Guided profile and filter steps now save and advance through one action, including keyboard Enter. Invalid fields retain the draft and receive focus; save failures leave the current step available for retry. Back navigation, step-heading focus and unsaved-change confirmation are explicit. Deferred models and skipped integrations hide their configuration forms. Delivery preferences and spreadsheet mapping are expandable during setup. Review corrections return to the corresponding guided step. Phone inputs use 16px text, and setup actions have 44px minimum heights.
+
+The full Chromium setup regression covers fresh owner creation, rejected and successful model probes, model deferral, optional blank profile fields, inline validation, résumé import into editable fields, pending-file protection, Back, reload, declined discard prompts, country selection, a failed save with retained input, optional integrations, expanded mapping, failed email delivery, review correction, stale-preview recovery, automatic searches, completion, Jobs navigation and durable completion after reload. It records no browser page errors. Screenshots and overflow checks cover 1440×1000, 375×812 and 812×375 viewports with reduced motion enabled; mobile input sizes and field-label styles are asserted. Evidence images are in ignored `artifacts/onboarding-audit/`.
+
+The exact onboarding-only commit snapshot passes five Chromium scenarios: onboarding (1), email (1), Sheets (1), and the existing workspace/settings regressions (2). The 17 native onboarding tests, Svelte check, production build and scoped whitespace checks also pass. This snapshot was reconstructed over the current committed source and tested independently of the concurrent Settings/Jobs redesign and installer work, using separate temporary test ports.
+
+External model, SMTP and Google responses are synthetic test transports; live accounts and deployment are outside this verification. No storage format or persistent data contract changed.

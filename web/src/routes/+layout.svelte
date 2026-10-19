@@ -84,7 +84,7 @@
   </nav>{/if}
 </header>
 {/if}
-<main id="main" tabindex="-1">
+<main id="main" tabindex="-1" class:onboarding={setupPending===true||!session?.claimed}>
   {#if session?.authenticated}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     {#if workspaceReady || (setupPending === true && (setupRoute || setupCorrection))}
@@ -122,6 +122,10 @@ internship-pipeline open</code></pre>
 </main>
 <footer class="app-footer">Your applications stay separate from discovery, résumé downloads, and alerts.</footer>
 <style>
+  @media(max-width:600px) {
+    .onboarding {font-size:16px}
+    .onboarding :global(input:not([type=checkbox])),.onboarding :global(select),.onboarding :global(textarea) {font-size:16px}
+  }
   .password-recovery { margin-top:1rem; }
   .password-recovery p { margin:.75rem 0; }
   .password-recovery pre { overflow-x:auto; padding:.75rem; background:var(--surface-subtle); border:1px solid var(--border); border-radius:var(--radius); }

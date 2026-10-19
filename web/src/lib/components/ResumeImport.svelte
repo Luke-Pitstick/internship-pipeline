@@ -3,10 +3,11 @@
   import { Api, ApiError } from '#lib/api.ts';
   import type { Profile } from '#lib/settings.ts';
   import { review, type ImportDraft, type ImportPreview, type PendingImport } from '#lib/resume-import.ts';
-  let { profileRevision, dirty, disabled, onfill, onpending, onreload } = $props<{
+  let { profileRevision, dirty, disabled, onfill, onpending, onreload, saveLabel = 'Save changes' } = $props<{
     profileRevision: number; dirty: boolean; disabled: boolean;
     onfill: (value: PendingImport, profile: Profile) => boolean;
     onpending: (value: boolean) => void; onreload: () => void;
+    saveLabel?: string;
   }>();
   const api = getContext<Api>('api');
   let file = $state<File>();
@@ -52,7 +53,7 @@
       source = draft.lines;
       if (fileInput) fileInput.value = '';
       file = undefined; onpending(false);
-      feedback = 'Profile fields filled. Review and edit them below, then choose Save changes. Missing details stay blank.';
+      feedback = `Profile fields filled. Review and edit them below, then choose ${saveLabel}. Missing details stay blank.`;
     } catch (reason) {
       failure = true; feedback = (reason as Error).message;
       conflict = reason instanceof ApiError && reason.status === 409;

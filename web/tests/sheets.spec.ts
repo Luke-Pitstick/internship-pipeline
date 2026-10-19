@@ -8,6 +8,19 @@ test('Google setup/tab selection, preview, real queue and explicit inward review
   await page.getByLabel('Password',{exact:true}).fill('synthetic-sheets-password');
   await page.getByRole('button',{name:'Create owner account'}).click();
   await page.getByRole('button',{name:'Notifications & Integrations',exact:true}).click();
+  // Field labels must not inherit section dividers that cross wrapped controls.
+  for (const width of [1440,390]) {
+    await page.setViewportSize({width,height:1000});
+    const fields=page.locator('label.form-field:visible');
+    expect(await fields.count()).toBeGreaterThan(0);
+    for (const field of await fields.all()) {
+      await expect(field).toHaveCSS('display','block');
+      await expect(field).toHaveCSS('border-top-width','0px');
+      await expect(field).toHaveCSS('padding-top','0px');
+    }
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  await page.setViewportSize({width:1440,height:1000});
   await page.getByLabel('Spreadsheet ID',{exact:true}).fill('synthetic-sheet-id');
   await page.getByLabel('Google service-account JSON key',{exact:true}).fill(setup.service_account);
   await page.getByRole('button',{name:'Save Sheets connection'}).click();

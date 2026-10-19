@@ -649,6 +649,19 @@ progress::-moz-progress-bar {
   padding:24px 0;
   border-top:1px solid var(--border);
 }
+.form-field {
+  display:block;
+  margin:16px 0;
+  font-size:14px;
+  font-weight:600;
+}
+.form-field > input:not([type=checkbox]),.form-field > textarea,.form-field > select {
+  display:block;
+  width:100%;
+  margin-top:8px;
+  font-size:14px;
+  font-weight:400;
+}
 .form-group h3 {
   font-size:16px;
   margin-bottom:20px;

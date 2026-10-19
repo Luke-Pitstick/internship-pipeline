@@ -16,7 +16,7 @@
   import GenerationPolicySettings from '#lib/components/GenerationPolicySettings.svelte';
   import MasterResume from '#lib/components/MasterResume.svelte';
   const api = getContext<Api>('api');
-  let { initialCategory = 'Profile', guided = false, ondirty = () => {} } = $props<{initialCategory?: Category; guided?: boolean; ondirty?: (value: boolean) => void}>();
+  let { initialCategory = 'Profile', guided = false, showModels = true, showEmail = true, showSheets = true, ondirty = () => {}, onready = () => {}, oncontinue = () => {} } = $props<{initialCategory?: Category; guided?: boolean; showModels?: boolean; showEmail?: boolean; showSheets?: boolean; ondirty?: (value: boolean) => void; onready?: (value: boolean) => void; oncontinue?: () => void}>();
   let category = $state<Category>('Profile');
   let heading = $state<HTMLHeadingElement>();
   let saved = $state<Snapshot>();
@@ -32,10 +32,12 @@
   let importVersion = $state(0);
   let mounted = $state<Category[]>(['Profile']);
   let childDirty = $state({models:false,sources:false,generation:false,email:false,sheets:false});
+  $effect(() => { if(!showModels)childDirty.models=false; if(!showEmail)childDirty.email=false; if(!showSheets)childDirty.sheets=false; });
     $effect(() => { if (!mounted.includes(category)) mounted = [...mounted, category]; });
   const dirty = $derived(!!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved));
   const anyDirty = $derived(dirty || importPending || !!pendingImport || Object.values(childDirty).some(Boolean));
   $effect(() => { ondirty(anyDirty); });
+  $effect(() => { onready(!!saved && !saving && !importPending); });
   $effect(() => {
     if (!guided) {
       let chosen = '';
@@ -72,10 +74,11 @@
     const field = path ? document.getElementById(path) : null;
     (field ?? heading)?.focus();
   }
-  async function save() {
-    if (!draft || saving || conflict) return;
+  export async function save(): Promise<boolean> {
+    if (!draft || saving || conflict || importPending) return false;
+    if (saved?.revision && !dirty && !pendingImport) return true;
     errors = validateSettings(draft); failure = false;
-    if (Object.keys(errors).length) { feedback = 'Check the highlighted fields before saving.'; failure = true; await focusError(); return; }
+    if (Object.keys(errors).length) { feedback = 'Check the highlighted fields before saving.'; failure = true; await focusError(); return false; }
     saving = true;
     try {
       const settings = {expected_revision: saved?.revision ?? 0, profile: draft.profile, preferences: draft.preferences};
@@ -84,6 +87,7 @@
         : await api.request<Snapshot>('/api/profile-settings', settings);
       saved = data; draft = structuredClone(data); feedback = `Saved · revision ${data.revision}. Workers use this revision at their next task boundary.`;
       pendingImport = undefined; importPending = false; importVersion += 1;
+      return true;
     } catch (reason) {
       feedback = (reason as Error).message; failure = true;
       if (reason instanceof ApiError) {
@@ -91,6 +95,7 @@
         errors = Object.fromEntries(reason.fields.map(error => [error.field, error.message]));
         if (Object.keys(errors).length) await focusError();
       }
+      return false;
     } finally { saving = false; }
   }
   beforeNavigate(({cancel}) => { if (!guided && anyDirty && !confirm('You have unsaved settings or import changes. Leave without saving?')) cancel(); });
@@ -106,42 +111,44 @@
   });
 </script>
 {#if !guided}<section class="settings-heading"><h1>Settings</h1><p class="intro">Your facts, preferences and connections, in one place.</p></section>{/if}
-<div class="settings-layout">
+<div class="settings-layout" class:guided>
   {#if !guided}<nav class="settings-nav" aria-label="Settings categories">{#each categories as value}<button class:chosen={category === value} aria-current={category === value ? 'true' : undefined} onclick={() => navigate(value)}>{value}</button>{/each}</nav>{/if}
   <section class="settings-panel">
-    <div class="settings-panel-header"><h2 bind:this={heading} tabindex="-1">{category}</h2>{#if category === 'Profile' || category === 'Job Filters'}<span class="saved-label">{dirty ? 'Unsaved profile / filters' : saved?.revision ? `Active revision ${saved.revision}` : 'Not saved yet'}</span>{/if}</div>
+    {#if !guided}<div class="settings-panel-header"><h2 bind:this={heading} tabindex="-1">{category}</h2>{#if category === 'Profile' || category === 'Job Filters'}<span class="saved-label">{dirty ? 'Unsaved profile / filters' : saved?.revision ? `Active revision ${saved.revision}` : 'Not saved yet'}</span>{/if}</div>{/if}
     {#if draft}
-      {#if category === 'Profile'}{#key importVersion}<ResumeImport profileRevision={saved?.revision ?? 0} dirty={dirty || !!pendingImport} disabled={saving || conflict} onpending={value => { importPending = value; }} onreload={() => { void load(); }} onfill={(value, profile) => {
+      {#if category === 'Profile'}{#key importVersion}<ResumeImport saveLabel={guided?'Save and continue':'Save changes'} profileRevision={saved?.revision ?? 0} dirty={dirty || !!pendingImport} disabled={saving || conflict} onpending={value => { importPending = value; }} onreload={() => { void load(); }} onfill={(value, profile) => {
         if (!draft || dirty || saving || value.review.expected_revision !== saved?.revision) return false;
         draft.profile = structuredClone(profile); pendingImport = value;
         errors = {}; failure = false; feedback = 'Review the filled profile fields, then save your changes.';
         return true;
       }} />{/key}{/if}
-      <form onsubmit={event => {event.preventDefault(); void save();}} novalidate>
+      <form id={guided?'setup-settings-form':undefined} onsubmit={event => {event.preventDefault(); if(guided)oncontinue();else void save();}} novalidate>
         <fieldset class="settings-fields" disabled={saving}>
           {#if category === 'Profile'}<ProfileSettings disabled={saving} bind:profile={draft.profile} {errors} />
           {:else if category === 'Job Filters'}<JobFilterSettings disabled={saving} bind:preferences={draft.preferences} {errors} />{/if}
         </fieldset>
         {#if category === 'Profile' || category === 'Job Filters'}
-          {#if Object.keys(errors).length}<div class="validation-summary" role="alert"><p>Please check these fields:</p><ul>{#each Object.entries(errors) as [field, message]}<li>{field}: {message}</li>{/each}</ul></div>{/if}
-          <div class="settings-save"><p class:error={failure} role={failure ? 'alert' : 'status'}>{dirty && !failure && !saving ? 'Unsaved changes. Save applies your profile and filters together.' : feedback}</p><div>
+          {#if Object.keys(errors).length}<div class="validation-summary" role="alert"><p>Please check these fields:</p><ul>{#each Object.entries(errors) as [field, message]}<li><a href={`#${field}`} onclick={event => {event.preventDefault(); document.getElementById(field)?.focus();}}>{message}</a></li>{/each}</ul></div>{/if}
+          <div class="settings-save"><p class:error={failure} role={failure ? 'alert' : 'status'}>{dirty && !failure && !saving ? guided ? 'Your changes will be saved when you continue.' : 'Unsaved changes. Save applies your profile and filters together.' : feedback}</p><div>
             <button type="button" class="subtle" disabled={saving || (!dirty && !pendingImport && !importPending)} onclick={discard}>Discard changes</button>
-            <button class="primary" type="submit" disabled={saving || (!dirty && !pendingImport && !!saved?.revision) || conflict}>{saving ? 'Saving…' : 'Save changes'}</button>
+            {#if !guided}<button class="primary" type="submit" disabled={saving || (!dirty && !pendingImport && !!saved?.revision) || conflict}>{saving ? 'Saving…' : 'Save changes'}</button>{/if}
           </div></div>
           {#if conflict}<button type="button" class="secondary" onclick={() => {if (confirm('Reload saved settings and discard your unsaved draft?')) void load();}}>Reload saved settings</button>{/if}
-          <p class="field-help">{saved?.saved_at ? `Last saved ${new Date(saved.saved_at).toLocaleString()}. ` : ''}{workerMessage}</p>
+          {#if !guided}<p class="field-help">{saved?.saved_at ? `Last saved ${new Date(saved.saved_at).toLocaleString()}. ` : ''}{workerMessage}</p>{/if}
         {/if}
       </form>
       {#if category === 'Diagnostics'}<Diagnostics />{/if}
       {#if mounted.includes('Sources')}<div hidden={category !== 'Sources'}><SourceSettings allowRun={!guided} ondirty={value=>{childDirty.sources=value;}} /></div>{/if}
-      {#if mounted.includes('AI Models')}<div hidden={category !== 'AI Models'}><AiModelSettings ondirty={value=>{childDirty.models=value;}} /></div>{/if}
+      {#if showModels && mounted.includes('AI Models')}<div hidden={category !== 'AI Models'}><AiModelSettings ondirty={value=>{childDirty.models=value;}} /></div>{/if}
       {#if mounted.includes('Resume Generation')}<div hidden={category !== 'Resume Generation'}><MasterResume profileRevision={saved?.revision ?? 0} dirty={dirty || importPending} /><GenerationPolicySettings ondirty={value=>{childDirty.generation=value;}} /></div>{/if}
-      {#if mounted.includes('Notifications & Integrations')}<div hidden={category !== 'Notifications & Integrations'}><EmailSettings ondirty={value=>{childDirty.email=value;}} /><SheetsSettings ondirty={value=>{childDirty.sheets=value;}} /></div>{/if}
+      {#if mounted.includes('Notifications & Integrations')}<div hidden={category !== 'Notifications & Integrations'}>{#if showEmail}<EmailSettings {guided} ondirty={value=>{childDirty.email=value;}} />{/if}{#if showSheets}<SheetsSettings {guided} ondirty={value=>{childDirty.sheets=value;}} />{/if}</div>{/if}
     {:else}<p role={failure ? 'alert' : 'status'}>{feedback}</p>{#if failure}<button class="secondary" onclick={load}>Retry loading settings</button>{/if}{/if}
   </section>
 </div>
 <style>
   .settings-layout:has(> .settings-panel:only-child) { grid-template-columns: minmax(0, 1fr); }
+  .guided .settings-panel { border:0; padding:0; }
+  .guided .settings-save { position:static; flex-wrap:wrap; }
   .settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
   .validation-summary { color: #a83424; overflow-wrap: anywhere; }
   :global(.fact-entry) { border: 0; border-top: 1px solid var(--border); padding: 20px 0; margin: 24px 0; min-width: 0; }
