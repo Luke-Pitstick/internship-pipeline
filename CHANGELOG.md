@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.1
+
+- Profile settings group experience, projects, and skills into structured sections.
+  Location filters use one input with a flexibility checkbox.
+- Résumé imports recognize custom LaTeX commands and preserve wrapped bullets,
+  education entries, and skill lists when filling the editable profile.
+- General model settings load available OpenAI, Anthropic, and OpenRouter models
+  without running inference. ChatGPT model selection supports large catalogs and
+  shows loading, empty, and error states.
+- Source settings group saved searches by provider and offer a source picker.
+  A persistent ingestion control stops active collection and scheduled searches;
+  restarting queues enabled sources while preserving individual source pauses.
+- Jobs can be marked as applied or undone directly from the results list, with
+  shared save feedback and updated application status in the detail panel.
+
+Use the [update guide](docs/cli-updates.md) to update an existing installation.
+Storage format remains **2**; updates require matching declared storage formats.
+
 ## 1.0.0
 
 Internship Pipeline's first stable release brings the self-hosted browser workspace,

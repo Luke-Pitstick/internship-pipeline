@@ -16,7 +16,7 @@ account setup with just username and password. See [requirements](#requirements)
 [first-time setup](#quick-start).
 
 <p align="center">
-  <img alt="Version: 1.0.0" src="https://img.shields.io/badge/version-1.0.0-3776AB" />
+  <img alt="Version: 1.0.1" src="https://img.shields.io/badge/version-1.0.1-3776AB" />
   <img alt="Python 3.12 or newer" src="https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&amp;logoColor=white" />
   <img alt="SvelteKit frontend" src="https://img.shields.io/badge/frontend-SvelteKit-FF3E00?logo=svelte&amp;logoColor=white" />
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-6f42c1" /></a>
@@ -53,7 +53,7 @@ it fits, prepare a résumé and remember what happened next:
 
 ## Project status
 
-Current version: **1.0.0**. See the [release notes](CHANGELOG.md) for changes and update instructions.
+Current version: **1.0.1**. See the [release notes](CHANGELOG.md) for changes and update instructions.
 
 ## Installation
 
