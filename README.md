@@ -24,6 +24,11 @@ You'll need **Python 3.12+, curl, and Docker or Podman**. The installer starts t
 account setup with just username and password. See [requirements](#requirements) and
 [first-time setup](#quick-start).
 
+On macOS, if your selected engine is an installed Docker Desktop using its standard user socket,
+the installer opens Docker Desktop and waits for it to start. Finish any Docker startup prompts
+if requested. Other engines must already be running; a failed check prints the exact command
+to diagnose the selected endpoint.
+
 <p align="center">
   <img alt="Project status: release preparation" src="https://img.shields.io/badge/status-release%20preparation-f59e0b" />
   <img alt="Python 3.12 or newer" src="https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&amp;logoColor=white" />

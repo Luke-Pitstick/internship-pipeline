@@ -46,7 +46,9 @@ if args[:2] == ["context", "inspect"]:
 elif args[:3] == ["system", "connection", "list"]:
     print(json.dumps(state.get("connections", [])))
 elif args[0] == "info":
-    if name in state.get("unhealthy", []): sys.exit(1)
+    if name in state.get("unhealthy", []):
+        print("Cannot connect to the engine socket", file=sys.stderr)
+        sys.exit(1)
     print(json.dumps({"OSType": "linux"} if name == "docker" else {"host": {"os": "linux"}}))
 elif args[0] == "ps": print("\n".join(state["containers"]))
 elif args[:2] == ["volume", "ls"]: print("\n".join(state["volumes"]))
@@ -242,6 +244,122 @@ def test_no_healthy_engine_guides_without_privileged_install(fake, capsys):
     assert installer.main(arguments(fake, "--image", "pipeline:1.0.0")) == 1
     assert "Install or start" in capsys.readouterr().err
     assert read_state(fake)["containers"] == {}
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_install_starts_stopped_docker_desktop_at_same_endpoint(fake, monkeypatch, existing):
+    endpoint = f"unix://{Path.home()}/.docker/run/docker.sock"
+    update_state(fake, docker_endpoint=endpoint)
+    manifest = installed(fake) if existing else None
+    update_state(fake, unhealthy=["docker", "podman"], calls=[])
+    monkeypatch.setattr(installer.platform, "system", lambda: "Darwin")
+    original_is_dir = Path.is_dir
+    monkeypatch.setattr(
+        Path,
+        "is_dir",
+        lambda path: str(path) == "/Applications/Docker.app" or original_is_dir(path),
+    )
+    original_run = subprocess.run
+    launches = []
+
+    def run(argv, **kwargs):
+        if argv[:2] == ["/usr/bin/open", "-a"]:
+            launches.append(argv)
+            update_state(fake, unhealthy=["podman"])
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        return original_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert installer.main(arguments(fake, "--image", "registry.invalid/pipeline:1.2.3")) == 0
+    assert launches == [["/usr/bin/open", "-a", "/Applications/Docker.app"]]
+    saved = load_manifest(fake[0] / "installation.json")
+    assert saved.runtime.endpoint == endpoint
+    if manifest:
+        assert saved == manifest
+        assert not any(call["args"][0] in {"pull", "create"} for call in read_state(fake)["calls"])
+
+
+def test_stopped_saved_runtime_has_specific_recovery_command(fake, capsys):
+    manifest = installed(fake)
+    update_state(fake, unhealthy=["docker", "podman"])
+    assert installer.main(arguments(fake)) == 1
+    error = capsys.readouterr().err
+    assert manifest.runtime.endpoint in error
+    assert "docker --host" in error
+    assert "info" in error
+    assert "never-print-this" not in error
+
+
+@pytest.mark.parametrize(
+    "problem,expected",
+    [
+        ("daemon", "Cannot connect to the Docker engine"),
+        ("permission", "Permission denied"),
+        ("timeout", "did not respond within"),
+        ("missing", "runtime executable is missing"),
+    ],
+)
+def test_runtime_errors_explain_cause_without_exposing_engine_output(
+    fake, monkeypatch, problem, expected
+):
+    manifest = installed(fake)
+
+    def fail(argv, **kwargs):
+        if problem == "timeout":
+            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+        if problem == "missing":
+            raise FileNotFoundError("private-runtime-output")
+        stderr = (
+            "Cannot connect to the Docker daemon. Is the docker daemon running?"
+            if problem == "daemon"
+            else "permission denied while trying to connect to Docker"
+        )
+        return subprocess.CompletedProcess(argv, 1, "", stderr + " private-runtime-output")
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    with pytest.raises(Failure) as caught:
+        Runtime(manifest.runtime).check()
+    error = str(caught.value)
+    assert expected in error
+    assert "private-runtime-output" not in error
+    assert manifest.runtime.endpoint in error or manifest.runtime.executable in error
+
+
+@pytest.mark.parametrize("failure", ["launch", "readiness"])
+def test_desktop_start_failure_is_bounded_and_preserves_saved_data(
+    fake, monkeypatch, capsys, failure
+):
+    update_state(fake, docker_endpoint=f"unix://{Path.home()}/.docker/run/docker.sock")
+    manifest = installed(fake)
+    update_state(fake, unhealthy=["docker", "podman"], calls=[])
+    monkeypatch.setattr(installer.platform, "system", lambda: "Darwin")
+    original_is_dir = Path.is_dir
+    monkeypatch.setattr(
+        Path,
+        "is_dir",
+        lambda path: str(path) == "/Applications/Docker.app" or original_is_dir(path),
+    )
+    original_run = subprocess.run
+
+    def run(argv, **kwargs):
+        if argv[:2] == ["/usr/bin/open", "-a"]:
+            if failure == "launch":
+                raise subprocess.CalledProcessError(1, argv, stderr="private-startup-output")
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        return original_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    ticks = iter([0, 100])
+    monkeypatch.setattr(installer.time, "monotonic", lambda: next(ticks))
+    assert installer.main(arguments(fake)) == 1
+    error = capsys.readouterr().err
+    assert "Open Docker" in error
+    assert "private-startup-output" not in error
+    assert load_manifest(fake[0] / "installation.json") == manifest
+    assert read_state(fake)["volumes"][manifest.volume_name]["payload"] == "synthetic-data-preserve"
+    assert not any(
+        call["args"][0] in {"pull", "create", "start"} for call in read_state(fake)["calls"]
+    )
 
 
 def test_unowned_volume_or_container_is_never_started(fake, capsys):

@@ -13,14 +13,24 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 download() {
-    curl --disable --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-        --connect-timeout 30 --max-time 120 --max-filesize 2097152 --output "$1" "$2"
+    if ! curl --disable --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+        --connect-timeout 30 --max-time 120 --max-filesize 2097152 --output "$1" "$2"; then
+        printf 'Installation stopped: could not download %s from %s. Check your internet connection and GitHub availability, then retry.\n' "${1##*/}" "$2" >&2
+        return 1
+    fi
 }
 download "$temporary/releases.json" 'https://api.github.com/repos/Luke-Pitstick/internship-pipeline/releases?per_page=100'
 version=$(python3 - "$temporary/releases.json" <<'PIPELINE_SELECT'
 import json, re, sys
 
-releases = json.load(open(sys.argv[1]))
+try:
+    releases = json.load(open(sys.argv[1]))
+except (OSError, json.JSONDecodeError):
+    sys.exit('GitHub returned an invalid release listing. Retry when GitHub is available.')
+if not isinstance(releases, list):
+    if isinstance(releases, dict) and 'rate limit' in str(releases.get('message', '')).lower():
+        sys.exit('GitHub API rate limit exceeded. Wait for the limit to reset, then rerun the installer.')
+    sys.exit('GitHub returned an unexpected release listing. Check GitHub availability and retry.')
 required = {'install.sh', 'release-metadata.json', 'bootstrap_installer.py'}
 for release in releases:
     version = release.get('tag_name', '')

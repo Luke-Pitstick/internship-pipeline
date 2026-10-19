@@ -15,7 +15,15 @@ REVISION = "a" * 40
 LAUNCHER = b"#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 7\n"
 
 
-def execute(tmp_path, *, corrupt=False, incomplete=False, wrong_source=False):
+def execute(
+    tmp_path,
+    *,
+    corrupt=False,
+    incomplete=False,
+    wrong_source=False,
+    download_failure=False,
+    api_rate_limit=False,
+):
     release = {
         "tag_name": VERSION,
         "draft": False,
@@ -33,6 +41,8 @@ def execute(tmp_path, *, corrupt=False, incomplete=False, wrong_source=False):
         release["assets"] = []
     # A newer draft must never supersede the accepted public release.
     releases = [{**release, "tag_name": "v0.1.0-rc.999", "draft": True}, release]
+    if api_rate_limit:
+        releases = {"message": "API rate limit exceeded"}
     metadata = {
         "repository": "Luke-Pitstick/internship-pipeline",
         "version": VERSION,
@@ -52,6 +62,7 @@ def execute(tmp_path, *, corrupt=False, incomplete=False, wrong_source=False):
         f"#!{os.path.realpath(sys.executable)}\n"
         "import os,pathlib,shutil,sys\n"
         "url=sys.argv[-1]\n"
+        f"if {download_failure!r}: sys.exit(22)\n"
         "name='releases.json' if 'api.github.com' in url else url.rsplit('/',1)[-1]\n"
         "if name!='releases.json':\n"
         f"    assert '/releases/download/{VERSION}/' in url\n"
@@ -101,3 +112,18 @@ def test_partial_current_launcher_cannot_start_a_download(tmp_path):
     )
     assert result.returncode != 0
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize(
+    "failure,expected",
+    [
+        ("download_failure", "could not download releases.json"),
+        ("api_rate_limit", "GitHub API rate limit exceeded"),
+    ],
+)
+def test_current_installer_explains_download_or_api_failure(tmp_path, failure, expected):
+    result = execute(tmp_path, **{failure: True})
+    assert result.returncode == 1
+    assert expected in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not list(tmp_path.glob("pipeline-current.*"))

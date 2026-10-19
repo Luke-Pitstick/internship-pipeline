@@ -424,7 +424,7 @@ def test_readiness_deadline_and_runtime_timeout_are_bounded(installed, capsys):
     assert "timed out" in capsys.readouterr().err
     alter(engine_dir, lambda state: state.update(delay=1))
     started = time.monotonic()
-    with pytest.raises(runtime_module.Failure, match="could not complete"):
+    with pytest.raises(runtime_module.Failure, match="did not respond within 0.05 seconds"):
         runtime_module.Runtime(manifest.runtime).run("info", timeout=0.05)
     assert time.monotonic() - started < 0.5
 

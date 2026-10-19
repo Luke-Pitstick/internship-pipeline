@@ -10,7 +10,9 @@ import platform
 import re
 import shutil
 import socket
+import subprocess
 import sys
+import time
 import webbrowser
 from pathlib import Path
 from uuid import uuid4
@@ -21,6 +23,7 @@ from pipeline_runtime import (
     Manifest,
     Runtime,
     RuntimeSpec,
+    RuntimeUnavailable,
     default_install_dir,
     discover_runtime,
     load_manifest,
@@ -32,20 +35,84 @@ from pipeline_runtime import (
 BUNDLE_FILES = ("internship-pipeline", "pipeline_runtime.py", "pipeline_management.py", "LICENSE")
 
 
+def ensure_runtime(spec: RuntimeSpec) -> Runtime:
+    runtime = Runtime(spec)
+    try:
+        runtime.check()
+        return runtime
+    except RuntimeUnavailable:
+        desktop = next(
+            (
+                path
+                for path in (
+                    Path("/Applications/Docker.app"),
+                    Path.home() / "Applications/Docker.app",
+                )
+                if path.is_dir()
+            ),
+            None,
+        )
+        if (
+            platform.system() != "Darwin"
+            or spec.name != "docker"
+            or spec.endpoint != f"unix://{Path.home()}/.docker/run/docker.sock"
+            or desktop is None
+        ):
+            raise
+    print("Starting Docker Desktop; waiting for the local engine…", flush=True)
+    try:
+        subprocess.run(
+            ["/usr/bin/open", "-a", str(desktop)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Failure(
+            "Docker Desktop could not open. Open Docker, then rerun the installer."
+        ) from exc
+    deadline = time.monotonic() + 90
+    while True:
+        try:
+            runtime.check()
+            return runtime
+        except RuntimeUnavailable as exc:
+            if time.monotonic() >= deadline:
+                raise Failure(
+                    "Docker Desktop did not become ready. Open Docker and finish any startup "
+                    "prompts, then rerun the installer. Your saved engine and data are retained. "
+                    f"Last engine check: {exc}"
+                ) from None
+            time.sleep(2)
+
+
 def select_runtime(requested: str | None) -> RuntimeSpec:
     if requested:
-        return discover_runtime(requested)
+        spec = discover_runtime(requested)
+        ensure_runtime(spec)
+        return spec
     candidates = []
+    failures = {}
     for name in ("docker", "podman"):
         try:
-            candidates.append(discover_runtime(name))
-        except Failure:
-            continue
+            spec = discover_runtime(name)
+            Runtime(spec).check()
+            candidates.append(spec)
+        except Failure as exc:
+            failures[name] = str(exc)
     if not candidates:
+        # Try starting an installed Desktop only when no engine is already healthy.
+        try:
+            spec = discover_runtime("docker")
+            ensure_runtime(spec)
+            return spec
+        except Failure as exc:
+            failures["docker"] = str(exc)
         raise Failure(
             "No healthy local Linux container engine was found. Install or "
             "start Docker Desktop/Docker Engine or Podman, then rerun; the "
-            "installer does not install or start runtime software."
+            "installer does not install runtime software. " + " ".join(failures.values())
         )
     if len(candidates) > 1:
         raise Failure(
@@ -180,8 +247,7 @@ def restore_source(
     source = load_manifest(source_dir / "installation.json")
     if port == source.port:
         raise Failure("Restore needs a different loopback port; preserve the source URL.")
-    runtime = Runtime(source.runtime)
-    runtime.check()
+    runtime = ensure_runtime(source.runtime)
     container = runtime.require_owned(source)
     if (container.get("State") or {}).get("Running") is not False:
         raise Failure("Stop the source application and all writers before restoring.")
@@ -391,8 +457,7 @@ def main(argv: list[str] | None = None) -> int:
                         "Reruns retain the saved image, runtime and port. "
                         "Restore/review an explicit update separately."
                     )
-                runtime = Runtime(manifest.runtime)
-                runtime.check()
+                runtime = ensure_runtime(manifest.runtime)
             else:
                 if not (args.image or args.default_image) and source is None:
                     raise Failure(

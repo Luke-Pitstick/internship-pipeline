@@ -30,7 +30,7 @@ This first release has no automatic updater or data compatibility across develop
 
 ## Runtime choice and storage
 
-The candidate host guard accepts Linux/macOS on amd64/arm64 and refuses other combinations. The installer probes installed Docker and Podman CLIs with bounded calls and requires a healthy local Linux engine. One healthy candidate is selected; several require an explicit `--runtime docker` or `--runtime podman`. No healthy candidate produces startup/installation guidance and a retry command instead of privileged installation or VM startup. Runtime discovery saves the local endpoint and never changes a global context. Remote Docker and non-loopback Podman connections are refused.
+The candidate host guard accepts Linux/macOS on amd64/arm64 and refuses other combinations. The installer probes installed Docker and Podman CLIs with bounded calls and requires a healthy local Linux engine. One healthy candidate is selected; several require an explicit `--runtime docker` or `--runtime podman`. On macOS, when no engine is healthy (or the requested/saved engine is unavailable), an installed Docker Desktop at its standard `~/.docker/run/docker.sock` endpoint is opened through Launch Services and polled for readiness for roughly 90 seconds. Other engines receive startup/installation guidance and an endpoint-specific diagnostic command. Runtime discovery saves the local endpoint and never changes a global context. Remote Docker and non-loopback Podman connections are refused.
 
 | Candidate environment | Current evidence |
 | --- | --- |

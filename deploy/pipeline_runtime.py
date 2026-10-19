@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -103,6 +104,10 @@ def archive_backup(backup: Path, stream: BinaryIO, deadline: float) -> str:
 
 class Failure(Exception):
     """An actionable error safe to display without engine output or secrets."""
+
+
+class RuntimeUnavailable(Failure):
+    """The selected engine cannot be reached; its installed desktop may need starting."""
 
 
 @dataclass(frozen=True)
@@ -297,12 +302,60 @@ class Runtime:
                 timeout=timeout,
                 check=False,
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
+        except FileNotFoundError as exc:
             raise Failure(
-                f"{self.spec.name} {args[0]} could not complete; start/check "
-                f"the saved local runtime and retry."
+                f"The saved {self.spec.name} runtime executable is missing: "
+                f"{self.spec.executable}. "
+                "Reinstall the selected runtime at that path, then rerun."
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeUnavailable(
+                f"{self.spec.name} {args[0]} did not respond within {timeout:g} seconds "
+                f"at {self.spec.endpoint or 'local mode'}. "
+                "Check that the saved runtime has finished starting, then retry."
+            ) from exc
+        except OSError as exc:
+            raise Failure(
+                f"Cannot execute the saved {self.spec.name} runtime: {self.spec.executable}. "
+                "Check that the executable is accessible and runnable by your user."
             ) from exc
         if result.returncode:
+            if args[0] == "info":
+                error = result.stderr.lower()
+                endpoint = self.spec.endpoint or "local mode"
+                diagnostic = f" Diagnose it with: {shlex.join(self.argv('info'))}"
+                if "permission denied" in error or "access is denied" in error:
+                    raise Failure(
+                        f"Permission denied accessing the saved runtime at {endpoint}. "
+                        "Your user needs access to this engine socket; check its ownership "
+                        f"and runtime permissions.{diagnostic}"
+                    )
+                if any(
+                    message in error
+                    for message in (
+                        "cannot connect",
+                        "connection refused",
+                        "no such file or directory",
+                        "is the docker daemon running",
+                        "failed to connect",
+                    )
+                ):
+                    startup = (
+                        "Open Docker Desktop and wait until it is running, then retry."
+                        if self.spec.name == "docker"
+                        and endpoint == f"unix://{Path.home()}/.docker/run/docker.sock"
+                        else "Start the saved runtime, then retry."
+                    )
+                    raise RuntimeUnavailable(
+                        f"Cannot connect to the {self.spec.name.capitalize()} engine "
+                        f"at {endpoint}. "
+                        "The saved runtime is stopped or its socket is unavailable. "
+                        f"{startup}{diagnostic}"
+                    )
+                raise Failure(
+                    f"The saved runtime health check failed at {endpoint} "
+                    f"(exit {result.returncode}).{diagnostic}"
+                )
             raise Failure(
                 f"{self.spec.name} {args[0]} failed; check the saved "
                 f"runtime, image access and installation resources."
@@ -581,7 +634,7 @@ def discover_runtime(name: str) -> RuntimeSpec:
             else:
                 identity = os.environ.get("CONTAINER_SSHKEY", "")
         spec = RuntimeSpec(name, executable, endpoint, identity)
-        Runtime(spec).check()
+        validate_runtime(spec)
         return spec
     except Failure:
         raise
