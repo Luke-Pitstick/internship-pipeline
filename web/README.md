@@ -18,4 +18,4 @@ Production assets are under ignored `build/`; the Python application serves them
 
 `src/lib/api.ts` is instantiated by each browser layout and passed through Svelte context, avoiding shared server state. The original prototype worker/session, invented opportunities, timer-driven search progress, and fake settings saves have been removed. The job-board design and explicit Mark as applied/Undo/date behavior remain. Full server pagination, authoritative Jev scores, editable settings, and search controls are future tasks; current UI copy makes these limits explicit.
 
-T01 design references and historical measurements remain under `design/` and `reports/`. See [`../docs/t03-container-owner-setup.md`](../docs/t03-container-owner-setup.md) for current verification and limits.
+Design references and generated measurements stay local in ignored `design/` and `reports/` directories. See [`../docs/t03-container-owner-setup.md`](../docs/t03-container-owner-setup.md) for current verification and limits.

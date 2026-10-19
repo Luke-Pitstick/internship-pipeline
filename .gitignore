@@ -30,11 +30,36 @@ build/
 *.log
 .DS_Store
 
-web/test-results-tailored/
+# Browser output and local visual references
+/web/test-results*/
+/web/playwright-report/
+/web/design/
+/web/reports/
 
-web/test-results-email/
+# Generated evaluation output; the saved held-out report is a regression fixture
+/evaluation/jev/reports/*
+!/evaluation/jev/reports/heldout.json
 
-web/test-results-sheets/
-
-web/test-results-setup/
-web/test-results-chatgpt/
+# Local planning, agent handoffs, reviews and historical release evidence
+/FEATURE_WISHLIST.md
+/OPEN_SOURCE_PLAN.md
+/agents/
+/docs/release/
+/docs/repairs/
+/docs/reviews/
+/docs/acceptance-results.md
+/docs/chatgpt-plan-implementation.md
+/docs/completion-audit.md
+/docs/dashboard-flow-review.md
+/docs/design-qa.md
+/docs/design.md
+/docs/implementation-plan.md
+/docs/integrated-acceptance.md
+/docs/integration-cleanup.md
+/docs/integration-contracts.md
+/docs/open-source-step-1.md
+/docs/owner-setup-handoff.md
+/docs/recruiter-contact-research.md
+/docs/settings-ux-review.md
+/docs/task-breakdown.md
+/docs/ui-workspace-review.md

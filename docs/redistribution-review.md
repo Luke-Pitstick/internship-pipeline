@@ -4,7 +4,7 @@ Updated October 8, 2026. The owner selected MIT for release preparation; the roo
 
 ## Required owner decision
 
-The MIT notice uses Luke Pitstick, 2026. Before publication, confirm authority over contributed source/templates/assets and review redistributed third-party notices against the actual artifacts. [Distribution preparation](release/distribution.md) records the installer/package notice checks, and [SECURITY.md](../SECURITY.md) records the private reporting route awaiting enablement. These remaining artifact and reporting gates still block public release; adding the project license does not close them.
+The MIT notice uses Luke Pitstick, 2026. Before publication, confirm authority over contributed source/templates/assets and review redistributed third-party notices against the actual artifacts. [Distribution preparation](https://github.com/Luke-Pitstick/internship-pipeline/blob/a4979eb0c8ae22f64c8916818abd2bbb16c12b2f/docs/release/distribution.md) records the installer/package notice checks, and [SECURITY.md](../SECURITY.md) records the private reporting route awaiting enablement. These remaining artifact and reporting gates still block public release; adding the project license does not close them.
 
 ## Locked dependency metadata
 

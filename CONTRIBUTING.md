@@ -6,7 +6,9 @@ This repository is preparing a release under the [MIT license](LICENSE). Review 
 
 Use Python 3.12+, uv and Node.js 22. Install the locked dependencies with `uv sync --frozen --python 3.12` at the root and `npm ci` in `web/`. Build the frontend before starting the native application or browser suites. PDF checks require a working `pdflatex` installation with the packages used by `src/internship_pipeline/resumes/master_template.py`; application builds use TeX from the Dockerfile.
 
-Follow [AGENTS.md](AGENTS.md) and the ordered [implementation plan](docs/implementation-plan.md). Python modules live in `src/internship_pipeline`, frontend routes/components in `web/src`, synthetic tests in `tests` and `web/tests`, operator tooling in `deploy`, and task contracts/evidence in `docs`. [Architecture](docs/architecture.md) explains the current seams.
+Follow [AGENTS.md](AGENTS.md). Python modules live in `src/internship_pipeline`, frontend routes/components in `web/src`, synthetic tests in `tests` and `web/tests`, and operator tooling in `deploy`. [Architecture](docs/architecture.md) explains the current seams.
+
+Planning notes, agent handoffs, review logs, release evidence, design captures and generated reports stay local under the paths listed in `.gitignore`. Previously committed copies remain available in Git history. Keep maintained guides and contracts in `docs/`; `evaluation/jev/reports/heldout.json` stays tracked because the offline regression suite reads it.
 
 For a local container development setup, `deploy/dev` uses `compose.yaml` plus
 `compose.dev.yaml`. Its private `data/dev/config.json` contains `docker` (the Docker
@@ -47,7 +49,7 @@ npx playwright test --config playwright.setup.config.ts
 
 The default browser suite excludes the fresh setup test, so both commands matter. Feature suites have dedicated configurations for search, jobs, generation policy, master/tailored résumés, email and Sheets; run the configuration appropriate to the changed behavior. Browser fixtures start local listeners and use temporary synthetic instances. Install Playwright Chromium separately if it is unavailable in the development environment; CI does that before browser checks.
 
-For direct tests in an existing virtualenv, use `PYTHONPATH=src .venv/bin/python -m pytest`. Some temporary-executable tests are sensitive to a virtualenv path containing spaces; use a space-free virtualenv when reproducing that environment problem. Give concurrent pytest runs distinct unused `--basetemp` paths to avoid shared temporary-output interference. [Integrated acceptance](docs/integrated-acceptance.md) records the current reproducible baseline rather than certifying every future edit.
+For direct tests in an existing virtualenv, use `PYTHONPATH=src .venv/bin/python -m pytest`. Some temporary-executable tests are sensitive to a virtualenv path containing spaces; use a space-free virtualenv when reproducing that environment problem. Give concurrent pytest runs distinct unused `--basetemp` paths to avoid shared temporary-output interference. [Integrated acceptance](https://github.com/Luke-Pitstick/internship-pipeline/blob/a4979eb0c8ae22f64c8916818abd2bbb16c12b2f/docs/integrated-acceptance.md) records the current reproducible baseline rather than certifying every future edit.
 
 ## Data and provider boundaries
 

@@ -1,6 +1,6 @@
 # T18 — Versioned container candidates and portability gates
 
-October 6, 2026. **Partial preparation; no image is published and no architecture or runtime is certified.** T03 actual image/lifecycle acceptance and T17 actual container interruption/fresh restore remain release prerequisites. T16's integrated native/API/Chromium journey passes in the [final integrated evidence](integrated-acceptance.md); it cannot close the container gates. The actual image build was attempted on a responsive Colima Linux arm64 engine, then blocked by QEMU's disk `nospace` pause.
+October 6, 2026. **Partial preparation; no image is published and no architecture or runtime is certified.** T03 actual image/lifecycle acceptance and T17 actual container interruption/fresh restore remain release prerequisites. T16's integrated native/API/Chromium journey passes in the [final integrated evidence](https://github.com/Luke-Pitstick/internship-pipeline/blob/a4979eb0c8ae22f64c8916818abd2bbb16c12b2f/docs/integrated-acceptance.md); it cannot close the container gates. The actual image build was attempted on a responsive Colima Linux arm64 engine, then blocked by QEMU's disk `nospace` pause.
 
 ## Prepared image and CI
 
