@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import sqlite3
 import subprocess
 import sys
@@ -28,6 +27,7 @@ from internship_pipeline.profile_settings import (
     SaveSettings,
     Snapshot,
 )
+from internship_pipeline.profiles.draft import suggestions
 from internship_pipeline.profiles.extract import MAX_UPLOAD, DocumentError, tex_source
 from internship_pipeline.storage import Store
 
@@ -40,7 +40,7 @@ class Selection(Record):
     institution: str = Field(default="", max_length=200)
     degree: str = Field(default="", max_length=200)
     skills: list[str] = Field(default_factory=list, max_length=30)
-    source_line_ids: list[str] = Field(default_factory=list, max_length=3)
+    source_line_ids: list[str] = Field(default_factory=list, max_length=7)
     value: str = Field(default="", max_length=2000)
 
 
@@ -73,101 +73,10 @@ def extract_bounded(data: bytes, kind: str) -> list[dict[str, str]]:
         return list(result["lines"])
     except subprocess.TimeoutExpired:
         raise DocumentError(
-            "Document processing took too long. Export a simpler PDF or DOCX."
+            "Document processing took too long. Use a simpler PDF, DOCX or .tex document."
         ) from None
     finally:
         _PROCESS_SLOT.release()
-
-
-def suggestions(lines: list[dict[str, str]]) -> list[dict[str, Any]]:
-    """Draft only literal source claims; leave unrecognized sections unselected."""
-    result = []
-    kind = "uncertain"
-    headings = {
-        "skills": "skill",
-        "technical skills": "skill",
-        "projects": "project",
-        "experience": "experience",
-        "work experience": "experience",
-        "professional experience": "experience",
-        "education": "education",
-        "certifications": "uncertain",
-        "interests": "uncertain",
-        "summary": "uncertain",
-        "objective": "uncertain",
-    }
-    consumed: set[str] = set()
-    degree_pattern = re.compile(
-        r"\b(?:Bachelor(?: of [A-Za-z ]+)?|Master(?: of [A-Za-z ]+)?|"
-        r"B\.?Sc\.?|B\.?S\.?|B\.?A\.?|M\.?Sc\.?|M\.?S\.?|Ph\.?D\.?)\b"
-    )
-    for index, line in enumerate(lines):
-        if line["id"] in consumed:
-            continue
-        value = line["text"]
-        if value.lower().rstrip(":") in headings:
-            kind = headings[value.lower().rstrip(":")]
-            continue
-        proposed = kind if kind in {"experience", "project", "skill"} else "experience"
-        selected = kind in {"experience", "project", "skill"}
-        skills: list[str] = []
-        source_ids: list[str] = []
-        institution = degree = excerpt = ""
-        email = re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", value)
-        if email:
-            proposed = "email"
-            selected = True
-            excerpt = email.group()
-        elif (
-            index == 0
-            and len(value) <= 100
-            and len(value.split()) in {2, 3, 4}
-            and all(word.replace("-", "").replace("'", "").isalpha() for word in value.split())
-        ):
-            proposed = "name"
-            selected = True
-        if kind == "education":
-            school = re.search(r"(?:University|College|Institute|School)\b", value)
-            if school:
-                parts = [part.strip() for part in value.split("|")]
-                degree_source = next((part for part in parts if degree_pattern.search(part)), "")
-                institution = next(
-                    (
-                        part
-                        for part in parts
-                        if re.search(r"(?:University|College|Institute|School)\b", part)
-                    ),
-                    "",
-                )
-                if not degree_source and index + 1 < len(lines):
-                    following = lines[index + 1]
-                    if degree_pattern.search(following["text"]):
-                        degree_source = following["text"]
-                        source_ids = [following["id"]]
-                        consumed.add(following["id"])
-                if degree_source and len(institution) <= 200 and len(degree_source) <= 200:
-                    proposed, selected, degree = "education", True, degree_source
-        if kind == "skill" and proposed == "skill":
-            # Delimited skills are literal claims, not interests or inferred abilities.
-            skill_text = value
-            if ":" in value and len(value.partition(":")[0]) <= 30:
-                skill_text = value.partition(":")[2]
-            items = [item.strip() for item in re.split(r"[,;|]", skill_text)]
-            if len(items) <= 30 and all(item and len(item) <= 200 for item in items):
-                skills = items
-        result.append(
-            {
-                "line_id": line["id"],
-                "kind": proposed,
-                "selected": selected,
-                "skills": skills,
-                "institution": institution,
-                "degree": degree,
-                "source_line_ids": source_ids,
-                "value": excerpt,
-            }
-        )
-    return result
 
 
 class ResumeImports:
@@ -307,8 +216,8 @@ class ResumeImports:
             )
         if review.expected_revision != current.revision or row["base_revision"] != current.revision:
             raise RevisionConflict("Settings changed. Reload saved settings and upload again.")
-        if len({s.line_id for s in review.selections}) != len(review.selections):
-            raise DocumentError("Choose each source line only once.")
+        if len({(s.line_id, s.kind) for s in review.selections}) != len(review.selections):
+            raise DocumentError("Choose each source line only once per field type.")
         if not review.selections and not review.remove_ids:
             raise DocumentError("Select at least one source field or an imported fact to remove.")
         allowed = {item["id"] for item in self.removable()}

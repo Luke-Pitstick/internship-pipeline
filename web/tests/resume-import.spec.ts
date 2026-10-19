@@ -11,6 +11,39 @@ async function login(page: Page) {
   await page.getByText('Import from a résumé', {exact:false}).click();
 }
 
+test('LaTeX resume macros fill editable education, skills, experience and projects', async ({page}) => {
+  await login(page);
+  const session = await (await page.request.get('/api/session')).json();
+  const current = await (await page.request.get('/api/profile-settings')).json();
+  const reset = await page.request.post('/api/profile-settings', {headers: {'X-CSRF-Token': session.csrf}, data: {
+    expected_revision: current.revision, profile: {}, preferences: {}
+  }});
+  expect(reset.ok()).toBe(true);
+  const before = await reset.json();
+  await page.reload();
+  await page.locator('.settings-import > summary').click();
+  await expect(page.getByLabel('Resume document')).toHaveAttribute('accept', /\.tex/);
+  await page.getByLabel('Resume document').setInputFiles('tests/fixtures/resume.synthetic.tex');
+  await page.getByRole('button', {name: 'Fill profile from resume'}).click();
+  await expect(page.getByRole('status').filter({hasText: 'Profile fields filled.'})).toBeVisible();
+  await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
+  await expect(page.getByLabel('Email', {exact: true})).toHaveValue('synthetic@example.test');
+  await expect(page.getByLabel('Institution', {exact: true})).toHaveValue('Example University');
+  await expect(page.getByLabel('Degree', {exact: true})).toHaveValue('B.S. in Computer Science');
+  expect((await (await page.request.get('/api/profile-settings')).json()).revision).toBe(before.revision);
+  await page.getByLabel('Degree', {exact: true}).fill('Bachelor of Science in Computer Science');
+  await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+  await expect(page.getByRole('status').filter({hasText: /Profile saved\./})).toBeVisible();
+  await page.reload();
+  const saved = await (await page.request.get('/api/profile-settings')).json();
+  expect(saved.profile.education[0].degree).toBe('Bachelor of Science in Computer Science');
+  expect(saved.profile.facts.some((fact: {kind: string; text: string}) => fact.kind === 'experience' && fact.text.includes('reducing request latency by 35%.'))).toBe(true);
+  expect(saved.profile.facts.some((fact: {kind: string; text: string}) => fact.kind === 'project' && fact.text.includes('public forecast dashboard'))).toBe(true);
+  expect(saved.profile.facts.flatMap((fact: {skills: string[]}) => fact.skills)).toEqual(['Python', 'SQL', 'C++', 'TypeScript', 'Git', 'Docker']);
+  expect(saved.profile.facts.some((fact: {text: string}) => fact.text.includes('Hiking'))).toBe(false);
+  expect((await (await page.request.get('/api/resume-imports/current')).json()).import.format).toBe('tex');
+});
+
 test('resume import fills the existing editable profile fields before saving', async ({page}) => {
   await login(page);
   const session = await (await page.request.get('/api/session')).json();
