@@ -33,7 +33,12 @@ class ReauthorizationRequired(ChatGPTError):
 
 
 def request_json(
-    method: str, url: str, *, transport: httpx.BaseTransport | None = None, **kwargs: Any
+    method: str,
+    url: str,
+    *,
+    transport: httpx.BaseTransport | None = None,
+    max_bytes: int = 262_144,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     try:
         with (
@@ -48,7 +53,7 @@ def request_json(
                 if time.monotonic() >= deadline:
                     raise ChatGPTError("ChatGPT request timed out. Try again.")
                 data.extend(chunk)
-                if len(data) > 262_144:
+                if len(data) > max_bytes:
                     raise ChatGPTError(
                         "OpenAI returned an oversized response. Try connecting again."
                     )

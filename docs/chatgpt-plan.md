@@ -73,6 +73,10 @@ and accepts generation only after a completed event and local validation of
 confirmed fact IDs and permitted source edits. It does not receive ChatGPT
 conversation history, memory or uploaded account files.
 
+Model catalogs include substantial metadata beyond model names, so discovery
+allows up to 2 MiB of decoded JSON. OAuth responses retain their separate
+256 KiB limit. Both limits apply after decompression.
+
 Plan requests use `store:false`, `stream:true`, array input and no unsupported
 `max_output_tokens`. The pipeline bounds response bytes and request time, but
 these are not a provider-enforced token or spending cap, especially for model

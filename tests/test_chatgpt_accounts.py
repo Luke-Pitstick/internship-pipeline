@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,7 @@ from internship_pipeline.chatgpt.protocol import (
     RESOURCE,
     TOKEN,
     ChatGPTError,
+    request_json,
 )
 from internship_pipeline.model_connections import ConnectionError, ModelConnectionStore
 from internship_pipeline.providers.connections import ConnectionInput, ProbeResult
@@ -160,6 +162,59 @@ def test_registration_persistence_encryption_models_and_readiness(fixture):
     assert token.encode() not in fixture.store.db_path.read_bytes()
     with pytest.raises(ConnectionError, match="available"):
         fixture.store.save("general", chatgpt_config(account_id, saved["revision"], "hidden"))
+
+
+@pytest.mark.parametrize("compressed", [False, True])
+def test_model_catalog_accepts_large_metadata_and_preserves_visible_order(fixture, compressed):
+    account_id = fixture.connect()
+    catalog = {
+        "models": [
+            {
+                "slug": slug,
+                "display_name": name,
+                "visibility": visibility,
+                "base_instructions": "synthetic metadata " * 12_000,
+            }
+            for slug, name, visibility in [
+                ("second-model", "Second Model", "list"),
+                ("hidden-model", "Hidden Model", "hidden"),
+                ("first-model", "First Model", "list"),
+            ]
+        ]
+    }
+    payload = json.dumps(catalog).encode()
+    assert len(payload) > 262_144
+    fixture.accounts.transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            content=gzip.compress(payload) if compressed else payload,
+            headers={"content-encoding": "gzip"} if compressed else {},
+        )
+    )
+    assert fixture.accounts.models(account_id) == [
+        {"slug": "second-model", "display_name": "Second Model"},
+        {"slug": "first-model", "display_name": "First Model"},
+    ]
+
+
+def test_model_catalog_remains_bounded_after_decompression(fixture):
+    account_id = fixture.connect()
+    payload = json.dumps({"models": [], "metadata": "x" * 2_097_152}).encode()
+    fixture.accounts.transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200, content=gzip.compress(payload), headers={"content-encoding": "gzip"}
+        )
+    )
+    with pytest.raises(ChatGPTError, match="oversized"):
+        fixture.accounts.models(account_id)
+
+
+def test_oauth_responses_keep_the_smaller_size_limit():
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"metadata": "x" * 262_144})
+    )
+    with pytest.raises(ChatGPTError, match="oversized"):
+        request_json("GET", DISCOVERY, transport=transport)
 
 
 @pytest.mark.parametrize(

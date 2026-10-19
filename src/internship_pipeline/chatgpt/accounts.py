@@ -424,6 +424,8 @@ class ChatGPTAccounts:
             "GET",
             RESOURCE + "/models",
             transport=self.transport,
+            # Catalogs include model instructions and other metadata beyond the picker fields.
+            max_bytes=2_097_152,
             headers={"Authorization": "Bearer " + token},
         )
         try:
