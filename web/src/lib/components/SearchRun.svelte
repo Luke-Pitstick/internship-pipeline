@@ -1,6 +1,6 @@
 <script lang="ts">
   import {getContext,onMount} from 'svelte';import {Api} from '#lib/api.ts';
-  let {disabled=false,searchId=''}=$props<{disabled?:boolean;searchId?:string}>();
+  let {disabled=false,searchId='',compact=false}=$props<{disabled?:boolean;searchId?:string;compact?:boolean}>();
   const api=getContext<Api>('api');
   type Run={id:string;search_id:string;name:string;stage:string;collected:number;evaluated:number;pending:number;review:number;rejected:number;recommended:number;evaluation_errors:number;excluded:number;source_error:string|null;evaluation_error_codes:string[];limits:{jobs:number;calls:number;tokens:number};usage:{calls:number;reserved_tokens:number;input_tokens:number|null;output_tokens:number|null}};
   type Summary={collected:number;evaluated:number;pending:number;evaluation_errors:number;excluded:number;sources:number;next_run:number|null;queued:number;collecting:number;fetched:number;scoring_resumes_at:number|null};
@@ -17,28 +17,29 @@
   }else if(run)await api.request(`/api/search-runs/${run.id}/${kind}`,{});await load();}catch(e){error=(e as Error).message;}finally{busy=false;}}
   onMount(()=>{void load();const reconnect=()=>{if(!document.hidden)void load();};const timer=setInterval(reconnect,3000);window.addEventListener('online',reconnect);document.addEventListener('visibilitychange',reconnect);return()=>{clearInterval(timer);window.removeEventListener('online',reconnect);document.removeEventListener('visibilitychange',reconnect);};});
 </script>
-<section class="search-run" aria-label="Search run">
+{#snippet runContent()}
   <div class="run-header">
     <div class="run-summary">
       <h3><span class="status-dot" class:running={collecting} aria-hidden="true"></span>{searchId ? run?.name ?? 'Discover opportunities' : 'Automatic job discovery'}</h3>
       {#if !searchId && summary}<p role="status">{summary.collected.toLocaleString()} internships · {summary.evaluated.toLocaleString()} evaluated · {summary.pending.toLocaleString()} awaiting scoring</p>
-        <p>{summary.collecting} collecting · {summary.queued} queued · {summary.sources} active sources{summary.next_run ? ` · Next automatic search ${new Date(summary.next_run*1000).toLocaleString()}` : ''}</p>
+        {#if !compact}<p>{summary.collecting} collecting · {summary.queued} queued · {summary.sources} active sources{summary.next_run ? ` · Next automatic search ${new Date(summary.next_run*1000).toLocaleString()}` : ''}</p>{/if}
       {:else if run}<p role="status"><span class="run-stage">Run status: {run.stage.replaceAll('_',' ')}.</span> <span>{run.collected.toLocaleString()} collected · {run.evaluated.toLocaleString()} evaluated · {run.pending.toLocaleString()} pending</span></p>
       {:else}<p>Collection starts automatically when this source is scheduled.</p>{/if}
     </div>
     <div class="run-actions">
       {#if !searchId}<a class="small-button" href="/settings/#Sources">Manage sources</a>{/if}
-      <button class="secondary" disabled={disabled||busy||collecting} onclick={()=>action('start')}>{collecting?'Collecting…':busy?'Working…':searchId?'Run now':'Refresh searches'}</button>
+      <button class="secondary" disabled={disabled||busy||collecting} onclick={()=>action('start')}>{collecting?'Collecting…':busy?'Working…':searchId?'Run now':'Find new jobs'}</button>
     </div>
   </div>
   {#if summary?.excluded && !searchId}<p>{summary.excluded} other listings excluded from internship discovery.</p>{/if}
-  {#if summary?.scoring_resumes_at && !searchId}<p role="status">Scoring has reached its current model budget and resumes automatically at {new Date(summary.scoring_resumes_at*1000).toLocaleString()}.</p>{/if}
-  {#if summary?.evaluation_errors && !searchId}<p>{summary.evaluation_errors} jobs need evaluation attention. Open a job to see its source or model error.</p>{/if}
+  {#if summary?.scoring_resumes_at && !searchId && !compact}<p role="status">Scoring has reached its current model budget and resumes automatically at {new Date(summary.scoring_resumes_at*1000).toLocaleString()}.</p>{/if}
+  {#if summary?.evaluation_errors && !searchId && !compact}<p>{summary.evaluation_errors} jobs need evaluation attention. Open a job to see its source or model error.</p>{/if}
   {#if run?.source_error && searchId}<p class="error" role="alert">Source error: {run.source_error}. This source will retry on its next schedule. Observed jobs remain stored.</p>{/if}
   {#if searchId && run?.evaluation_error_codes.length}<p class="error" role="alert">Model work needs attention: {run.evaluation_error_codes.join(', ')}. Check the model and run limits before retrying.</p>{/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
-  {#if connectionError}<p class="error" role="alert">Progress disconnected: {connectionError}. Reconnecting automatically.</p>{/if}
+  {#if connectionError && !compact}<p class="error" role="alert">Progress disconnected: {connectionError}. Reconnecting automatically.</p>{/if}
   {#if run || runs.length}<details class="run-details"><summary>Run details and history</summary>
+    {#if compact && summary}<p>{summary.collecting} collecting · {summary.queued} queued · {summary.sources} active sources{summary.next_run ? ` · Next automatic search ${new Date(summary.next_run*1000).toLocaleString()}` : ''}</p>{/if}
     {#if run}
       {#if run.excluded}<p>{run.excluded} listings excluded because they do not identify an internship or co-op role.</p>{/if}
       <p>{run.review} need review · {run.recommended} recommended · {run.rejected} rejected · {run.evaluation_errors} evaluation errors</p>
@@ -48,6 +49,17 @@
     {/if}
     {#if !searchId}<h4>Run history</h4>{#each runs as item(item.id)}<p>{item.name} · {item.stage.replaceAll('_',' ')} · {item.collected} collected · {item.evaluated} evaluated{item.source_error ? ` · ${item.source_error}` : ''}</p>{/each}{/if}
   </details>{/if}
+{/snippet}
+<section class="search-run" class:compact aria-label="Search run">
+  {#if compact}
+    <details class="discovery-disclosure">
+      <summary><span class="discovery-title"><span class="status-dot" class:running={collecting} aria-hidden="true"></span>Job discovery</span><span class="discovery-state">{collecting ? 'Collecting new jobs' : summary ? summary.sources ? 'Scheduled automatically' : 'Configure sources' : 'Loading discovery…'}</span></summary>
+      {@render runContent()}
+    </details>
+    {#if connectionError}<p class="error" role="alert">Progress disconnected: {connectionError}. Reconnecting automatically.</p>{/if}
+    {#if summary?.scoring_resumes_at}<p role="status">Scoring resumes automatically at {new Date(summary.scoring_resumes_at*1000).toLocaleString()}.</p>{/if}
+    {#if summary?.evaluation_errors}<p>{summary.evaluation_errors} jobs need evaluation attention. Open a job to see its error.</p>{/if}
+  {:else}{@render runContent()}{/if}
 </section>
 <style>
   .search-run {border-block:1px solid var(--border);margin:0 0 20px;padding:16px 0;font-size:13px}
@@ -56,5 +68,15 @@
   p {overflow-wrap:anywhere;margin:8px 0;color:var(--muted)}.run-summary p {margin:0}.run-summary p span {margin-left:6px}
   .run-actions {flex-shrink:0;justify-content:flex-start;flex-wrap:wrap}
   .run-details {margin-top:10px}.run-details h4 {margin:18px 0 8px}.run-details .subtle {margin-top:12px}
+  .compact {margin-bottom:8px;padding:0;font-size:12px}
+  .discovery-disclosure>summary {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:12px 0;font-size:12px;color:var(--muted)}
+  .discovery-disclosure>summary::after {content:"+";font-size:18px;color:var(--muted)}
+  .discovery-disclosure[open]>summary::after {content:"−"}
+  .discovery-title {display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:600}
+  .discovery-state {margin-left:auto;font-weight:400}
+  .discovery-disclosure[open] {padding-bottom:8px}
+  .compact .run-summary h3 {font-size:12px;margin-bottom:3px}
+  .compact .run-details {margin-top:2px}
+  .compact .run-actions a,.compact .run-actions button {min-height:44px}
   @media(max-width:600px){.run-header{align-items:flex-start;flex-direction:column}.run-summary p span{display:block;margin:5px 0 0}.run-actions{width:100%}.run-actions>*{flex:1}}
 </style>

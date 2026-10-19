@@ -42,7 +42,7 @@ test('saved searches automatically collect and score first inventory and preserv
   expect(await page.locator('body').textContent()).not.toContain('synthetic-secret-token');
   await page.getByRole('button',{name:/Retry task/}).first().click();
   await expect(page.getByRole('button',{name:/Retry task/})).toHaveCount(0);
-  await page.goto('/');await expect(page.getByText(/2 internships · 2 evaluated/)).toBeVisible();await page.getByText('Run details and history',{exact:true}).click();
+  await page.goto('/');await page.getByText('Job discovery', {exact:true}).click();await expect(page.getByText(/2 internships · 2 evaluated/)).toBeVisible();await page.getByText('Run details and history',{exact:true}).click();
   await expect(page.getByText(/Synthetic Company · cancelled/)).toBeVisible();
 });
 

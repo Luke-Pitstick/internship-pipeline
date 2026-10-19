@@ -46,6 +46,7 @@ for (const narrow of [false, true]) {
     await expect(page.locator('[data-job]')).toHaveCount(1);
     await page.locator('[data-job]').click();
     await expect(page.getByRole('heading', {name: 'Synthetic Python Internship'})).toBeFocused();
+    await page.getByRole('tab', {name:'Match', exact:true}).click();
     await expect(page.getByText('No current assessment is available.', {exact: false})).toBeVisible();
     expect(calls).toBe(0);
     await expect(page.getByText('Match scoring runs automatically while you browse.')).toBeVisible();
@@ -62,13 +63,15 @@ for (const narrow of [false, true]) {
     await expect(page.getByText('Profile revision 3;', {exact: false})).toContainText('effective model jev-1.13.0');
     expect(calls).toBe(0);
     await page.getByRole('button', {name: 'Mark as applied', exact: true}).click();
+    if (narrow) await page.getByRole('button', {name:'Back to results', exact:true}).click();
     await page.getByRole('button', {name: 'Applied', exact: true}).click();
     await expect(page.locator('[data-job]')).toHaveCount(1);
+    if (narrow) await page.locator('[data-job]').click();
     await expect(page.getByRole('button', {name: 'Retry evaluation', exact: true})).toHaveCount(0);
     await page.getByRole('button', {name: 'Undo applied', exact: true}).click();
     await expect(page.locator('[data-job]')).toHaveCount(0);
-    await page.getByRole('button', {name: 'All jobs', exact: true}).click();
     if (narrow) await page.getByRole('button', {name: 'Back to results', exact: true}).click();
+    await page.getByRole('button', {name: 'All jobs', exact: true}).click();
     await page.locator('[data-job]').click();
     state = 'error'; await page.reload();
     if (narrow) await expect(page.locator('.job-detail')).toBeVisible();

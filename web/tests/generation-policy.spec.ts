@@ -31,6 +31,7 @@ test('off default, qualifying preview, automatic draft, persistent disable and m
   await page.screenshot({path:'test-results-generation-policy/t13-settings-mobile.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(`/?selected=${job.id}`);
+  await page.getByRole('tab', {name:'Résumé', exact:true}).click();
   await expect(page.getByText(/Draft awaiting your review/)).toBeVisible();
   await expect(page.getByRole('button', {name:'Generate job-specific résumé',exact:true})).toBeVisible();
   const draft = await (await page.request.get(`/api/jobs/${job.id}/resume`)).json();

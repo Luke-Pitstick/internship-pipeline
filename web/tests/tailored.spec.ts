@@ -9,6 +9,7 @@ test('configured model draft, inspect facts, preview, download and explicit revi
   await expect(page.getByLabel('Name',{exact:true})).toBeVisible();
   const job = JSON.parse(await readFile('test-results-tailored/job.json','utf8'));
   await page.goto(`/?selected=${job.id}`);
+  await page.getByRole('tab', {name:'Résumé', exact:true}).click();
   await page.getByRole('button', {name:'Generate job-specific résumé',exact:true}).click();
   await expect(page.getByText(/Draft awaiting your review/)).toBeVisible({timeout:20000});
   await page.getByText('Inspect selected and omitted facts').click();
@@ -70,6 +71,7 @@ Built an example reporting tool.\par
   await expect(page.getByRole('status').filter({hasText:/Profile saved\./})).toBeVisible();
   const job = JSON.parse(await readFile('test-results-tailored/job.json','utf8'));
   await page.goto(`/?selected=${job.id}`);
+  await page.getByRole('tab', {name:'Résumé', exact:true}).click();
   await page.getByRole('button', {name:'Generate job-specific résumé', exact:true}).click();
   await expect(page.getByText('TeX source ready', {exact:false})).toBeVisible({timeout:20000});
   await expect(page.getByRole('button', {name:'Preview PDF', exact:true})).toHaveCount(0);
