@@ -7,7 +7,6 @@ import getpass
 import http.cookiejar
 import json
 import math
-import os
 import re
 import sys
 import urllib.error
@@ -23,7 +22,9 @@ from pipeline_runtime import (
     Manifest,
     Runtime,
     default_install_dir,
+    host_lock,
     load_manifest,
+    require_complete_restore,
     wait_ready,
 )
 
@@ -263,6 +264,10 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
         return manifest.url
     runtime = Runtime(manifest.runtime)
     runtime.check()
+    if args.command == "start" and "-update-" in manifest.container_name:
+        from pipeline_update import activate_container
+
+        activate_container(runtime, manifest)
     container = runtime.require_owned(manifest)
     state = _state(container)
     if args.command == "open":
@@ -411,6 +416,22 @@ def print_result(command: str, result: dict[str, Any] | str) -> None:
         print("Application stopped. Your data is saved.")
     elif command == "start":
         print(f"Application is running.\n\n  Workspace  {result['url']}")
+    elif command == "update":
+        if "message" in result:
+            print(result["message"])
+        elif result.get("updated"):
+            state = "running" if result["running"] else "stopped"
+            print(f"Updated to {result['version']}. Application is {state}.\n\n  {result['url']}")
+            print("The original data volume and verified backup are retained.")
+        else:
+            print(f"Installed: {result['installed_version'] or result['installed_image']}")
+            print(f"Latest release: {result['available_version']}")
+            if not result["eligible"]:
+                print(f"Update unavailable: {result['reason']}")
+            elif result["update_available"]:
+                print("Update available. Run internship-pipeline update to install it.")
+            else:
+                print("Already running the latest release.")
     elif command in {"setup-token", "recover-owner"}:
         message = "Setup token refreshed." if command == "setup-token" else "Owner recovered."
         print(f"{message} Your data is saved.\nRun internship-pipeline start when you're ready.")
@@ -420,7 +441,8 @@ def print_result(command: str, result: dict[str, Any] | str) -> None:
         for event in events:
             detail = (
                 f"exited unexpectedly (exit code {event['exit_code']})"
-                if event["event"] == "worker_exited" else "could not start"
+                if event["event"] == "worker_exited"
+                else "could not start"
             )
             print(f"  {event['role']}: {detail}.")
         if result["omitted_lines"]:
@@ -463,6 +485,10 @@ def parser(install_dir: Path | None = None) -> argparse.ArgumentParser:
     )
     root.add_argument("--json", action="store_true", help="print JSON for scripts")
     commands = root.add_subparsers(dest="command", title="commands", metavar="COMMAND")
+    update = commands.add_parser("update", help="install the latest compatible published release")
+    update.add_argument(
+        "--check", action="store_true", help="check release eligibility without updating"
+    )
     start = commands.add_parser("start", help="start the app and wait until it's ready")
     start.add_argument(
         "--wait", type=float, default=60, help="readiness deadline in seconds (1–120)"
@@ -481,19 +507,17 @@ def parser(install_dir: Path | None = None) -> argparse.ArgumentParser:
         "url", aliases=["show-url"], help="print the workspace URL, even while stopped"
     )
     commands.add_parser("open", help="open the saved URL in your default browser")
-    commands.add_parser(
-        "setup-token", help="refresh the setup token before creating your account"
-    )
-    commands.add_parser(
-        "recover-owner", help="reset your account using a private terminal"
-    )
+    commands.add_parser("setup-token", help="refresh the setup token before creating your account")
+    commands.add_parser("recover-owner", help="reset your account using a private terminal")
     for subcommand in set(commands.choices.values()):
         subcommand.allow_abbrev = False
         subcommand.add_argument(
             "--json", action="store_true", default=argparse.SUPPRESS, help="print JSON for scripts"
         )
         subcommand.add_argument(
-            "--install-dir", type=Path, default=argparse.SUPPRESS,
+            "--install-dir",
+            type=Path,
+            default=argparse.SUPPRESS,
             help="use an existing installation in this directory",
         )
     return root
@@ -514,30 +538,39 @@ def main(argv: list[str] | None = None, *, install_dir: Path | None = None) -> i
     if not 1 <= getattr(args, "lines", 100) <= 200:
         command_parser.error("--lines must be between 1 and 200")
     try:
-        args.install_dir = args.install_dir.expanduser()
-        manifest = load_manifest(args.install_dir / "installation.json")
-        if manifest.data_dir == "/var/data/restored":
-            marker = args.install_dir / ".restore-completed"
-            if (
-                marker.is_symlink()
-                or not marker.is_file()
-                or marker.stat().st_uid != os.getuid()
-                or marker.stat().st_mode & 0o077
-                or marker.read_text().strip() != manifest.install_id
-            ):
-                raise Failure("Restore completion is unconfirmed; preserve the destination.")
-        result = manage(args, manifest)
+        args.install_dir = args.install_dir.expanduser().absolute()
+        result: dict[str, Any] | str
+        with host_lock(args.install_dir):
+            from pipeline_release import latest
+            from pipeline_update import apply, check, require_idle
+
+            if args.command == "update":
+                if args.check:
+                    require_idle(args.install_dir)
+                    manifest = load_manifest(args.install_dir / "installation.json")
+                    result = check(args.install_dir, manifest, latest())
+                else:
+                    result = apply(args.install_dir)
+            else:
+                require_idle(args.install_dir)
+                manifest = load_manifest(args.install_dir / "installation.json")
+                result = managed_installation(args, manifest)
         if args.json:
             print(json.dumps(result, indent=2))
         else:
             print_result(args.command, result)
         return 0
-    except (Failure, OSError) as exc:
+    except (Failure, OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except (EOFError, KeyboardInterrupt):
         print("Command cancelled; installation data was preserved.", file=sys.stderr)
         return 1
+
+
+def managed_installation(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str:
+    require_complete_restore(args.install_dir, manifest)
+    return manage(args, manifest)
 
 
 if __name__ == "__main__":

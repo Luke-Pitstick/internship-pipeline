@@ -237,10 +237,8 @@ def validate_candidate(
         "version"
     ]
     require(
-        re.fullmatch(
-            r"v" + re.escape(package_version) + r"-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*", version
-        ),
-        "Publication stages explicit prereleases matching the package version.",
+        re.fullmatch(r"v" + re.escape(package_version) + r"(?:-rc\.[0-9]+)?", version),
+        "Publication requires a stable release or numbered RC matching the package version.",
     )
     accepted = validate_artifacts(
         artifacts, package_version=package_version, source_commit=source_commit, run_id=run["id"]
@@ -418,7 +416,7 @@ def promote(
     notes.write_text(
         f"Accepted candidate: {candidate['run_url']}\nSource: {candidate['source_commit']}\n"
         f"Image: {pinned}\n\n"
-        "Draft prerelease; public download and host acceptance remain separate.\n"
+        "Draft release; public download and host acceptance remain separate.\n"
         f"After publication: curl -fsSL https://github.com/{repository}"
         f"/releases/download/{version}/install.sh | sh\n"
     )
@@ -433,7 +431,7 @@ def promote(
         "--target",
         candidate["source_commit"],
         "--draft",
-        "--prerelease",
+        f"--prerelease={'true' if '-rc.' in version else 'false'}",
         "--latest=false",
         "--title",
         f"Internship Pipeline {version}",
@@ -455,9 +453,7 @@ def main() -> int:
     cli.add_argument("--source-commit", required=True)
     cli.add_argument("--version", required=True)
     cli.add_argument("--output-dir", type=Path, required=True)
-    cli.add_argument(
-        "--promote", action="store_true", help="Write GHCR tags and a draft prerelease"
-    )
+    cli.add_argument("--promote", action="store_true", help="Write GHCR tags and a draft release")
     args = cli.parse_args()
     try:
         pages = json.loads(args.artifacts_json.read_text())

@@ -35,10 +35,12 @@ Install Internship Pipeline from this pinned release.
 Usage: sh install.sh [--install-dir PATH] [--command-dir PATH] [--port PORT]
                      [--runtime docker|podman] [--ready-timeout SECONDS]
                      [--restore-source PATH --restore-from PATH]
+                     [--update]
 For a pipe: curl -fsSL RELEASE_INSTALL_URL | sh -s -- [OPTIONS]
 Requires Python 3.12+, curl, and a healthy local Docker or Podman endpoint.
 Set up those prerequisites first; this installer does not install runtimes or VMs.
 Saved installations retain their image, runtime, port and data on every rerun.
+Use --update explicitly to install the latest compatible published release.
 Restoration retains the stopped source's exact local image. Configure keys in Settings.
 PIPELINE_HELP
         exit 0

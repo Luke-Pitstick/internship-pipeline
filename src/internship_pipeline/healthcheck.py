@@ -22,9 +22,17 @@ def main() -> int:
         opener = build_opener(ProxyHandler({}), _NoRedirect())
         with opener.open(request, timeout=3) as response:
             payload = json.loads(response.read(1024))
-            return 0 if response.status == 200 and payload in (
-                {"ready": True, "mode": "setup"}, {"ready": True, "mode": "owner"}
-            ) else 1
+            return (
+                0
+                if response.status == 200
+                and payload
+                in (
+                    {"ready": True, "mode": "setup"},
+                    {"ready": True, "mode": "owner"},
+                    {"ready": True, "mode": "update-validation"},
+                )
+                else 1
+            )
     except (OSError, URLError, ValueError):
         return 1
 

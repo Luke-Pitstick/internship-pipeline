@@ -132,7 +132,7 @@ def candidate_fixture(
     return source, revision, artifacts_dir, run, artifacts
 
 
-def validate(fixture: tuple[Any, ...]) -> dict[str, Any]:
+def validate(fixture: tuple[Any, ...], version: str = VERSION) -> dict[str, Any]:
     source, revision, directory, run, artifacts = fixture
     return publication.validate_candidate(
         source,
@@ -141,7 +141,7 @@ def validate(fixture: tuple[Any, ...]) -> dict[str, Any]:
         artifacts,
         repository=REPOSITORY,
         source_commit=revision,
-        version=VERSION,
+        version=version,
         default_branch="main",
     )
 
@@ -158,6 +158,17 @@ def test_default_branch_push_can_publish_its_exact_tested_candidate(tmp_path: Pa
     fixture = candidate_fixture(tmp_path)
     fixture[3]["event"] = "push"
     assert validate(fixture)["source_commit"] == fixture[1]
+
+
+@pytest.mark.parametrize("version", ["v0.1.0", "v0.1.0-rc.10"])
+def test_stable_and_numbered_rc_versions_match_the_accepted_package(tmp_path: Path, version: str):
+    assert validate(candidate_fixture(tmp_path), version)["version"] == version
+
+
+@pytest.mark.parametrize("version", ["v1.0.0", "v0.1.0-beta.1", "v0.1.0-rc.invalid"])
+def test_publication_refuses_other_packages_or_unsupported_channels(tmp_path: Path, version: str):
+    with pytest.raises(ValueError, match="matching the package version"):
+        validate(candidate_fixture(tmp_path), version)
 
 
 @pytest.mark.parametrize(
@@ -274,11 +285,12 @@ def test_dry_run_validates_full_assets_without_remote_commands(
 
 
 @pytest.mark.parametrize("missing_code", [b"MANIFEST_UNKNOWN", b"NAME_UNKNOWN"])
+@pytest.mark.parametrize("version", [VERSION, "v0.1.0"])
 def test_promote_passes_literal_argv_preserves_digests_and_drafts(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing_code: bytes
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing_code: bytes, version: str
 ) -> None:
     source, revision, directory, run, artifacts = candidate_fixture(tmp_path)
-    candidate = validate((source, revision, directory, run, artifacts))
+    candidate = validate((source, revision, directory, run, artifacts), version)
     commands = []
     indexes = {}
     for arch in publication.ARCHES:
@@ -307,7 +319,7 @@ def test_promote_passes_literal_argv_preserves_digests_and_drafts(
             return b"[[]]"
         if args[:3] == ("skopeo", "inspect", "--raw"):
             for arch in publication.ARCHES:
-                if args[-1].endswith((f"pipeline-{arch}.tar", f"{VERSION}-{arch}")):
+                if args[-1].endswith((f"pipeline-{arch}.tar", f"{version}-{arch}")):
                     return indexes[arch]
             return combined
         return b""
@@ -331,7 +343,8 @@ def test_promote_passes_literal_argv_preserves_digests_and_drafts(
     )
     assert all("@sha256:" in arg for arg in buildx[6:])
     release = next(args for args in commands if args[:3] == ("gh", "release", "create"))
-    assert "--draft" in release and "--prerelease" in release and "--latest=false" in release
+    assert "--draft" in release and "--latest=false" in release
+    assert f"--prerelease={'true' if '-rc.' in version else 'false'}" in release
     assert release[release.index("--target") + 1] == revision
     assert str(tmp_path / "release with spaces/install.sh") in release
     state = json.loads((tmp_path / "release-publication-state.json").read_text())

@@ -8,6 +8,7 @@ import gzip
 import hashlib
 import hmac
 import io
+import json
 import os
 import re
 import subprocess
@@ -17,6 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -26,6 +28,9 @@ BUNDLE_FILES = (
     "installer_ui.py",
     "pipeline_runtime.py",
     "pipeline_management.py",
+    "pipeline_release.py",
+    "pipeline_update.py",
+    "bootstrap_installer.py",
     "internship-pipeline",
     "LICENSE",
 )
@@ -220,6 +225,25 @@ def main(argv: list[str] | None = None) -> int:
         payload = download(args.bundle_url, args.sha256)
         with tempfile.TemporaryDirectory(prefix="pipeline-reviewed-installer-") as temporary:
             bundle = unpack(payload, Path(temporary), args.version)
+            if "--update" in forwarded:
+                # Import only after the complete bundle has passed its reviewed hash.
+                sys.path.insert(0, str(bundle))
+                from pipeline_release import REPOSITORY, Release, fetch
+
+                metadata = json.loads(
+                    fetch(
+                        f"https://github.com/{REPOSITORY}/releases/download/"
+                        f"{args.version}/release-metadata.json"
+                    )
+                )
+                selected = Release.parse(metadata, args.version)
+                if selected.image != args.release_image or selected.bundle_sha256 != args.sha256:
+                    raise ValueError("Selected update differs from the reviewed release bundle.")
+                path = bundle / ".selected-release.json"
+                path.write_text(
+                    json.dumps({"schema": 1, "repository": REPOSITORY, **asdict(selected)})
+                )
+                path.chmod(0o600)
             return subprocess.run(
                 ["sh", str(bundle / "install.sh"), *forwarded, *image_args],
                 check=False,

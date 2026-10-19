@@ -62,8 +62,8 @@ conversion. Increment it for incompatible database, stored-value, configuration,
 encryption, or file-layout changes. Do not bump it for UI fixes or other changes
 that leave this contract intact. Do not add a format fallback or migration.
 
-The [CLI update plan](../agents/cli-release-update.md) will use exact source/target
-image declarations to decide whether an update can proceed. This declaration is
-the first prerequisite; the updater itself is still planned. Already published
-images without the module have not acquired a declaration retroactively, and no
-installed image or private data was changed by this source change.
+The [CLI updater](cli-updates.md) uses exact source/target image declarations to
+decide whether an update can proceed. Its implementation and checks are local
+until release acceptance/publication. Already published images without the module
+have not acquired a declaration retroactively, and editing this source does not
+change an installed image or private data.

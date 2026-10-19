@@ -15,6 +15,7 @@ import os
 import platform
 import re
 import subprocess
+import sys
 import tarfile
 import time
 from pathlib import Path
@@ -339,12 +340,56 @@ def main() -> None:
         "Recovered installed status did not report readiness",
     )
     command(recovered_manager, "stop")
+    # Exercise the real engine's update/cutover contract from the restored local
+    # config ID to the staged registry digest. Both refer to this candidate's
+    # exact image bytes: this is not a cross-release compatibility claim.
+    sys.path.insert(0, str(restored / "command"))
+    import bootstrap_installer as update_bootstrap
+    from pipeline_release import Release
+    from pipeline_runtime import host_lock
+    from pipeline_update import apply as apply_update
+
+    release = Release.parse(metadata, version)
+    original_download = update_bootstrap.download
+
+    def staged_download(url: str, expected: str) -> bytes:
+        if not url.startswith(release.base + "/"):
+            raise RuntimeError("Update requested an unrelated release artifact")
+        return checked_file(assets / url.rsplit("/", 1)[-1], expected)
+
+    update_bootstrap.download = staged_download
+    try:
+        with host_lock(restored):
+            updated = apply_update(restored, release)
+    finally:
+        update_bootstrap.download = original_download
+    smoke.require(updated.get("updated") is True, "Staged update did not cut over")
+    update_manifest = json.loads((restored / "installation.json").read_text())
+    smoke.require(
+        update_manifest["volume_name"] != destination["volume_name"]
+        and update_manifest["image"] == image
+        and update_manifest["install_id"] == destination["install_id"]
+        and update_manifest["origin"] == destination["origin"],
+        "Update changed identity/origin or reused original storage",
+    )
+    updated_status = json.loads(command(recovered_manager, "status", "--json"))
+    smoke.require(updated_status["running"] is False, "Update started a stopped installation")
     maintenance(
-        destination["volume_name"], "-", "verify", "--root", "/var/data/restored", data=fixture
+        update_manifest["volume_name"], "-", "verify", "--root", "/var/data/restored", data=fixture
     )
     command(recovered_manager, "start")
     smoke.ready(recovered, "owner")
+    updated_browser = smoke.Browser(update_manifest["origin"])
+    updated_browser.json("/api/login", credentials, updated_browser.json("/api/session")["csrf"])
     command(recovered_manager, "stop")
+    # The source volume still verifies independently after the candidate has run.
+    maintenance(
+        destination["volume_name"], "-", "verify", "--root", "/var/data/restored", data=fixture
+    )
+    with host_lock(restored):
+        smoke.require(
+            not apply_update(restored, release).get("updated"), "Repeated update was not idempotent"
+        )
     smoke.stopped(container)
     smoke.require(
         json.loads((source / "installation.json").read_text()) == manifest,
@@ -378,6 +423,7 @@ def main() -> None:
                 "source_commit": args.source_commit,
                 "image": image,
                 "storage_format": storage_format,
+                "cross_release_update": False,
                 "config_digest": image_id,
                 "engine": args.engine,
                 "architecture": platform.machine(),
@@ -390,6 +436,8 @@ def main() -> None:
                 "passed": [
                     "asset_hashes",
                     "image_storage_format",
+                    "same_image_update_copy_cutover",
+                    "updated_command_and_owner_login",
                     "fresh_install",
                     "owner_claim",
                     "saved_rerun",

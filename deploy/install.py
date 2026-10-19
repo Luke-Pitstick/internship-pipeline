@@ -25,15 +25,28 @@ from pipeline_runtime import (
     Runtime,
     RuntimeSpec,
     RuntimeUnavailable,
+    atomic_json,
     default_install_dir,
     discover_runtime,
+    host_lock,
     load_manifest,
+    private_json,
     validate_image,
     wait_ready,
     write_manifest,
 )
 
-BUNDLE_FILES = ("internship-pipeline", "pipeline_runtime.py", "pipeline_management.py", "LICENSE")
+BUNDLE_FILES = (
+    "internship-pipeline",
+    "pipeline_runtime.py",
+    "pipeline_management.py",
+    "pipeline_update.py",
+    "pipeline_release.py",
+    "bootstrap_installer.py",
+    "install.py",
+    "installer_ui.py",
+    "LICENSE",
+)
 
 
 def ensure_runtime(spec: RuntimeSpec) -> Runtime:
@@ -183,6 +196,11 @@ def install_command(install_dir: Path, command_dir: Path, install_id: str) -> No
     source_dir = Path(__file__).resolve().parent
     target, command = command_target(install_dir, command_dir)
     bundle = target.parent
+    if bundle.is_symlink():
+        resolved = bundle.resolve()
+        if not resolved.is_relative_to((install_dir / "updates").resolve()):
+            raise Failure("Command bundle points outside the installation update directory.")
+        bundle = resolved
     marker = bundle / ".installation-id"
     if bundle.exists():
         secure_directory(bundle, allow_nonempty=True)
@@ -223,6 +241,9 @@ def install_command(install_dir: Path, command_dir: Path, install_id: str) -> No
             destination.chmod(0o700 if filename == "internship-pipeline" else 0o600)
         marker.write_text(install_id + "\n")
         marker.chmod(0o600)
+        atomic_json(
+            bundle / ".installation-root", {"path": str(install_dir), "install_id": install_id}
+        )
     if command.is_symlink():
         if os.readlink(command) != str(target):
             raise Failure("Management command changed during installation; inspect its target.")
@@ -256,6 +277,49 @@ def restore_source(
     if not isinstance(image_id, str) or not re.fullmatch(r"(?:sha256:)?[a-f0-9]{64}", image_id):
         raise Failure("Exact source image identity is unavailable; preserve the source.")
     return source, "sha256:" + image_id.removeprefix("sha256:")
+
+
+def create_container(runtime: Runtime, manifest: Manifest, *, validation: bool = False) -> None:
+    """Create a stopped owned container for ordinary work or isolated validation."""
+    runtime.run(
+        "create",
+        "--pull",
+        "never",
+        "--name",
+        manifest.container_name,
+        "--label",
+        f"{LABEL}={manifest.install_id}",
+        "--init",
+        "--read-only",
+        "--tmpfs",
+        "/tmp",
+        "--restart",
+        "no" if validation else "unless-stopped",
+        "--stop-timeout",
+        "45",
+        "--health-cmd",
+        "python -m internship_pipeline.healthcheck",
+        "--health-interval",
+        "15s",
+        "--health-timeout",
+        "5s",
+        "--health-start-period",
+        "20s",
+        "--publish",
+        f"127.0.0.1:{manifest.port}:8080",
+        "--env",
+        f"PIPELINE_ORIGIN={manifest.origin}",
+        "--env",
+        f"PIPELINE_DATA_DIR={manifest.data_dir}",
+        "--env",
+        f"PIPELINE_CONFIG={manifest.data_dir}/config/settings.yaml",
+        "--mount",
+        f"type=volume,src={manifest.volume_name},dst=/var/data",
+        *(["--entrypoint", "python"] if validation else []),
+        manifest.image,
+        *(["-m", "internship_pipeline.update_validation"] if validation else []),
+        timeout=60,
+    )
 
 
 def provision(
@@ -317,47 +381,16 @@ def provision(
             with completed.open("x") as stream:
                 os.chmod(completed, 0o600)
                 stream.write(manifest.install_id + "\n")
+    if "-update-" in manifest.container_name:
+        from pipeline_update import activate_container
+
+        activate_container(runtime, manifest)
+        container = runtime.require_owned(manifest)
     if container is None:
         check_port(manifest.port)
         if manifest.data_dir == "/var/data":
             runtime.run("pull", manifest.image, timeout=600)
-        runtime.run(
-            "create",
-            "--pull",
-            "never",
-            "--name",
-            manifest.container_name,
-            "--label",
-            f"{LABEL}={manifest.install_id}",
-            "--init",
-            "--read-only",
-            "--tmpfs",
-            "/tmp",
-            "--restart",
-            "unless-stopped",
-            "--stop-timeout",
-            "45",
-            "--health-cmd",
-            "python -m internship_pipeline.healthcheck",
-            "--health-interval",
-            "15s",
-            "--health-timeout",
-            "5s",
-            "--health-start-period",
-            "20s",
-            "--publish",
-            f"127.0.0.1:{manifest.port}:8080",
-            "--env",
-            f"PIPELINE_ORIGIN={manifest.origin}",
-            "--env",
-            f"PIPELINE_DATA_DIR={manifest.data_dir}",
-            "--env",
-            f"PIPELINE_CONFIG={manifest.data_dir}/config/settings.yaml",
-            "--mount",
-            f"type=volume,src={manifest.volume_name},dst=/var/data",
-            manifest.image,
-            timeout=60,
-        )
+        create_container(runtime, manifest)
         container = runtime.require_owned(manifest)
     if not (container.get("State") or {}).get("Running"):
         runtime.run("start", manifest.container_name, timeout=30)
@@ -370,6 +403,9 @@ def parser() -> argparse.ArgumentParser:
             "Prepare a local Internship Pipeline installation using an explicit released image. "
             "No image/host matrix is certified yet."
         ),
+    )
+    cli.add_argument(
+        "--update", action="store_true", help="update an existing installation explicitly"
     )
     images = cli.add_mutually_exclusive_group()
     images.add_argument(
@@ -401,6 +437,39 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.update:
+        if (
+            args.restore_from
+            or args.restore_source
+            or args.image is not None
+            or args.runtime is not None
+            or args.port is not None
+        ):
+            print(
+                "Update retains the saved runtime and port; image overrides are unavailable.",
+                file=sys.stderr,
+            )
+            return 1
+        from pipeline_management import print_result
+        from pipeline_update import apply
+
+        try:
+            root = args.install_dir.expanduser().absolute()
+            selected = None
+            if args.default_image is not None:
+                from pipeline_release import Release
+
+                metadata = private_json(Path(__file__).with_name(".selected-release.json"))
+                selected = Release.parse(metadata, metadata.get("version", ""))
+                if selected.image != args.default_image:
+                    raise Failure("Selected update image differs from the reviewed release.")
+            with host_lock(root):
+                result = apply(root, selected)
+            print_result("update", result)
+            return 0
+        except (Failure, OSError, ValueError) as exc:
+            print(f"Update stopped: {exc}", file=sys.stderr)
+            return 1
     progress = InstallProgress()
     progress.header()
     progress.start("Checking host, workspace and container engine")
@@ -442,6 +511,10 @@ def main(argv: list[str] | None = None) -> int:
                     "Another installer is using this directory; wait for it to finish."
                 ) from exc
             existing = manifest_path.exists() or manifest_path.is_symlink()
+            if existing:
+                from pipeline_update import require_idle
+
+                require_idle(install_dir)
             if existing:
                 manifest = load_manifest(manifest_path)
                 if (

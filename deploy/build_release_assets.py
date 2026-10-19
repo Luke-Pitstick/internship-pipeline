@@ -134,7 +134,7 @@ def build_release_assets(
         "bundle_sha256": bundle["archive_sha256"],
         "launcher_sha256": hashlib.sha256(launcher).hexdigest(),
         "candidate": candidate,
-        "publication": "Draft prerelease; anonymous hosting and host acceptance remain separate.",
+        "publication": "Draft release; anonymous hosting and host acceptance remain separate.",
     }
     (output_dir / "release-metadata.json").write_text(
         json.dumps(metadata, sort_keys=True, indent=2) + "\n"

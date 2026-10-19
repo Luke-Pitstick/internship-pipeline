@@ -1,4 +1,4 @@
-name: Publish verified curl preview
+name: Publish verified curl release
 on:
   workflow_run:
     workflows: [Container image candidates]
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: Successful manual container-images.yml run on this default-branch revision
+        description: Successful container-images.yml run on this default-branch revision
         required: true
         type: string
       source_sha:
@@ -14,7 +14,7 @@ on:
         required: true
         type: string
       version:
-        description: Explicit prerelease matching package version, for example v0.1.0-rc.1
+        description: Stable release or numbered RC matching the package version (v1.0.0 or v1.0.0-rc.1)
         required: true
         type: string
 permissions:
@@ -96,7 +96,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.PIPELINE_SOURCE_SHA }}
-      - name: Select the immutable preview version
+      - name: Select the immutable release version
         run: |
           python3 - <<'PY'
           import os, tomllib
@@ -127,7 +127,7 @@ jobs:
           set -eu
           printf '%s' "$GH_TOKEN" | skopeo login --username "$PIPELINE_ACTOR" --password-stdin ghcr.io
           printf '%s' "$GH_TOKEN" | docker login --username "$PIPELINE_ACTOR" --password-stdin ghcr.io
-      - name: Revalidate, preserve OCI bytes, and create a draft prerelease
+      - name: Revalidate, preserve OCI bytes, and create a draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -156,7 +156,6 @@ jobs:
 
   install:
     needs: promote
-    if: github.event_name == 'workflow_run'
     permissions:
       contents: read
       actions: read
@@ -208,7 +207,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.PIPELINE_SOURCE_SHA }}
-      - name: Publish the accepted preview and verify anonymous curl resolution
+      - name: Publish the accepted release and verify anonymous curl resolution
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLICATION_RUN: ${{ github.run_id }}
@@ -216,7 +215,10 @@ jobs:
           set -eu
           gh run download "$PUBLICATION_RUN" --name "curl-release-$PUBLICATION_RUN" --dir "$RUNNER_TEMP/staging"
           VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$RUNNER_TEMP/staging/release/release-metadata.json")
-          gh release edit "$VERSION" --draft=false --prerelease --latest=false
+          case "$VERSION" in
+            *-rc.*) gh release edit "$VERSION" --draft=false --prerelease --latest=false ;;
+            *) gh release edit "$VERSION" --draft=false --prerelease=false --latest ;;
+          esac
           for asset in install.sh release-metadata.json; do
             curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
               "https://github.com/$PIPELINE_REPOSITORY/releases/download/$VERSION/$asset" \

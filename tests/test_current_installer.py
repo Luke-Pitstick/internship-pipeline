@@ -44,10 +44,14 @@ def execute(
     if api_rate_limit:
         releases = {"message": "API rate limit exceeded"}
     metadata = {
+        "schema": 1,
         "repository": "Luke-Pitstick/internship-pipeline",
         "version": VERSION,
         "source_commit": "bad" if wrong_source else REVISION,
         "image": "ghcr.io/luke-pitstick/internship-pipeline@sha256:" + "b" * 64,
+        "storage_format": 1,
+        "bootstrap_sha256": "c" * 64,
+        "bundle_sha256": "d" * 64,
         "launcher_sha256": hashlib.sha256(LAUNCHER).hexdigest(),
     }
     payloads = tmp_path / "payloads"
@@ -55,6 +59,9 @@ def execute(
     (payloads / "releases.json").write_text(json.dumps(releases))
     (payloads / "release-metadata.json").write_text(json.dumps(metadata))
     (payloads / "install.sh").write_bytes(LAUNCHER + (b"#corrupt" if corrupt else b""))
+    (payloads / "pipeline_release.py").write_bytes(
+        (Path(__file__).resolve().parents[1] / "deploy/pipeline_release.py").read_bytes()
+    )
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     curl = bin_dir / "curl"
@@ -64,7 +71,7 @@ def execute(
         "url=sys.argv[-1]\n"
         f"if {download_failure!r}: sys.exit(22)\n"
         "name='releases.json' if 'api.github.com' in url else url.rsplit('/',1)[-1]\n"
-        "if name!='releases.json':\n"
+        "if name not in {'releases.json','pipeline_release.py'}:\n"
         f"    assert '/releases/download/{VERSION}/' in url\n"
         "shutil.copyfile(pathlib.Path(os.environ['PAYLOADS'])/name,"
         "sys.argv[sys.argv.index('--output')+1])\n"
@@ -102,7 +109,7 @@ def test_current_curl_refuses_unverified_or_incomplete_release(tmp_path, failure
 
 
 def test_partial_current_launcher_cannot_start_a_download(tmp_path):
-    script = SCRIPT[: SCRIPT.index("PIPELINE_SELECT\n)")]
+    script = SCRIPT[: SCRIPT.rindex("\n)")]
     result = subprocess.run(
         ["sh", "-s"],
         input=script,
@@ -117,7 +124,7 @@ def test_partial_current_launcher_cannot_start_a_download(tmp_path):
 @pytest.mark.parametrize(
     "failure,expected",
     [
-        ("download_failure", "could not download releases.json"),
+        ("download_failure", "could not download pipeline_release.py"),
         ("api_rate_limit", "GitHub API rate limit exceeded"),
     ],
 )

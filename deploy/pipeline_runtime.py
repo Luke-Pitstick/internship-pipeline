@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -13,6 +14,8 @@ import subprocess
 import tarfile
 import tempfile
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, cast
@@ -20,6 +23,92 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 LABEL = "io.internship-pipeline.install-id"
+
+
+@contextmanager
+def host_lock(root: Path) -> Iterator[None]:
+    """Serialize host lifecycle commands with the installer's existing lock."""
+    if root.is_symlink() or not root.is_dir() or root.stat().st_uid != os.getuid():
+        raise Failure(
+            "Use an existing installation directory owned by you; run the installer first."
+        )
+    if root.stat().st_mode & 0o022:
+        raise Failure("Installation directory must not be writable by other users.")
+    descriptor = os.open(root / ".installer.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        if os.fstat(descriptor).st_uid != os.getuid():
+            raise Failure("Installation lock must be owned by you.")
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise Failure(
+                "Another installation command is running; wait for it to finish."
+            ) from None
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def atomic_json(path: Path, payload: Any) -> None:
+    atomic_text(path, json.dumps(payload, sort_keys=True, indent=2) + "\n")
+
+
+def atomic_text(path: Path, payload: str) -> None:
+    """Durably replace one private state file; callers hold the installation lock."""
+    if path.is_symlink():
+        raise Failure("Refusing a symlink state file; preserve the installation.")
+    descriptor, temporary = tempfile.mkstemp(prefix=".state-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        sync_directory(path.parent)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def sync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def private_json(path: Path) -> dict[str, Any]:
+    if (
+        path.is_symlink()
+        or not path.is_file()
+        or path.stat().st_uid != os.getuid()
+        or path.stat().st_mode & 0o077
+        or path.stat().st_size > 65536
+    ):
+        raise Failure("Update state must be a regular private file owned by you.")
+    try:
+        value = json.loads(path.read_text())
+        if not isinstance(value, dict):
+            raise ValueError
+        return value
+    except (ValueError, OSError):
+        raise Failure("Update state is invalid; preserve the installation.") from None
+
+
+def require_complete_restore(root: Path, manifest: Manifest) -> None:
+    if manifest.data_dir != "/var/data/restored":
+        return
+    marker = root / ".restore-completed"
+    if (
+        marker.is_symlink()
+        or not marker.is_file()
+        or marker.stat().st_uid != os.getuid()
+        or marker.stat().st_mode & 0o077
+        or marker.read_text().strip() != manifest.install_id
+    ):
+        raise Failure("Restore completion is unconfirmed; preserve the destination.")
+
 
 RESTORE_STREAM = """\
 import hashlib, os, pathlib, sys, tarfile
@@ -217,8 +306,10 @@ def load_manifest(path: Path) -> Manifest:
         stem = "internship-pipeline-" + manifest.install_id
         if (
             manifest.schema_version != 1
-            or manifest.container_name != stem
-            or manifest.volume_name != stem + "-data"
+            or not re.fullmatch(
+                re.escape(stem) + r"(?:-update-[0-9a-f]{32})?", manifest.container_name
+            )
+            or manifest.volume_name != manifest.container_name + "-data"
             or type(manifest.port) is not int
             or not 1024 <= manifest.port <= 65535
             or manifest.origin != f"http://localhost:{manifest.port}"

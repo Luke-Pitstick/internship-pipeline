@@ -19,6 +19,9 @@ BUNDLE_FILES = (
     "installer_ui.py",
     "pipeline_runtime.py",
     "pipeline_management.py",
+    "pipeline_release.py",
+    "pipeline_update.py",
+    "bootstrap_installer.py",
     "internship-pipeline",
 )
 ARCHIVE_FILES = (*BUNDLE_FILES, "LICENSE")

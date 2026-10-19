@@ -7,10 +7,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pipeline_management import main  # noqa: E402
+from pipeline_runtime import Failure, load_manifest, private_json  # noqa: E402
 
 if __name__ == "__main__":
     bundle = Path(__file__).resolve().parent
-    installation = bundle.parent
-    raise SystemExit(
-        main(install_dir=installation if (bundle / ".installation-id").is_file() else None)
-    )
+    installation = None
+    if (bundle / ".installation-id").is_file():
+        try:
+            identity = private_json(bundle / ".installation-root")
+            installation = Path(identity["path"])
+            identifier = load_manifest(installation / "installation.json").install_id
+            if (
+                identifier != identity["install_id"]
+                or identifier != (bundle / ".installation-id").read_text().strip()
+            ):
+                raise Failure("Command bundle belongs to another installation.")
+        except (Failure, OSError, ValueError, KeyError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            raise SystemExit(1) from None
+    raise SystemExit(main(install_dir=installation))

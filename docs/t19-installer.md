@@ -26,7 +26,7 @@ The reviewed bundle also accepts `--restore-from /private/complete-snapshot --re
 
 The new owned volume restores to `/var/data/restored` and the private manifest records that root for the application and installed management. Once restore completion is recorded, ordinary reruns can recreate/start its missing or stopped container without repeating restore. An interrupted/unconfirmed restore keeps its volume and refuses startup; create a separate fresh recovery destination rather than removing markers or modifying the manifest. The original volume/container/root remain untouched. The host owner copies the private backup through a temporary tar and container stdin; no host backup bind, chmod/chown or UID mapping override is used. The image user extracts/validates it in the new owned volume before restore. Temporary host disk, destination space for two copies, fresh-volume image-UID ownership and actual engine stdio need per-host acceptance.
 
-This first release has no automatic updater or data compatibility across development/release snapshots. Install a fresh release or restore that installation's complete backup using its exact image. Do not edit an old manifest into the new schema or claim an installer rerun upgrades it.
+Normal installer reruns retain the existing release. The explicit [update workflow](cli-updates.md) implements same-format updates using separate candidate storage and recoverable cutover; its public availability requires release acceptance. There is no background updater, data migration, or support for undeclared older development formats. Same-image backup/recovery remains separate. Do not edit a manifest to force an upgrade.
 
 ## Runtime choice and storage
 

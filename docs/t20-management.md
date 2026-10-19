@@ -163,7 +163,7 @@ The destination command uses its own manifest and completion marker, so `start`,
 
 ## First-release image contract
 
-There is no automatic updater, cross-release migration or downgrade compatibility. Installer reruns retain their saved image, endpoint, port and data root. Fresh first-release installation and complete exact-image backup/recovery are the current contract. Upgrading development snapshots by changing their manifest or running a new image against old data is unsupported. Broader updates require a separate requirement and accepted test path; no cross-version procedure is implied by these recovery commands.
+There is no background updater, data migration, or downgrade command. Installer reruns retain their selected release. The explicit [update command](cli-updates.md) implements a verified copy and cutover when both images declare the same storage format, preserving the saved endpoint, port, and installation identity. Undeclared development snapshots are refused. Same-image backup/recovery remains separate; cross-release update acceptance must name the exact tested source and target.
 
 ## Recorded checks and missing acceptance
 
