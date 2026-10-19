@@ -157,13 +157,13 @@ def test_data_preserving_lifecycle_literal_argv_and_frozen_runtime(installed, mo
     monkeypatch.setenv("DOCKER_CONTEXT", "unrelated-global-context")
     monkeypatch.setenv("DOCKER_HOST", "tcp://unrelated-host:2375")
     monkeypatch.setenv("CONTAINER_CONNECTION", "unrelated-machine")
-    assert run(installation, "start", "--wait", "2") == 0
+    assert run(installation, "start", "--wait", "2", "--json") == 0
     assert json.loads(capsys.readouterr().out)["ready"] is True
-    assert run(installation, "start", "--wait", "2") == 0
+    assert run(installation, "start", "--wait", "2", "--json") == 0
     assert json.loads(capsys.readouterr().out)["ready"] is True
-    assert run(installation, "status") == 0
+    assert run(installation, "status", "--json") == 0
     assert json.loads(capsys.readouterr().out)["ready"] is True
-    assert run(installation, "stop") == 0
+    assert run(installation, "stop", "--json") == 0
     assert json.loads(capsys.readouterr().out)["volume_preserved"] is True
     assert run(installation, "stop") == 0
     operations = [x["argv"][2:] for x in calls(engine_dir)]
@@ -175,6 +175,149 @@ def test_data_preserving_lifecycle_literal_argv_and_frozen_runtime(installed, mo
     assert all(x["connection_env"] == {} for x in calls(engine_dir))
     assert os.environ["DOCKER_CONTEXT"] == "unrelated-global-context"
     assert not (Path.cwd() / "SHOULD_NOT_EXIST").exists()
+
+
+def test_everyday_commands_are_readable_and_preserve_data(installed, capsys):
+    installation, manifest, engine_dir = installed
+    assert run(installation, "stop") == 0
+    assert capsys.readouterr().out == "Application stopped. Your data is saved.\n"
+    assert run(installation, "status") == 0
+    stopped = capsys.readouterr().out
+    assert "Status     Stopped" in stopped and manifest.url in stopped
+    assert "internship-pipeline start" in stopped
+    assert run(installation, "start") == 0
+    assert capsys.readouterr().out == f"Application is running.\n\n  Workspace  {manifest.url}\n"
+    assert run(installation, "status") == 0
+    running = capsys.readouterr().out
+    assert "Status     Running" in running
+    assert "Runtime    " + manifest.runtime.name.title() in running
+    assert run(installation, "logs") == 0
+    assert "No recent worker failures." in capsys.readouterr().out
+    assert run(installation, "url") == 0
+    assert capsys.readouterr().out == manifest.url + "\n"
+    assert "{" not in stopped + running
+    assert all(x["argv"][2] not in {"rm", "create", "pull"} for x in calls(engine_dir))
+
+
+def test_status_distinguishes_stopped_starting_and_ready(installed, capsys):
+    installation, _, engine_dir = installed
+    assert run(installation, "status", "--json") == 0
+    assert json.loads(capsys.readouterr().out)["ready"] is False
+    alter(engine_dir, lambda state: state["container"]["State"].update(
+        Running=True, Health={"Status": "starting"}
+    ))
+    assert run(installation, "status") == 0
+    assert "Starting or needs attention" in capsys.readouterr().out
+    assert run(installation, "status", "--json") == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["running"] is True and result["ready"] is False
+
+
+@pytest.mark.parametrize("before", [True, False])
+@pytest.mark.parametrize("command", ["status", "start", "stop", "logs", "url"])
+def test_json_and_install_directory_work_on_either_side_of_command(
+    installed, capsys, before, command
+):
+    installation, manifest, _ = installed
+    options = ["--json", "--install-dir", str(installation)]
+    assert management.main([*options, command] if before else [command, *options]) == 0
+    output = capsys.readouterr()
+    assert output.err == "" and "\033" not in output.out
+    result = json.loads(output.out)
+    if command == "url":
+        assert result == manifest.url
+    elif command == "stop":
+        assert result == {"running": False, "volume_preserved": True}
+    elif command == "logs":
+        assert result == {"events": [], "omitted_lines": 0}
+    else:
+        assert result["url"] == manifest.url
+
+
+@pytest.mark.parametrize("command", [
+    None, "start", "stop", "status", "logs", "url", "open", "setup-token", "recover-owner"
+])
+def test_help_is_available_without_an_installation_or_runtime(command, capsys):
+    if command is None:
+        assert management.main([]) == 0
+    else:
+        with pytest.raises(SystemExit) as exc:
+            management.main([command, "--help"])
+        assert exc.value.code == 0
+    output = capsys.readouterr()
+    assert "usage: internship-pipeline" in output.out and output.err == ""
+
+
+@pytest.mark.parametrize("command", ["setup-token", "recover-owner"])
+def test_recovery_confirmation_is_readable(installed, monkeypatch, capsys, command):
+    installation, _, _ = installed
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    assert run(installation, command) == 0
+    output = capsys.readouterr().out
+    assert "Your data is saved." in output
+    assert "Run internship-pipeline start" in output
+    assert "volume_preserved" not in output
+
+
+@pytest.mark.parametrize("command", ["setup-token", "recover-owner"])
+def test_interactive_recovery_rejects_json_before_runtime(installed, command):
+    installation, _, engine_dir = installed
+    with pytest.raises(SystemExit) as exc:
+        run(installation, command, "--json")
+    assert exc.value.code == 2 and calls(engine_dir) == []
+
+
+def test_human_logs_still_hide_private_lines(installed, capsys):
+    installation, _, engine_dir = installed
+    alter(engine_dir, lambda state: state.update(logs=(
+        "Owner setup token: synthetic-secret\n"
+        "Worker collector exited unexpectedly: 1\n"
+        "Worker matcher could not start: OSError\n"
+    )))
+    assert run(installation, "logs") == 0
+    output = capsys.readouterr().out
+    assert "collector: exited unexpectedly (exit code 1)." in output
+    assert "matcher: could not start." in output
+    assert "1 other log line hidden for privacy." in output
+    assert "synthetic-secret" not in output
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize("command", ["status", "logs"])
+def test_diagnostics_output_keeps_prompts_and_secrets_out_of_stdout(
+    installed, monkeypatch, capsys, command, json_output
+):
+    installation, _, engine_dir = installed
+    alter(engine_dir, lambda state: state["container"]["State"].update(Running=True))
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt: "owner")
+    monkeypatch.setattr(management.getpass, "getpass", lambda prompt: "synthetic-password")
+    data = {
+        "at": 1_700_000_000,
+        "workers": {"healthy": True, "roles": ["collector", "private-token"]},
+        "sources": [{"healthy": False, "last_success": 1e100, "error": "private-token"}],
+        "queue": [{"kind": "match", "status": "pending", "count": 2}],
+        "activity": [{"kind": "match", "running": 1, "oldest_update": 1_700_000_000}],
+        "failed": [{"id": 3, "attempts": 2, "retryable": True, "error": "private-token"}],
+        "models": [{"operation": "model_attempts", "status": "rate_limited", "count": 1}],
+        "logs": [{"at": 1_700_000_000, "event": "work_failed", "message": "private-token"}],
+    }
+    monkeypatch.setattr(management.DiagnosticsClient, "fetch", lambda *args: data)
+    args = [command, "--diagnostics", *(["--json"] if json_output else [])]
+    assert run(installation, *args) == 0
+    output = capsys.readouterr()
+    assert output.err == "Owner username: "
+    assert "private-token" not in output.out and "synthetic-password" not in output.out
+    if json_output:
+        result = json.loads(output.out)
+        assert isinstance(result["diagnostics"], dict if command == "status" else list)
+    else:
+        assert "2023-11-14 22:13 UTC  Work failed." in output.out
+        assert "Settings > Diagnostics" in output.out
+        if command == "status":
+            assert "Workers: Healthy" in output.out
+            assert "Last success: Unknown" in output.out
+            assert "Status: rate limited" in output.out
 
 
 @pytest.mark.parametrize("change", ["container", "volume", "image", "mount", "port"])
@@ -250,7 +393,7 @@ def test_runtime_logs_omit_secrets_and_arbitrary_exceptions(installed, capsys):
             )
         ),
     )
-    assert run(installation, "logs", "--lines", "20") == 0
+    assert run(installation, "logs", "--lines", "20", "--json") == 0
     output = capsys.readouterr().out
     assert "secret" not in output and "resume" not in output and "private-token" not in output
     data = json.loads(output)
@@ -267,7 +410,7 @@ def test_runtime_stderr_lifecycle_events_are_preserved_and_sanitized(installed, 
             stderr_logs="Worker matcher could not start: OSError\nBearer stderr-secret\n",
         ),
     )
-    assert run(installation, "logs") == 0
+    assert run(installation, "logs", "--json") == 0
     output = capsys.readouterr()
     assert "secret" not in output.out + output.err
     summary = json.loads(output.out)
@@ -612,3 +755,28 @@ def test_open_claimed_instance_uses_normal_sign_in_and_prints_link_if_browser_un
     assert "Browser could not open automatically" in output
     assert manifest.origin + "/" in output
     assert "#setup=" not in output
+
+
+@pytest.mark.parametrize("error", [OSError, management.webbrowser.Error])
+def test_browser_errors_print_a_link_without_a_traceback(installed, monkeypatch, capsys, error):
+    installation, manifest, engine_dir = installed
+    alter(engine_dir, lambda state: state["container"]["State"].update(Running=True))
+    alter(engine_dir, lambda state: state.update(browser_url=manifest.origin + "/"))
+
+    def unavailable(url):
+        raise error("synthetic-private-error")
+
+    monkeypatch.setattr(management.webbrowser, "open", unavailable)
+    assert run(installation, "open") == 0
+    output = capsys.readouterr()
+    assert "Browser could not open automatically" in output.out
+    assert manifest.origin in output.out
+    assert "synthetic-private-error" not in output.out + output.err
+
+
+def test_install_directory_expands_home(installed, monkeypatch, capsys):
+    installation, manifest, engine_dir = installed
+    monkeypatch.setenv("HOME", str(installation.parent))
+    assert management.main(["url", "--install-dir", "~/installation"]) == 0
+    assert capsys.readouterr().out.strip() == manifest.url
+    assert calls(engine_dir) == []

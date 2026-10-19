@@ -22,7 +22,7 @@ internship-pipeline url
 internship-pipeline open
 ```
 
-`--install-dir /private/installation` before the subcommand selects an existing installation explicitly. `show-url` is an alias for `url`. URL discovery works with the runtime stopped; `open` invokes the system browser only when explicitly requested. `url` prints the saved loopback origin without contacting the engine. `open` requires the owned container to be running and ready; it issues and opens a private setup link before claim, or opens ordinary sign-in after claim. Keep its output private.
+`--install-dir /private/installation` before or after the subcommand selects an existing installation explicitly. `show-url` is an alias for `url`. URL discovery works with the runtime stopped; `open` invokes the system browser only when explicitly requested. `url` prints the saved loopback origin without contacting the engine. `open` requires the owned container to be running and ready; it issues and opens a private setup link before claim, or opens ordinary sign-in after claim. Keep its output private.
 
 | Command | Behavior and limits |
 | --- | --- |
@@ -39,7 +39,47 @@ The schema-1 `installation.json` records the installation UUID, explicit image v
 
 Owner diagnostics perform `/api/session` → CSRF-protected `/api/login` → `/api/diagnostics` → `/api/logout`. Cookies remain in process memory, redirects and ambient HTTP proxies are disabled, responses have a size limit, and individual requests have a five-second timeout. The client clears its cookie jar even on error and attempts logout after a session exists; a network failure during logout may leave that short-lived server session until normal expiry. Passwords/tokens aren't accepted as arguments or saved in files. Output includes an additional field/value allowlist, so arbitrary response fields cannot print credentials or private exception text. Diagnostics show the activity available in T17; they do not claim a complete history of completed search runs. Use Settings → Diagnostics to inspect and deliberately retry work.
 
+## Readable output and scripts
+
+Commands show readable summaries by default. Running `internship-pipeline` with no
+arguments shows help. For example:
+
+```text
+$ internship-pipeline stop
+Application stopped. Your data is saved.
+
+$ internship-pipeline status
+Internship Pipeline
+
+  Status     Stopped
+  Workspace  http://localhost:8080
+  Runtime    Docker
+
+Run internship-pipeline start to start the app.
+
+Use internship-pipeline status --diagnostics for work activity.
+```
+
+Scripts that parse results must request JSON explicitly:
+
+```sh
+internship-pipeline status --json
+internship-pipeline start --json
+internship-pipeline stop --json
+internship-pipeline logs --json
+```
+
+`--json` works before or after the command. It writes only JSON to stdout; errors
+and diagnostic sign-in prompts go to stderr. `url` prints a plain URL by default
+and a JSON string with `--json`. Account recovery is interactive and rejects
+`--json` because its private terminal prompts aren't a script interface. Diagnostic
+summaries keep the same privacy allowlist in both output formats.
+
 ## Private backup and recovery
+
+For a forgotten sign-in password, use the [password reset guide](password-recovery.md)
+for the terminal commands and prompts. You can reset your sign-in details without
+restoring a backup.
 
 The host command manages lifecycle and has explicit stopped-only token/owner recovery
 commands. They delegate to the **image's** maintenance CLI using the saved installation

@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 import warnings
 import webbrowser
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -266,7 +267,11 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
     state = _state(container)
     if args.command == "open":
         url = runtime.browser_url(manifest)
-        if not webbrowser.open(url):
+        try:
+            opened = webbrowser.open(url)
+        except (OSError, webbrowser.Error):
+            opened = False
+        if not opened:
             return f"Browser could not open automatically. Open your workspace: {url}"
         return url
     if args.command in {"setup-token", "recover-owner"}:
@@ -311,7 +316,8 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
             raise Failure(
                 "Owner diagnostics require an interactive terminal; open Settings → Diagnostics."
             )
-        username = input("Owner username: ")
+        print("Owner username: ", end="", file=sys.stderr, flush=True)
+        username = input("")
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("error", getpass.GetPassWarning)
@@ -325,13 +331,129 @@ def manage(args: argparse.Namespace, manifest: Manifest) -> dict[str, Any] | str
     return result
 
 
+def _detail(value: Any, field: str) -> str:
+    if value is None:
+        return "Unknown"
+    if field in {"at", "last_attempt", "last_success", "oldest_update", "lease_until", "updated"}:
+        try:
+            return datetime.fromtimestamp(value, UTC).strftime("%Y-%m-%d %H:%M UTC")
+        except (ValueError, OverflowError, OSError):
+            return "Unknown"
+    if field == "healthy":
+        return "Healthy" if value else "Needs attention"
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if field == "error":
+        return "Check Settings > Diagnostics"
+    return str(value).replace("_", " ")
+
+
+def print_diagnostics(summary: dict[str, Any]) -> None:
+    """Format only the bounded, sanitized diagnostics returned by diagnostic_summary."""
+    workers = summary["workers"]
+    print(f"\nWorkers: {_detail(workers['healthy'], 'healthy')}")
+    if workers["roles"]:
+        print("  " + ", ".join(workers["roles"]))
+    sections = (
+        ("Sources", "sources", ("healthy", "last_attempt", "last_success", "age_seconds", "error")),
+        ("Queue", "queue", ("kind", "status", "count")),
+        ("Active work", "activity", ("kind", "running", "oldest_update", "lease_until")),
+        ("Failed work", "failed", ("id", "attempts", "updated", "retryable")),
+        ("Models", "models", ("operation", "status", "count")),
+    )
+    labels = {
+        "healthy": "Health",
+        "last_attempt": "Last attempt",
+        "last_success": "Last success",
+        "age_seconds": "Age (seconds)",
+        "error": "Issue",
+        "kind": "Work",
+        "status": "Status",
+        "count": "Count",
+        "running": "Running",
+        "oldest_update": "Last update",
+        "lease_until": "Lease until",
+        "id": "Task",
+        "attempts": "Attempts",
+        "updated": "Updated",
+        "retryable": "Can retry",
+        "operation": "Operation",
+    }
+    for title, key, fields in sections:
+        records = summary[key]
+        print(f"\n{title}" + ("" if records else ": None"))
+        for index, record in enumerate(records, 1):
+            if len(records) > 1:
+                print(f"  {index}.")
+            for field in fields:
+                if field == "error" and record[field] is None:
+                    continue
+                print(f"    {labels[field]}: {_detail(record[field], field)}")
+    print_work_logs(summary["logs"])
+
+
+def print_work_logs(records: list[dict[str, Any]]) -> None:
+    print("\nWork events" + ("" if records else ": No recent failures."))
+    for record in records:
+        print(f"  {_detail(record['at'], 'at')}  Work failed.")
+    if records:
+        print("  Open Settings > Diagnostics for details and retry options.")
+
+
+def print_result(command: str, result: dict[str, Any] | str) -> None:
+    """Keep everyday commands readable, with JSON reserved for explicit --json use."""
+    if isinstance(result, str):
+        if command == "open" and result.startswith("http"):
+            print(f"Opened your workspace.\n\n  {result}")
+        else:
+            print(result)
+    elif command == "stop":
+        print("Application stopped. Your data is saved.")
+    elif command == "start":
+        print(f"Application is running.\n\n  Workspace  {result['url']}")
+    elif command in {"setup-token", "recover-owner"}:
+        message = "Setup token refreshed." if command == "setup-token" else "Owner recovered."
+        print(f"{message} Your data is saved.\nRun internship-pipeline start when you're ready.")
+    elif command == "logs" and "events" in result:
+        events = result["events"]
+        print("Worker events" if events else "No recent worker failures.")
+        for event in events:
+            detail = (
+                f"exited unexpectedly (exit code {event['exit_code']})"
+                if event["event"] == "worker_exited" else "could not start"
+            )
+            print(f"  {event['role']}: {detail}.")
+        if result["omitted_lines"]:
+            count = result["omitted_lines"]
+            noun = "line" if count == 1 else "lines"
+            print(f"\n  {count} other log {noun} hidden for privacy.")
+        print("\nUse internship-pipeline logs --diagnostics for work events.")
+    elif command == "logs":
+        print_work_logs(result["diagnostics"])
+    else:
+        if not result["running"]:
+            status = "Stopped"
+        else:
+            status = "Running" if result["ready"] else "Starting or needs attention"
+        print(f"Internship Pipeline\n\n  Status     {status}")
+        print(f"  Workspace  {result['url']}\n  Runtime    {result['runtime'].title()}")
+        if isinstance(result["diagnostics"], dict):
+            print_diagnostics(result["diagnostics"])
+        else:
+            if not result["running"]:
+                print("\nRun internship-pipeline start to start the app.")
+            print("\nUse internship-pipeline status --diagnostics for work activity.")
+
+
 def parser(install_dir: Path | None = None) -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
-        description="Manage an existing installation; never creates or replaces its data.",
-        epilog="Use status --diagnostics for an interactive owner sign-in. "
-        "Fresh exact-image restore: installer --restore-from/--restore-source; "
-        "see docs/t20-management.md. Automatic and cross-release updates are unsupported. "
-        "The host command and the image's maintenance CLI have different commands.",
+        prog="internship-pipeline",
+        description="Open and manage your local Internship Pipeline workspace.",
+        epilog="Get started: internship-pipeline open\n"
+        "Check activity: internship-pipeline status --diagnostics\n"
+        "Get command help: internship-pipeline <command> --help",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
     )
     root.add_argument(
         "--install-dir",
@@ -339,48 +461,60 @@ def parser(install_dir: Path | None = None) -> argparse.ArgumentParser:
         default=install_dir if install_dir is not None else default_install_dir(),
         help="directory containing the installer's installation.json",
     )
-    commands = root.add_subparsers(dest="command", required=True)
-    start = commands.add_parser("start", help="start the saved container and await image readiness")
+    root.add_argument("--json", action="store_true", help="print JSON for scripts")
+    commands = root.add_subparsers(dest="command", title="commands", metavar="COMMAND")
+    start = commands.add_parser("start", help="start the app and wait until it's ready")
     start.add_argument(
         "--wait", type=float, default=60, help="readiness deadline in seconds (1–120)"
     )
-    commands.add_parser(
-        "stop", help="stop the saved container while retaining its persistent volume"
-    )
-    status = commands.add_parser(
-        "status", help="show lifecycle readiness; work data requires sign-in"
-    )
+    commands.add_parser("stop", help="stop the app and keep your data")
+    status = commands.add_parser("status", help="check whether the app is running")
     status.add_argument("--diagnostics", action="store_true", help="prompt for an owner login")
     logs = commands.add_parser(
-        "logs", help="show recognized lifecycle events; raw lines are omitted"
+        "logs", help="show recent worker failures with private details hidden"
     )
     logs.add_argument("--lines", type=int, default=100, help="bounded runtime tail (1–200)")
     logs.add_argument(
         "--diagnostics", action="store_true", help="prompt for sanitized owner event logs"
     )
     commands.add_parser(
-        "url", aliases=["show-url"], help="print the saved URL, even if runtime is stopped"
+        "url", aliases=["show-url"], help="print the workspace URL, even while stopped"
     )
     commands.add_parser("open", help="open the saved URL in your default browser")
     commands.add_parser(
-        "setup-token", help="rotate an unclaimed setup token using the stopped image and volume"
+        "setup-token", help="refresh the setup token before creating your account"
     )
     commands.add_parser(
-        "recover-owner", help="recover the owner interactively using the stopped image and volume"
+        "recover-owner", help="reset your account using a private terminal"
     )
+    for subcommand in set(commands.choices.values()):
+        subcommand.allow_abbrev = False
+        subcommand.add_argument(
+            "--json", action="store_true", default=argparse.SUPPRESS, help="print JSON for scripts"
+        )
+        subcommand.add_argument(
+            "--install-dir", type=Path, default=argparse.SUPPRESS,
+            help="use an existing installation in this directory",
+        )
     return root
 
 
 def main(argv: list[str] | None = None, *, install_dir: Path | None = None) -> int:
     command_parser = parser(install_dir)
     args = command_parser.parse_args(argv)
+    if args.command is None:
+        command_parser.print_help()
+        return 0
     if args.command == "show-url":
         args.command = "url"
+    if args.json and args.command in {"setup-token", "recover-owner"}:
+        command_parser.error("--json is unavailable for interactive account recovery")
     if not 1 <= getattr(args, "wait", 60) <= 120:
         command_parser.error("--wait must be between 1 and 120 seconds")
     if not 1 <= getattr(args, "lines", 100) <= 200:
         command_parser.error("--lines must be between 1 and 200")
     try:
+        args.install_dir = args.install_dir.expanduser()
         manifest = load_manifest(args.install_dir / "installation.json")
         if manifest.data_dir == "/var/data/restored":
             marker = args.install_dir / ".restore-completed"
@@ -393,10 +527,13 @@ def main(argv: list[str] | None = None, *, install_dir: Path | None = None) -> i
             ):
                 raise Failure("Restore completion is unconfirmed; preserve the destination.")
         result = manage(args, manifest)
-        print(result if isinstance(result, str) else json.dumps(result, indent=2))
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print_result(args.command, result)
         return 0
     except (Failure, OSError) as exc:
-        print(str(exc), file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     except (EOFError, KeyboardInterrupt):
         print("Command cancelled; installation data was preserved.", file=sys.stderr)

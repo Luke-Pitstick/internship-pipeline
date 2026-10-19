@@ -240,6 +240,17 @@ def test_piped_install_ready_management_without_checkout_and_new_release_rerun(
         assert managed.returncode == 0, managed.stderr
         if operation in {"status", "url"}:
             assert url in managed.stdout
+        assert "volume_preserved" not in managed.stdout
+
+    structured = subprocess.run(
+        [str(command), "status", "--json"],
+        text=True,
+        capture_output=True,
+        env=flow["env"],
+        timeout=15,
+    )
+    assert structured.returncode == 0, structured.stderr
+    assert json.loads(structured.stdout)["ready"] is True
 
     flow["state"].write_text(json.dumps({**json.loads(flow["state"].read_text()), "calls": []}))
     newer = candidate(flow, "v0.2.0-rc.1", "ghcr.io/example/internship-pipeline@sha256:" + "c" * 64)

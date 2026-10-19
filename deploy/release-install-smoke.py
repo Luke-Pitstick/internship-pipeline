@@ -144,7 +144,7 @@ def main() -> None:
     )["csrf"]
     browser.json("/api/onboarding/checkpoint", {"step": "models", "defer_models": True}, csrf)
     smoke.require(
-        json.loads(command(manager, "status"))["ready"] is True,
+        json.loads(command(manager, "status", "--json"))["ready"] is True,
         "Installed status did not report readiness",
     )
     command(manager, "url")
@@ -302,7 +302,7 @@ def main() -> None:
     )
     recovered_manager = str(restored_command / "internship-pipeline")
     smoke.require(
-        json.loads(command(recovered_manager, "status"))["ready"] is True,
+        json.loads(command(recovered_manager, "status", "--json"))["ready"] is True,
         "Recovered installed status did not report readiness",
     )
     command(recovered_manager, "stop")
