@@ -115,7 +115,7 @@ test('ChatGPT settings connect remotely, choose an account model, test limits, a
   await expect(general.getByLabel('Model',{exact:true})).toHaveValue('synthetic-model');
   await general.getByRole('button',{name:'Disconnect ChatGPT',exact:true}).click();
   await general.getByRole('button',{name:'Confirm disconnect',exact:true}).click();
-  await expect(general.getByRole('status')).toContainText('Remote revocation was not confirmed');
+  await expect(general.getByRole('status').filter({hasText: 'Remote revocation was not confirmed'})).toBeVisible();
   await expect(general.getByText('Reconnect this account to use its ChatGPT plan.')).toBeVisible();
   expect(await page.evaluate(() => Object.keys(localStorage).some(key => /chatgpt|token|pairing/i.test(key)))).toBe(false);
 });
@@ -137,4 +137,32 @@ test('local ChatGPT sign-in opens an authorization tab and cancellation remains 
   await page.getByRole('button',{name:'Cancel connection',exact:true}).click();
   await expect(page.getByRole('button',{name:'Continue with ChatGPT',exact:true})).toBeVisible();
   await signInTab.close();
+});
+
+test('ChatGPT model refresh reports an empty catalog, a failure and recovery', async ({page}) => {
+  await signIn(page);
+  const account = {id:'c'.repeat(64),email:'catalog@example.test',client_id:'oaiapp_catalog',status:'connected',welcomed:true};
+  const empty = {configured:false,revision:0,tested_revision:null,ready:false,config:null,last_test:null};
+  const config = {auth_mode:'chatgpt',chatgpt_account_id:account.id,model:'',endpoint:'https://api.openai.com/v1/responses',timeout_seconds:30,max_output_tokens:1024};
+  await page.route('**/api/model-connections', route => route.fulfill({json:{jev:empty,general:{...empty,configured:true,revision:1,config}}}));
+  await page.route('**/api/chatgpt', route => route.fulfill({json:{accounts:[account],local:true}}));
+  let mode: 'empty' | 'error' | 'success' = 'empty';
+  await page.route('**/api/chatgpt/models', route => {
+    expect(route.request().postDataJSON()).toEqual({account_id:account.id});
+    return mode === 'error' ? route.fulfill({status:502,json:{detail:'Could not load account models.'}})
+      : route.fulfill({json:{models:mode === 'empty' ? [] : [{slug:'available-model',display_name:'Available Model'}]}});
+  });
+  await page.goto('/settings/#AI%20Models');
+  const general = page.locator('form').filter({has:page.getByRole('heading',{name:'General LLM',exact:true})});
+  await expect(general.getByText('No models are available for this ChatGPT account.',{exact:true})).toBeVisible();
+  await expect(general.getByLabel('Model',{exact:true})).toBeDisabled();
+  mode = 'error';
+  await general.getByRole('button',{name:'Refresh available models',exact:true}).click();
+  await expect(general.getByRole('alert')).toHaveText('Could not load account models.');
+  mode = 'success';
+  await general.getByRole('button',{name:'Refresh available models',exact:true}).click();
+  await expect(general.getByText('1 model available.',{exact:true})).toBeVisible();
+  await expect(general.getByRole('alert')).toHaveCount(0);
+  await general.getByLabel('Model',{exact:true}).selectOption('available-model');
+  await expect(general.getByRole('button',{name:'Save General LLM',exact:true})).toBeEnabled();
 });

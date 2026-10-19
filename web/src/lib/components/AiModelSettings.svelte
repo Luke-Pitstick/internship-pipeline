@@ -2,6 +2,7 @@
   import { getContext, onMount } from 'svelte';
   import { Api } from '#lib/api.ts';
   import ChatGPTConnection from '#lib/components/ChatGPTConnection.svelte';
+  import ApiModelPicker from '#lib/components/ApiModelPicker.svelte';
   import { generalProviders, endpoints, modelConnections, type ModelConfig, type ModelConnections, type ModelKind } from '#lib/model-connections.ts';
   let {ondirty=()=>{}}=$props<{ondirty?:(value:boolean)=>void}>();
   const client = modelConnections(getContext<Api>('api'));
@@ -24,7 +25,7 @@
     return !!keys[kind] || (!!savedDrafts[kind] && JSON.stringify(drafts[kind]) !== savedDrafts[kind]);
   }
   function needsKey(kind: ModelKind) {
-    return !connections?.[kind].configured || connections[kind].config?.endpoint !== drafts[kind].endpoint;
+    return !connections?.[kind].configured || connections[kind].config?.endpoint !== drafts[kind].endpoint || connections[kind].config?.auth_mode === 'chatgpt';
   }
   function changeProvider(endpoint: string) {
     drafts.general = {...drafts.general,
@@ -91,14 +92,15 @@
         {#if kind === 'general' && drafts.general.auth_mode === 'chatgpt'}
           <ChatGPTConnection bind:config={drafts.general} revision={draftRevisions.general} disabled={busy !== null} ondisconnect={() => {void load();}} />
         {:else}
-        <label for={`${kind}-model`}>Model</label><input id={`${kind}-model`} required maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9._:\/\-]*" bind:value={drafts[kind].model} autocomplete="off" />
+        {#if kind === 'jev'}<label for="jev-model">Model</label><input id="jev-model" required maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9._:\/\-]*" bind:value={drafts.jev.model} autocomplete="off" />{/if}
         <label for={`${kind}-endpoint`}>Endpoint</label><input id={`${kind}-endpoint`} value={drafts[kind].endpoint} readonly /><small>Only this official endpoint is supported.</small>
         <label for={`${kind}-key`}>API key {connections[kind].configured ? needsKey(kind) ? '(required for selected provider)' : '(leave blank to keep saved key)' : ''}</label><input id={`${kind}-key`} type="password" maxlength="512" bind:value={keys[kind]} required={needsKey(kind)} autocomplete="new-password" spellcheck="false" />
+        {#if kind === 'general'}<ApiModelPicker bind:model={drafts.general.model} endpoint={drafts.general.endpoint} revision={draftRevisions.general} apiKey={keys.general} savedKey={!needsKey('general')} disabled={busy !== null} />{/if}
         {/if}
         <div class="model-limits"><div><label for={`${kind}-timeout`}>Timeout (seconds)</label><input id={`${kind}-timeout`} type="number" min="5" max="60" required bind:value={drafts[kind].timeout_seconds} /></div>
         {#if kind === 'general' && drafts.general.auth_mode !== 'chatgpt'}<div><label for={`${kind}-tokens`}>Maximum output tokens</label><input id={`${kind}-tokens`} type="number" min="256" max="4096" required bind:value={drafts[kind].max_output_tokens} /></div>{/if}</div>
         {#if kind === 'jev'}<small>Jev's decision contract has no output-token limit parameter. The probe uses three fixed questions and a 64 KiB response limit.</small>{/if}
-        <div class="model-actions"><button type="submit" disabled={kind === 'general' && drafts.general.auth_mode === 'chatgpt' && (!drafts.general.model || !drafts.general.chatgpt_account_id)}>Save {labels[kind]}</button><button type="button" disabled={!connections[kind].configured || dirty(kind)} onclick={() => action(kind, 'test')}>{busy === kind ? 'Working…' : `Test ${labels[kind]}`}</button>{#if connections[kind].configured && drafts[kind].auth_mode !== 'chatgpt'}<button type="button" onclick={() => confirmRemove = kind}>Remove {labels[kind]}</button>{/if}</div>
+        <div class="model-actions"><button type="submit" disabled={kind === 'general' && (!drafts.general.model || (drafts.general.auth_mode === 'chatgpt' && !drafts.general.chatgpt_account_id))}>Save {labels[kind]}</button><button type="button" disabled={!connections[kind].configured || dirty(kind)} onclick={() => action(kind, 'test')}>{busy === kind ? 'Working…' : `Test ${labels[kind]}`}</button>{#if connections[kind].configured && drafts[kind].auth_mode !== 'chatgpt'}<button type="button" onclick={() => confirmRemove = kind}>Remove {labels[kind]}</button>{/if}</div>
         {#if confirmRemove === kind}<div class="remove-confirm"><p>Remove this connection and its saved credential?</p><button type="button" onclick={() => action(kind, 'remove')}>Confirm removal</button><button type="button" onclick={() => confirmRemove = null}>Cancel</button></div>{/if}
       </fieldset>
       {#if connections[kind].configured}<p class="field-help">Connection revision {connections[kind].revision}. {#if dirty(kind)}Save changes before testing.{/if}</p>{/if}

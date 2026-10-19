@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from internship_pipeline.chatgpt.accounts import ChatGPTAccounts
 from internship_pipeline.chatgpt.protocol import ChatGPTError
+from internship_pipeline.providers.catalog import CatalogInput
 from internship_pipeline.providers.connections import (
     ENDPOINTS,
     ConnectionInput,
@@ -251,6 +252,27 @@ class ModelConnectionStore:
             raise ConnectionError(
                 "Credential unavailable. Restore the key or replace API key."
             ) from None
+
+    def catalog_key(self, body: CatalogInput) -> str | None:
+        """Use a draft key or resolve the same saved provider revision without saving."""
+        if body.endpoint == GENERAL_ENDPOINTS["openrouter"]:
+            return None
+        if body.api_key is not None:
+            return body.api_key.get_secret_value()
+        with self.connection() as db:
+            row = self._latest(db, "general")
+            if not row or row["deleted"]:
+                raise ConnectionError("Enter an API key to load available models.")
+            config = ConnectionInput(**json.loads(row["config"]), expected_revision=row["revision"])
+            if (
+                row["revision"] != body.expected_revision
+                or config.endpoint != body.endpoint
+                or config.auth_mode != "api_key"
+            ):
+                raise ConnectionError(
+                    "Enter a key for this provider or reload its saved connection."
+                )
+        return self.credential("general", config)
 
     def reserve_test(self, kind: Kind, expected_revision: int) -> tuple[int, ConnectionInput, str]:
         from internship_pipeline.providers.connections import probe_body

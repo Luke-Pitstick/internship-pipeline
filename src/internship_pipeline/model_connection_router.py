@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from internship_pipeline.model_connections import ConnectionError, ModelConnectionStore
+from internship_pipeline.providers.catalog import CatalogError, CatalogInput, list_models
 from internship_pipeline.providers.connections import ERRORS, ConnectionInput, Kind, probe
 
 
@@ -25,6 +26,16 @@ def build_model_connection_router(
     @router.get("")
     def read() -> dict[str, Any]:
         return store.summary()
+
+    @router.post("/general/models")
+    async def models(body: CatalogInput) -> dict[str, Any]:
+        try:
+            key = await to_thread(store.catalog_key, body)
+            return {"models": await list_models(body.endpoint, key)}
+        except ConnectionError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except CatalogError as exc:
+            raise HTTPException(502, str(exc)) from None
 
     @router.post("/{kind}/save")
     def save(kind: Kind, body: ConnectionInput) -> dict[str, Any]:

@@ -11,6 +11,7 @@ export interface ModelConnection {
   last_test: { status: string; effective_model: string | null; input_tokens: number | null; output_tokens: number | null } | null;
 }
 export type ModelConnections = Record<ModelKind, ModelConnection>;
+export interface AvailableModel { id: string; name: string }
 export const generalProviders = [
   {label: 'OpenAI', endpoint: 'https://api.openai.com/v1/responses'},
   {label: 'Claude (Anthropic)', endpoint: 'https://api.anthropic.com/v1/messages'},
@@ -19,6 +20,7 @@ export const generalProviders = [
 export const endpoints = { jev: 'https://api.typesafe.ai/v1/systemone', general: 'https://api.openai.com/v1/responses' };
 export const modelConnections = (api: Api) => ({
   read: () => api.request<ModelConnections>('/api/model-connections'),
+  models: (endpoint: string, revision: number, key: string) => api.request<{models: AvailableModel[]}>('/api/model-connections/general/models', {endpoint, expected_revision: revision, ...(key ? {api_key: key} : {})}),
   save: (kind: ModelKind, config: ModelConfig, revision: number, key: string) => api.request<ModelConnection>(`/api/model-connections/${kind}/save`, {...config, expected_revision: revision, ...(key ? {api_key: key} : {})}),
   remove: (kind: ModelKind, revision: number) => api.request<ModelConnection>(`/api/model-connections/${kind}/remove`, {expected_revision: revision}),
   test: (kind: ModelKind, revision: number) => api.request<{connection: ModelConnection; status: string; message: string}>(`/api/model-connections/${kind}/test`, {expected_revision: revision})

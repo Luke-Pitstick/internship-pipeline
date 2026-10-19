@@ -143,6 +143,26 @@ def chatgpt_config(account_id, revision=0, model="test-model"):
     )
 
 
+def test_models_include_all_visible_account_choices_without_truncation(fixture):
+    account_id = fixture.connect()
+    models = [
+        {"slug": f"model-{index}", "display_name": f"Model {index}", "visibility": "list"}
+        for index in range(250)
+    ]
+    fixture.accounts.transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "models": models
+                + [{"slug": "hidden", "display_name": "Hidden", "visibility": "hidden"}]
+            },
+        )
+    )
+    choices = fixture.accounts.models(account_id)
+    assert len(choices) == 250
+    assert choices[0]["slug"] == "model-0" and choices[-1]["slug"] == "model-249"
+
+
 def test_registration_persistence_encryption_models_and_readiness(fixture):
     account_id = fixture.connect()
     assert fixture.accounts.models(account_id) == [

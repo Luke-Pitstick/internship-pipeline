@@ -429,6 +429,8 @@ class ChatGPTAccounts:
             headers={"Authorization": "Bearer " + token},
         )
         try:
+            if not isinstance(body.get("models"), list):
+                raise TypeError
             models = []
             for model in body["models"]:
                 slug, name = model["slug"], model["display_name"]
@@ -442,7 +444,7 @@ class ChatGPTAccounts:
                     and token not in slug
                 ):
                     models.append({"slug": slug, "display_name": name})
-            return models[:200]
+            return models
         except (KeyError, TypeError, AttributeError):
             raise ChatGPTError("ChatGPT returned an unreadable model list. Try again.") from None
 

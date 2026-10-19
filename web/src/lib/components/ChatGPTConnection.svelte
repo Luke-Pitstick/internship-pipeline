@@ -10,6 +10,9 @@
   const api = getContext<Api>('api');
   let accounts = $state<Account[]>([]);
   let models = $state<{slug: string; display_name: string}[]>([]);
+  let modelsLoading = $state(false);
+  let modelsLoaded = $state(false);
+  let modelError = $state('');
   let local = $state(true);
   let busy = $state(false);
   let error = $state('');
@@ -33,17 +36,19 @@
   }
   async function loadModels() {
     const request = ++modelRequest;
-    models = [];
+    models = []; modelsLoaded = false; modelError = ''; modelsLoading = false;
     const id = config.chatgpt_account_id;
     if (!id || accounts.find(account => account.id === id)?.status !== 'connected') return;
+    modelsLoading = true;
     try {
       const result = await api.request<{models: typeof models}>('/api/chatgpt/models', {account_id: id});
       if (alive && request === modelRequest && id === config.chatgpt_account_id && accounts.find(account => account.id === id)?.status === 'connected') {
-        models = result.models;
+        models = result.models; modelsLoaded = true;
         const account = accounts.find(account => account.id === id);
         if (account && !account.welcomed) welcomeAccount = account;
       }
-    } catch (reason) { if (alive && request === modelRequest) error = (reason as Error).message; }
+    } catch (reason) { if (alive && request === modelRequest) modelError = (reason as Error).message; }
+    finally { if (alive && request === modelRequest) modelsLoading = false; }
   }
   onMount(() => {
     origin = window.location.origin;
@@ -54,7 +59,7 @@
     // Bound drafts also change through parent reload/discard controls.
     const id = config.chatgpt_account_id;
     if (id && accounts.length) void loadModels();
-    else models = [];
+    else { ++modelRequest; models = []; modelsLoaded = false; modelsLoading = false; modelError = ''; }
   });
   $effect(() => {
     if (welcomeAccount && welcomeDialog && !welcomeDialog.open) welcomeDialog.showModal();
@@ -155,11 +160,14 @@
     {#if selected?.status === 'connected'}
       <p class="plan-status">Using ChatGPT plan · <a href={usage} target="_blank" rel="noreferrer">Manage usage</a></p>
       <label for="chatgpt-model">Model</label>
-      <select id="chatgpt-model" required bind:value={config.model}>
+      <select id="chatgpt-model" required bind:value={config.model} disabled={modelsLoading || !models.length} aria-describedby="chatgpt-model-status">
         <option value="">Choose a model</option>
+        {#if config.model && !models.some(model => model.slug === config.model)}<option value={config.model} disabled>{config.model} (not currently listed)</option>{/if}
         {#each models as model}<option value={model.slug}>{model.display_name}</option>{/each}
       </select>
-      <div class="actions"><button type="button" onclick={loadModels}>Refresh available models</button><button type="button" onclick={() => confirmDisconnect = true}>Disconnect ChatGPT</button></div>
+      <p id="chatgpt-model-status" role="status" aria-live="polite">{modelsLoading ? 'Loading available models…' : modelsLoaded ? models.length ? `${models.length} model${models.length === 1 ? '' : 's'} available.` : 'No models are available for this ChatGPT account.' : ''}</p>
+      {#if modelError}<p role="alert">{modelError}</p>{/if}
+      <div class="actions"><button type="button" disabled={modelsLoading} onclick={loadModels}>Refresh available models</button><button type="button" onclick={() => confirmDisconnect = true}>Disconnect ChatGPT</button></div>
       {#if confirmDisconnect}<div class="disconnect-confirm"><p>Disconnect {selected.email}? Generation using this account will stop.</p><button type="button" onclick={disconnect}>Confirm disconnect</button><button type="button" onclick={() => confirmDisconnect = false}>Keep connected</button></div>{/if}
     {:else if selected}<p>Reconnect this account to use its ChatGPT plan.</p>{/if}
     <p class="help">ChatGPT sets output and plan limits. Requests have a timeout and response-size limit; a maximum output-token setting is unavailable. <a href={usage} target="_blank" rel="noreferrer">Manage plan usage</a>.</p>
