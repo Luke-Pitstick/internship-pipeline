@@ -29,7 +29,7 @@ test('master PDF uses saved facts, generates, previews, downloads, caches and ha
   await expect(page.getByRole('button', {name: 'Generate master résumé', exact: true})).toBeDisabled();
   await page.getByRole('button', {name: 'Profile', exact: true}).click();
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
-  await expect(page.getByText('Active revision 1', {exact: true})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:'Profile saved.'})).toBeVisible();
   await page.getByRole('button', {name: 'Resume Generation', exact: true}).click();
   await page.getByRole('button', {name: 'Generate master résumé', exact: true}).click();
   await expect(page.getByText(/Ready · saved profile revision 1/)).toBeVisible({timeout: 20000});
@@ -57,11 +57,11 @@ test('master PDF uses saved facts, generates, previews, downloads, caches and ha
   await renderedPreview(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({path: 'test-results-master/t11-master-mobile.png', fullPage: true});
-  await page.getByRole('button', {name: 'Profile', exact: true}).click();
+  await page.getByLabel('Settings section').selectOption('Profile');
   await page.getByLabel('Name', {exact: true}).fill('Unsupported 😃');
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
-  await expect(page.getByText('Active revision 2', {exact: true})).toBeVisible();
-  await page.getByRole('button', {name: 'Resume Generation', exact: true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Profile saved.'})).toBeVisible();
+  await page.getByLabel('Settings section').selectOption('Resume Generation');
   await expect(page.getByRole('link', {name: 'Download master PDF'})).toHaveCount(0);
   await page.getByRole('button', {name: 'Generate master résumé', exact: true}).click();
   await expect(page.getByRole('alert')).toContainText('unsupported character');

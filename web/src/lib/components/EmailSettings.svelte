@@ -13,13 +13,13 @@
   let savedDraft = $state('');
   const dirty = $derived(!!password || (!!savedDraft && JSON.stringify(draft) !== savedDraft));
   $effect(() => { ondirty(dirty); });
-   let feedback = $state(''); let busy = $state(false);let ready=$state(false);
-  async function load() { try {data = await api.request<Summary>('/api/email'); draft = data.config ? {...data.config} : blank(); draftRevision=data.revision; savedDraft=JSON.stringify(draft); password='';ready=true;} catch(e) {feedback=(e as Error).message;} }
-  async function action(kind:string, id='') {busy=true; try {
-    if(kind==='save') {const secret=password;password='';data = await api.request<Summary>('/api/email/save',{...draft,expected_revision:draftRevision,...(secret?{password:secret}:{})});draftRevision=data.revision;savedDraft=JSON.stringify(draft); feedback='Email settings saved.';}
+   let failed = $state(false); let feedback = $state(''); let busy = $state(false);let ready=$state(false);
+  async function load() { try {data = await api.request<Summary>('/api/email'); draft = data.config ? {...data.config} : blank(); draftRevision=data.revision; savedDraft=JSON.stringify(draft); password='';ready=true;failed=false;} catch(e) {failed=true;feedback=(e as Error).message;} }
+  async function action(kind:string, id='') {busy=true;failed=false; try {
+    if(kind==='save') {const secret=password;data = await api.request<Summary>('/api/email/save',{...draft,expected_revision:draftRevision,...(secret?{password:secret}:{})});password='';draftRevision=data.revision;savedDraft=JSON.stringify(draft); feedback='Email settings saved.';}
     else if(kind==='test') {const r=await api.request<{message:string}>('/api/email/test',{expected_revision:draftRevision});feedback=r.message;data=await api.request<Summary>('/api/email');}
     else {data=await api.request<Summary>(`/api/email/${id}/retry`,{});feedback='Retry queued; the remote recipient may receive a duplicate.';}
-  } catch(e) {feedback=(e as Error).message;} finally {busy=false;} }
+  } catch(e) {failed=true;feedback=(e as Error).message;} finally {busy=false;} }
   onMount(()=>{void load();const timer=setInterval(()=>{void api.request<Summary>('/api/email').then(r=>data=r).catch(()=>{});},3000);return()=>clearInterval(timer);});
 </script>
 <section><h3>Email alerts</h3><p class="field-help">Connect an SMTP mailbox using TLS. Alerts need no résumé. A test sends a synthetic message to your saved recipient.</p>
@@ -37,13 +37,13 @@
 <label class="form-field">Delivery mode<select bind:value={draft.mode}><option value="alerts">Individual qualifying jobs</option><option value="digest">Daily digest</option></select></label>
 <label class="form-field">Minimum fit score<input type="number" bind:value={draft.minimum_score} min="0" max="100" /></label>
 <label class="form-field">Timezone<input bind:value={draft.timezone} placeholder="America/Denver" /></label>
-<label class="form-field">Digest hour (0–23)<input type="number" bind:value={draft.digest_hour} min="0" max="23" /></label>
+{#if draft.mode === 'digest'}<label class="form-field">Digest hour (0–23)<input type="number" bind:value={draft.digest_hour} min="0" max="23" /></label>{/if}
 <label class="toggle-label"><input type="checkbox" bind:checked={draft.attach_pdf} />Attach available current PDFs (up to ten per message)</label>
 </details>
 <label class="toggle-label"><input type="checkbox" bind:checked={draft.enabled} />Enable automatic email delivery</label>
-<button class="primary" type="submit">Save email settings</button> <button class="secondary" type="button" disabled={!data.revision||dirty} onclick={()=>action('test')}>Send test email</button>
+<button class="primary" type="submit" disabled={!!data.revision && !dirty}>{busy ? 'Saving…' : 'Save email settings'}</button> <button class="secondary" type="button" disabled={!data.revision||dirty} onclick={()=>action('test')}>Send test email</button>
 {#if data.revision&&dirty}<p class="field-help">Save your changes before sending a test email.</p>{/if}
-</fieldset></form><p role="status">{feedback}</p><button class="subtle" disabled={busy} onclick={()=>{if(!dirty||confirm('Discard the unsaved email draft and reload saved settings?'))void load();}}>Reload email settings</button>
+</fieldset></form><p class:error={failed} role={failed ? 'alert' : 'status'}>{feedback}</p><button class="subtle" disabled={busy || (ready && !dirty)} onclick={()=>{if(!dirty||confirm('Discard the unsaved email draft and reload saved settings?'))void load();}}>{ready ? 'Discard email changes' : 'Retry loading email settings'}</button>
 <p class="field-help">Only current recommended assessments above the threshold qualify. Accepted means the transport acknowledged the message. An interrupted or uncertain send needs review; deliberate retries can duplicate mail. Disabling cancels queued deliveries; an in-flight send may finish.</p>
 <ul>{#each data.deliveries as d}<li>{new Date(d.created*1000).toLocaleString()} · {d.status}{d.error?` · ${d.error}`:''}{#if d.status==='uncertain'||d.status==='failed'} <button class="subtle" disabled={busy} onclick={()=>{if(confirm('Retry this delivery? If remote acceptance was uncertain, this may send a duplicate.'))void action('retry',d.id);}}>Retry delivery</button>{/if}</li>{/each}</ul>
-</section><style>details{margin:16px 0}summary{padding:12px 0;cursor:pointer;font-weight:600}fieldset{border:0;padding:0;min-width:0}.toggle-label{display:flex;gap:10px;margin:16px 0}ul{padding-left:20px;overflow-wrap:anywhere}</style>
+</section><style>button.primary,button.secondary{margin:8px 8px 0 0}.error{color:#a83424}fieldset{border:0;padding:0;min-width:0}.toggle-label{display:flex;gap:10px;margin:16px 0}ul{padding-left:20px;overflow-wrap:anywhere}details{margin:16px 0}summary{padding:12px 0;cursor:pointer;font-weight:600}</style>

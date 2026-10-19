@@ -78,8 +78,8 @@
   {#each kinds as kind}
     <form class="model-card" onsubmit={(event) => {event.preventDefault(); action(kind, 'save');}}>
       <div class="model-heading"><h3>{labels[kind]}</h3><span>{dirty(kind) ? 'Unsaved changes' : connections[kind].ready ? 'Capability test passed' : connections[kind].configured ? 'Saved · test required' : 'Not configured'}</span></div>
-      <p>{kind === 'jev' ? 'Matches jobs against your confirmed experience, skills, eligibility and preferences.' : 'Choose your ChatGPT plan, OpenAI API, Claude, or OpenRouter for résumé generation. Requests send confirmed candidate facts and job context to the selected provider and require structured JSON output and token usage.'}</p>
-      <p class="field-help">{kind === 'jev' ? 'A passing connection test does not validate eligibility judgments or automatic rejection. Matching is a separate implementation step.' : 'Choose a model that supports structured outputs. OpenRouter model IDs include the provider prefix, in the form provider/model. Save and test the selected provider before generating a résumé.'}</p>
+      <p>{kind === 'jev' ? 'Matches jobs against your confirmed experience, skills, eligibility and preferences.' : 'Writes résumés from your confirmed facts and the job description. Choose your ChatGPT plan, OpenAI API, Claude or OpenRouter.'}</p>
+      <p class="field-help">{kind === 'jev' ? 'Connection tests verify access. Match quality depends on your saved profile and job criteria.' : 'Choose a model that supports structured outputs. OpenRouter model IDs include the provider prefix, in the form provider/model. Save and test the selected provider before generating a résumé.'}</p>
       <fieldset disabled={busy !== null || loading}>
         {#if kind === 'general'}
           <label for="general-provider">Provider</label>

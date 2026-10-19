@@ -59,6 +59,7 @@ Built an example reporting tool.\par
 % Optional interests
 \end{document}
 `;
+  await page.locator('.settings-import > summary').click();
   await page.getByLabel('Resume document').setInputFiles({
     name: 'synthetic-resume.tex', mimeType: 'application/x-tex', buffer: Buffer.from(source)
   });
@@ -66,7 +67,7 @@ Built an example reporting tool.\par
   await expect(page.getByLabel('Name', {exact:true})).toHaveValue('Synthetic Candidate');
   await expect(page.getByLabel('Institution', {exact:true})).toHaveValue('Example University');
   await page.getByRole('button', {name:'Save changes', exact:true}).click();
-  await expect(page.getByRole('status').filter({hasText:/Saved · revision/})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:/Profile saved\./})).toBeVisible();
   const job = JSON.parse(await readFile('test-results-tailored/job.json','utf8'));
   await page.goto(`/?selected=${job.id}`);
   await page.getByRole('button', {name:'Generate job-specific résumé', exact:true}).click();

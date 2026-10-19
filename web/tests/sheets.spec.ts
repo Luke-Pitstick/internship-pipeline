@@ -8,6 +8,7 @@ test('Google setup/tab selection, preview, real queue and explicit inward review
   await page.getByLabel('Password',{exact:true}).fill('synthetic-sheets-password');
   await page.getByRole('button',{name:'Create owner account'}).click();
   await page.getByRole('button',{name:'Notifications & Integrations',exact:true}).click();
+  await page.getByRole('button',{name:'Google Sheets',exact:true}).click();
   // Field labels must not inherit section dividers that cross wrapped controls.
   for (const width of [1440,390]) {
     await page.setViewportSize({width,height:1000});

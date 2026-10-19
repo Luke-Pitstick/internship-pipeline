@@ -35,7 +35,7 @@ test('saved searches automatically collect and score first inventory and preserv
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/t08-search-mobile.png',fullPage:true});
-  await page.getByRole('button',{name:'Diagnostics',exact:true}).click();
+  await page.getByLabel('Settings section').selectOption('Diagnostics');
   await expect(page.getByRole('heading',{name:'Source freshness',exact:true})).toBeVisible();
   await expect(page.getByText(/Supervisor heartbeat unavailable/)).toBeVisible();
   await expect(page.getByText(/work_failed_check_settings/).first()).toBeVisible();

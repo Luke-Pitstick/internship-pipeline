@@ -2,7 +2,7 @@ import { test, expect } from './workspace-fixture';
 import { readFile } from 'node:fs/promises';
 
 test('model connections save, edit, test, persist and remove without revealing credentials', async ({ page }) => {
-  const token = JSON.parse(await readFile('test-results/setup.json', 'utf8')).token;
+  const token = JSON.parse(await readFile(process.env.PIPELINE_BROWSER_SETUP ?? 'test-results/setup.json', 'utf8')).token;
   await page.goto(`/settings/#setup=${token}`);
   await expect(page.getByLabel('Password', {exact: true})).toBeVisible();
   if (await page.getByRole('button', {name: 'Create owner account'}).isVisible()) {

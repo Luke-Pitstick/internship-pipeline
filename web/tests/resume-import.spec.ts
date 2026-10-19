@@ -2,12 +2,13 @@ import { test, expect, type Page } from './workspace-fixture';
 import { readFile } from 'node:fs/promises';
 
 async function login(page: Page) {
-  await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results/setup.json', 'utf8')).token}`);
+  await page.goto(`/settings/#setup=${JSON.parse(await readFile(process.env.PIPELINE_BROWSER_SETUP ?? 'test-results/setup.json', 'utf8')).token}`);
   await expect(page.getByLabel('Username', {exact: true})).toBeVisible();
   await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
   await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
   await page.getByRole('button', {name: /Create owner account|^Sign in$/}).click();
   await expect(page.getByLabel('Name', {exact: true})).toBeVisible();
+  await page.getByText('Import from a résumé', {exact:false}).click();
 }
 
 test('resume import fills the existing editable profile fields before saving', async ({page}) => {
@@ -20,6 +21,7 @@ test('resume import fills the existing editable profile fields before saving', a
   expect(reset.ok()).toBe(true);
   const before = await reset.json();
   await page.reload();
+  await page.locator('.settings-import > summary').click();
   await page.getByLabel('Resume document').setInputFiles('tests/fixtures/resume.synthetic.docx');
   await page.getByRole('button', {name: 'Fill profile from resume'}).click();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
@@ -39,8 +41,9 @@ test('resume import fills the existing editable profile fields before saving', a
   await added.getByLabel('Confirmation', {exact: true}).selectOption('confirmed');
   await page.getByLabel('Name', {exact: true}).fill('Reviewed Synthetic Candidate');
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
-  await expect(page.getByRole('status').filter({hasText: /Saved · revision/})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText: /Profile saved\./})).toBeVisible();
   await page.reload();
+  await page.locator('.settings-import > summary').click();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Reviewed Synthetic Candidate');
   const saved = await (await page.request.get('/api/profile-settings')).json();
   expect(saved.profile.facts.some((item: {text: string}) => item.text === removedText)).toBe(false);
@@ -60,6 +63,7 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   }});
   expect(reset.ok()).toBe(true);
   await page.reload();
+  await page.locator('.settings-import > summary').click();
   await page.getByLabel('Resume document').setInputFiles({name: 'bad.pdf', mimeType: 'application/pdf', buffer: Buffer.from('unreadable-synthetic')});
   await expect(page.getByLabel('Name', {exact: true})).toBeEnabled();
   await expect(page.getByRole('button', {name: 'Add education', exact: true})).toBeEnabled();
@@ -79,7 +83,7 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   await expect(page.getByLabel('Will you need employer sponsorship?')).toHaveValue('unknown');
   await page.getByLabel('Available from', {exact: true}).fill('2027-06-01');
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
-  await expect(page.getByRole('status').filter({hasText: /Saved · revision/})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText: /Profile saved\./})).toBeVisible();
   saved = await (await page.request.get('/api/profile-settings')).json();
   expect(saved.profile.facts.some((item: {id: string}) => item.id === manual.id)).toBe(true);
   expect(saved.preferences.soft.skills).toEqual(['Rust']);
@@ -87,6 +91,7 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   expect(saved.profile.requires_sponsorship).toBeNull();
   const stableIds = saved.profile.facts.map((item: {id: string}) => item.id);
   await page.reload();
+  await page.locator('.settings-import > summary').click();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
   await expect(page.getByText(`Last reviewed DOCX · profile revision ${saved.revision}`, {exact: true})).toBeVisible();
   expect((await (await page.request.get('/api/profile-settings')).json()).profile.facts.map((item: {id: string}) => item.id)).toEqual(stableIds);
@@ -102,7 +107,7 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   await expect(outdated.getByLabel('Supporting fact', {exact: true})).toHaveValue('Python, SQL');
   await outdated.getByRole('button', {name: /Remove fact/}).click();
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
-  await expect(page.getByRole('status').filter({hasText: /Saved · revision/})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText: /Profile saved\./})).toBeVisible();
   saved = await (await page.request.get('/api/profile-settings')).json();
   expect(saved.profile.facts.find((item: {id: string}) => item.id === manual.id)).toEqual(manual);
   expect(saved.profile.facts.some((item: {text: string}) => item.text === 'Python, SQL')).toBe(false);

@@ -37,11 +37,12 @@
 <p class="form-intro">Searches from your preferences collect and score jobs automatically. Add company boards or extra searches here. Daily schedules use the chosen timezone.</p>
 {#each searches as s(s.id)}
   <section class="saved-search" aria-label={s.name}><h3>{s.name}</h3><p>{s.source} · {s.paused?'Paused':'Active'} · Last success {date(s.last_success)} · Next run {date(s.next_run)}</p>
-    <div class="actions"><button class="secondary" onclick={()=>{if(!dirty||confirm('Discard the unsaved search draft and edit this search?'))edit(s);}} disabled={busy}>Edit {s.name}</button><button class="secondary" onclick={()=>action(s,'pause')} disabled={busy}>{s.paused?'Resume':'Pause'} {s.name}</button><button class="subtle" onclick={()=>action(s,'delete')} disabled={busy}>Delete {s.name}</button></div>
+    <div class="actions"><button class="secondary" onclick={()=>{if(!dirty||confirm('Discard the unsaved search draft and edit this search?'))edit(s);}} disabled={busy}>Edit {s.name}</button><button class="secondary" onclick={()=>action(s,'pause')} disabled={busy}>{s.paused?'Resume':'Pause'} {s.name}</button><button class="subtle" onclick={()=>{if(confirm(`Delete “${s.name}”? Its run history will be kept.`))void action(s,'delete');}} disabled={busy}>Delete {s.name}</button></div>
     {#if allowRun}<SearchRun searchId={s.id} disabled={s.paused||busy} />{/if}
   </section>
 {/each}
-<form onsubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={busy||!ready}>
+{#if error && !ready}<p role="alert">{message}</p><button class="secondary" onclick={load}>Retry loading sources</button>{/if}
+<form class="source-settings" onsubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={busy||!ready}>
   <h3>{draft.id?'Edit search':'Add a saved search'}</h3>
   <div class="form-group"><label for="source-name">Search name</label><input id="source-name" bind:value={draft.name} required maxlength="120" disabled={!ready||busy}/></div>
   <div class="form-group"><label for="source-type">Source</label><select id="source-type" bind:value={draft.source}><option value="greenhouse">Greenhouse company board</option><option value="lever">Lever company board</option><option value="ashby">Ashby company board</option><option value="jobspy">JobSpy broad search</option></select></div>
@@ -55,9 +56,11 @@
   {:else}<div class="form-group"><label for="source-board">Company board token</label><input id="source-board" bind:value={draft.board} required maxlength="80" pattern={'[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}'}/><p class="field-help">Enter the token after the source hostname, such as example.</p></div>{/if}
   <div class="form-group"><label for="search-time">Daily run time (clear for manual only)</label><input id="search-time" type="time" bind:value={schedule}/></div>
   <div class="form-group"><ChoiceField name="search-zone" label="IANA timezone" options={timezoneOptions} max={1} required disabled={busy||!ready} bind:values={() => draft.timezone ? [draft.timezone] : [], values => {draft.timezone=values[0]??'';}} placeholder="Search cities or timezones…" help="A nonexistent DST time skips that day; repeated times run once."/></div>
+  <details><summary>Model usage limits</summary><p class="field-help">Limit how much evaluation and generation each run can request.</p>
   <div class="form-group"><label for="search-jobs">Maximum model-reviewed jobs per run</label><input id="search-jobs" type="number" bind:value={draft.max_jobs} min="0" max="1000" required/></div>
   <div class="form-group"><label for="search-calls">Maximum model calls per run</label><input id="search-calls" type="number" bind:value={draft.max_calls} min="0" max="3000" required/></div>
   <div class="form-group"><label for="search-tokens">Maximum reserved model tokens per run</label><input id="search-tokens" type="number" bind:value={draft.max_tokens} min="0" max="100000000" required/><p class="field-help">Conservative request reservations cap admitted work, including retries and drafts. Unknown usage stays reserved. This is not a dollar billing guarantee.</p></div>
+  </details>
   <div class="settings-save"><p role={error?'alert':'status'}>{message}</p><div><button type="button" class="subtle" onclick={()=>{if(!dirty||confirm('Discard the unsaved search draft and start a new search?'))edit();}}>New search</button><button type="button" class="subtle" disabled={busy||!dirty} onclick={()=>{const saved=JSON.parse(savedDraft);draft=saved.draft;schedule=saved.schedule;}}>Discard search changes</button><button class="primary" disabled={!ready||busy}>{busy?'Saving…':'Save search'}</button></div></div>
 </fieldset></form>
-<style>fieldset{border:0;padding:0;margin:0;min-width:0}.saved-search{border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:20px}.actions{display:flex;gap:8px;flex-wrap:wrap}p{overflow-wrap:anywhere}</style>
+<style>fieldset{border:0;padding:0;margin:0;min-width:0}.saved-search{border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:20px}.actions{display:flex;gap:8px;flex-wrap:wrap}p{overflow-wrap:anywhere}.source-settings .form-group{border:0;padding:12px 0}.source-settings h3{margin:24px 0 4px}.source-settings details{margin:20px 0}.source-settings summary{font-weight:600;cursor:pointer;padding:12px 0}.saved-search{padding:20px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-subtle)}.saved-search h3{margin-bottom:8px}</style>
