@@ -39,7 +39,16 @@ build/
 # Local Jev evaluation experiment
 /evaluation/jev/
 
-# Local planning, agent handoffs, reviews and historical release evidence
+# Agent instructions and local tool configuration
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+/.agents/
+/.claude/
+/.codex/
+/.gstack/
+
+# Local planning, reviews and historical release evidence
 /FEATURE_WISHLIST.md
 /OPEN_SOURCE_PLAN.md
 /agents/

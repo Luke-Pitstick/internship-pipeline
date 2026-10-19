@@ -6,9 +6,9 @@ This project uses the [MIT license](LICENSE). Retain the licenses and notices re
 
 Use Python 3.12+, uv and Node.js 22. Install the locked dependencies with `uv sync --frozen --python 3.12` at the root and `npm ci` in `web/`. Build the frontend before starting the native application or browser suites. PDF checks require a working `pdflatex` installation with the packages used by `src/internship_pipeline/resumes/master_template.py`; application builds use TeX from the Dockerfile.
 
-Follow [AGENTS.md](AGENTS.md). Python modules live in `src/internship_pipeline`, frontend routes/components in `web/src`, synthetic tests in `tests` and `web/tests`, and operator tooling in `deploy`. [Architecture](docs/architecture.md) explains the current seams.
+Python modules live in `src/internship_pipeline`, frontend routes/components in `web/src`, synthetic tests in `tests` and `web/tests`, and operator tooling in `deploy`. [Architecture](docs/architecture.md) explains the current seams.
 
-Planning notes, agent handoffs, review logs, release evidence, design captures and generated reports stay local under the paths listed in `.gitignore`. Previously committed copies remain available in Git history. Keep maintained user guides and architecture/storage documentation in `docs/`.
+Planning notes, review logs, release evidence, design captures and generated reports are excluded by `.gitignore`. Previously committed copies remain available in Git history. Keep maintained user guides and architecture/storage documentation in `docs/`.
 
 For a local container development setup, `deploy/dev` uses `compose.yaml` plus
 `compose.dev.yaml`. Its private `data/dev/config.json` contains `docker` (the Docker
