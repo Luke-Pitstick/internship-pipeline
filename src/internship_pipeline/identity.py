@@ -105,10 +105,27 @@ class Identity:
                 )
 
     @staticmethod
-    def validate(username: str, password: str) -> str:
+    def validate_username(username: str) -> str:
         username = username.strip().casefold()
-        if not 1 <= len(username) <= 80 or not 12 <= len(password) <= 256:
-            raise IdentityError("Use a username and a password between 12 and 256 characters.")
+        if not 1 <= len(username) <= 80:
+            raise IdentityError("Username must contain 1–80 characters.")
+        return username
+
+    @staticmethod
+    def validate_password(password: str) -> None:
+        if len(password) < 12:
+            raise IdentityError(
+                "Password must contain at least 12 characters. Try a longer password."
+            )
+        if len(password) > 256:
+            raise IdentityError(
+                "Password must contain at most 256 characters. Try a shorter password."
+            )
+
+    @staticmethod
+    def validate(username: str, password: str) -> str:
+        username = Identity.validate_username(username)
+        Identity.validate_password(password)
         return username
 
     def claim(self, token: str, username: str, password: str) -> tuple[str, str, int]:

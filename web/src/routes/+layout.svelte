@@ -102,12 +102,29 @@
         {#if error}<p class="error" role="alert">{error}</p>{/if}
         <button class="primary" type="submit" disabled={busy || (!session.claimed && !setupToken)}>{busy ? 'Please wait…' : session.claimed ? 'Sign in' : 'Create owner account'}</button>
       </form>
-      {#if session.claimed}<p class="field-help">Forgot your password? The instance operator can recover the account from the local command line.</p>{/if}
+      {#if session.claimed}
+        <details class="password-recovery">
+          <summary>Forgot your password?</summary>
+          <p>If you installed the app, open a terminal on the computer where you installed it and run:</p>
+          <pre><code>internship-pipeline stop
+internship-pipeline recover-owner</code></pre>
+          <p>Enter the username you want to use and a new password of 12–256 characters, then confirm the password. Your password won't appear as you type.</p>
+          <p>After the reset succeeds, run:</p>
+          <pre><code>internship-pipeline start
+internship-pipeline open</code></pre>
+          <p>Sign in with those details. Your saved work stays in place, and all existing sessions are signed out.</p>
+          <p>If someone else installed the app, ask them to reset your password on that computer. There isn't an email reset link.</p>
+          <a href="https://github.com/Luke-Pitstick/internship-pipeline/blob/main/docs/password-recovery.md" target="_blank" rel="noreferrer">Full password reset guide</a>
+        </details>
+      {/if}
     </section>
   {:else}<section class="empty-state"><h1>Opening your workspace…</h1>{#if error}<p role="alert">{error}</p><button class="primary" onclick={refresh}>Retry</button>{/if}</section>{/if}
 </main>
 <footer class="app-footer">Your applications stay separate from discovery, résumé downloads, and alerts.</footer>
 <style>
+  .password-recovery { margin-top:1rem; }
+  .password-recovery p { margin:.75rem 0; }
+  .password-recovery pre { overflow-x:auto; padding:.75rem; background:var(--surface-subtle); border:1px solid var(--border); border-radius:var(--radius); }
   @media(max-width:760px) {
     .app-header {flex-wrap:wrap;gap:16px}
     .app-header nav {flex-wrap:wrap;max-width:100%}

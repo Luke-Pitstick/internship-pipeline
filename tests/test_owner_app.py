@@ -209,6 +209,72 @@ def test_owner_sessions_and_jobs_persist_and_recovery_revokes(
         assert restarted.get("/api/jobs").status_code == 401
 
 
+def test_password_reset_retries_invalid_entries_without_changing_account_early(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    identity = Identity(tmp_path / "identity.sqlite3")
+    identity.claim(identity.setup_token(), "owner", PASSWORD)
+    usernames = iter(["   ", "Luke"])
+    passwords = iter(
+        [
+            "too-short",
+            "x" * 257,
+            "synthetic-new-password",
+            "does-not-match",
+            "synthetic-final-password",
+            "synthetic-final-password",
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda _: next(usernames))
+
+    def password_prompt(_):
+        assert identity.login("owner", PASSWORD) is not None
+        return next(passwords)
+
+    monkeypatch.setattr("getpass.getpass", password_prompt)
+    assert cli.main(["recover-owner", "--data-dir", str(tmp_path)]) == 0
+    output = capsys.readouterr()
+    assert "Username must contain 1–80 characters." in output.err
+    assert "Password must contain at least 12 characters" in output.err
+    assert "Password must contain at most 256 characters" in output.err
+    assert "Passwords don't match. Try again." in output.err
+    assert "Password reset." in output.out
+    assert "IdentityError" not in output.err
+    for password in (PASSWORD, "too-short", "synthetic-new-password", "synthetic-final-password"):
+        assert password not in output.out + output.err
+    assert identity.login("luke", "synthetic-final-password") is not None
+    assert identity.login("owner", PASSWORD) is None
+
+
+def test_password_reset_without_account_explains_setup_before_prompting(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    def unexpected_prompt(_):
+        pytest.fail("Recovery should explain missing account before asking for credentials")
+
+    monkeypatch.setattr("builtins.input", unexpected_prompt)
+    assert cli.main(["recover-owner", "--data-dir", str(tmp_path)]) == 2
+    error = capsys.readouterr().err
+    assert "No account has been created" in error
+    assert "internship-pipeline open" in error
+    assert "IdentityError" not in error
+
+
+@pytest.mark.parametrize("interruption", [EOFError, KeyboardInterrupt])
+def test_password_reset_cancel_preserves_sign_in(tmp_path: Path, monkeypatch, capsys, interruption):
+    identity = Identity(tmp_path / "identity.sqlite3")
+    identity.claim(identity.setup_token(), "owner", PASSWORD)
+    monkeypatch.setattr("builtins.input", lambda _: "Luke")
+
+    def cancel(_):
+        raise interruption
+
+    monkeypatch.setattr("getpass.getpass", cancel)
+    assert cli.main(["recover-owner", "--data-dir", str(tmp_path)]) == 130
+    assert "Password reset canceled" in capsys.readouterr().err
+    assert identity.login("owner", PASSWORD) is not None
+
+
 def test_secure_cookie_and_origin_configuration(tmp_path: Path) -> None:
     app = create_app(tmp_path, origin="https://jobs.example.test", static_dir=tmp_path)
     with TestClient(app, base_url="https://jobs.example.test") as client:

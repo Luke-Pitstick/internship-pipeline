@@ -4,6 +4,12 @@
 
 Prepared October 5, 2026. Core implementation and offline acceptance are complete; live deployment/model/delivery verification and the 24-hour trial remain open. See [acceptance-results.md](acceptance-results.md) for evidence and limits. This document is the implementation checklist; [design.md](design.md) contains the supporting architecture and behavior.
 
+October 19, 2026: added the [password reset guide](password-recovery.md), expandable
+sign-in help, and interactive validation retries for account recovery. Verification:
+96 account/management tests passed, frontend checks/build and targeted Ruff checks
+passed, and Chrome verified keyboard expansion and 390px/1440px layouts using a
+synthetic sign-in session. These checks do not update or verify an installed image.
+
 ## Delivery rules
 
 Build in sequence. Each step names its dependency, intended files, concrete work and acceptance gate. Keep the pipeline working as capabilities are added. Do not introduce alternative databases, generic plugin systems or a custom dashboard for this single-user workload.

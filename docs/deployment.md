@@ -18,6 +18,11 @@ The container runs as UID 10001, with a read-only root filesystem and temporary 
 
 ## Account recovery
 
+Forgot your sign-in password? If you used the installer, follow the
+[password reset guide](password-recovery.md). If someone else installed the app,
+ask them to reset it on the computer where it's running. The Compose procedure
+below requires access to that computer and preserves the existing data volume.
+
 Recovery is offline: stop the application and every separately launched worker first,
 preserving the data volume. Use a private interactive terminal. Capture the exact image
 ID of the current container and pin it in a temporary Compose override. Run these commands
@@ -33,7 +38,7 @@ services:
 YAML
 docker compose stop app
 docker compose -f compose.yaml -f /tmp/pipeline-recovery-image.yaml run --rm --no-deps \
-  --pull never --entrypoint internship-pipeline app setup-token --data-dir /var/data &&
+  --pull never --entrypoint internship-pipeline app recover-owner --data-dir /var/data &&
   docker compose start app
 ```
 
@@ -42,14 +47,18 @@ and cannot pull a replacement image. Stop any separate workers before the mainte
 command; keep the same project name and any existing Compose override files in every
 invocation so the data volume remains the same. This operation does not build an image.
 
-After claim, substitute `recover-owner` for `setup-token` in that maintenance command.
-It prompts for the owner username and a new password twice without putting passwords
-in arguments, revokes sessions and clears login throttles. Run `docker compose start app`
+`recover-owner` prompts for the username you want to use and a new password twice
+without putting passwords in arguments, revokes sessions and clears login throttles.
+Run `docker compose start app`
 only after maintenance succeeds, then verify sign-in. The exclusive installation lock
 still refuses recovery if any supported writer remains active. Neither recovery command
 has a public endpoint, and setup-token cannot reopen a claimed instance. A native
 installation uses the same stop/recover/start sequence with `--data-dir` set to its
 absolute persistent directory.
+
+If no account has been created yet and you lost the setup link, substitute
+`setup-token` for `recover-owner` in the maintenance command. It issues a fresh
+setup token instead of resetting a password.
 
 For a host-command installation, the saved manifest supplies the runtime endpoint and
 preserved volume, and inspection pins maintenance to the stopped container's exact image ID:

@@ -419,11 +419,13 @@ class Runtime:
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise Failure(
-                "Recovery did not complete; preserve the volume and inspect locally."
+                "Account reset could not finish. Check that Docker or Podman is running, "
+                "then run the recovery command again. Your saved data is still in place."
             ) from exc
         if result.returncode:
             raise Failure(
-                "Recovery failed; preserve the volume and inspect locally before restart."
+                "Account reset did not complete. Follow the message above, then run the "
+                "recovery command again. The app is still stopped; your saved data is in place."
             )
 
     def check(self) -> None:

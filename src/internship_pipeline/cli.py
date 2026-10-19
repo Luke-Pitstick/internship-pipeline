@@ -25,6 +25,7 @@ from internship_pipeline.config import (
     load_searches,
     load_settings,
 )
+from internship_pipeline.identity import Identity, IdentityError
 from internship_pipeline.models import Company, Settings
 from internship_pipeline.profile_settings import ProfileSettings
 from internship_pipeline.queue import Queue
@@ -34,6 +35,42 @@ if TYPE_CHECKING:
     from internship_pipeline.pipeline import Pipeline
 
 
+def recover_owner(identity: Identity) -> int:
+    if not identity.claimed():
+        print(
+            "No account has been created yet. Run internship-pipeline start, then "
+            "internship-pipeline open to create your account.",
+            file=sys.stderr,
+        )
+        return 2
+    print("Reset your sign-in details. Your saved work will stay in place.")
+    try:
+        while True:
+            try:
+                username = identity.validate_username(input("Username to use: "))
+                break
+            except IdentityError as exc:
+                print(str(exc), file=sys.stderr)
+        while True:
+            password = getpass.getpass("New password (12–256 characters): ")
+            try:
+                identity.validate_password(password)
+            except IdentityError as exc:
+                print(str(exc), file=sys.stderr)
+                continue
+            if password != getpass.getpass("Confirm password: "):
+                print("Passwords don't match. Try again.", file=sys.stderr)
+                continue
+            break
+    except (EOFError, KeyboardInterrupt):
+        print("\nPassword reset canceled. Your sign-in details haven't changed.", file=sys.stderr)
+        return 130
+    identity.recover(username, password)
+    print("Password reset. Sign in with the username and new password you just entered.")
+    print("All existing browser sessions have been signed out.")
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(description="Find internships and prepare application alerts")
     cli.add_argument(
@@ -41,7 +78,7 @@ def parser() -> argparse.ArgumentParser:
     )
     commands = cli.add_subparsers(dest="command", required=True)
     for name in ("recover-owner", "setup-token", "setup-link"):
-        account = commands.add_parser(name, help="Local operator account recovery")
+        account = commands.add_parser(name, help="Manage account access on this computer")
         account.add_argument(
             "--data-dir", type=Path, default=Path(os.getenv("PIPELINE_DATA_DIR", "/var/data"))
         )
@@ -223,8 +260,6 @@ def _main(argv: list[str] | None = None) -> int:
             print(json.dumps(result))
             return 0
         if args.command in {"recover-owner", "setup-token", "setup-link"}:
-            from internship_pipeline.identity import Identity
-
             if args.command == "setup-link":
                 origin = urlsplit(args.origin)
                 if (
@@ -253,12 +288,7 @@ def _main(argv: list[str] | None = None) -> int:
                     return 2
                 print(f"Owner setup token: {token}")
             else:
-                username = input("Owner username: ")
-                password = getpass.getpass("New password (12–256 characters): ")
-                if password != getpass.getpass("Confirm password: "):
-                    raise ValueError("Passwords differ")
-                identity.recover(username, password)
-                print("Owner recovered. All previous sessions have been revoked.")
+                return recover_owner(identity)
             return 0
         settings = load_settings(args.config)
         store = Store(settings.database_path)
