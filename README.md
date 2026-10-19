@@ -132,38 +132,29 @@ The application records your decisions but never submits an application. See
 [architecture](docs/architecture.md) and [privacy/data flow](docs/privacy.md) for the module and
 provider boundaries.
 
-## Everyday commands
+## Commands
 
-The hosted installer places a management command in `~/.local/bin` by default. Add that directory
-to your `PATH`, or use the absolute command path printed by installation:
+Run these on the machine where you installed Internship Pipeline.
 
-```bash
-internship-pipeline open
-internship-pipeline status
-internship-pipeline url
-internship-pipeline stop
-internship-pipeline start
-internship-pipeline update --check
-internship-pipeline update
-```
-
-These commands use the saved runtime and installation; they do not require a source checkout.
-Use `update --check` to check for a compatible release and `update` to install it.
-Rerunning the installer keeps the existing version. See the [update guide](docs/cli-updates.md)
-for older installations, and the [management guide](docs/support.md#diagnose-a-running-installation) for diagnostics.
-
-For a source-based Compose installation, run these from its checkout:
-
-| Command | Purpose |
+| Command | What it does |
 | --- | --- |
-| `docker compose ps` | Inspect the application container and health state |
-| `docker compose logs --tail 100 app` | Read recent startup/worker logs privately |
-| `docker compose stop` | Stop the application while retaining its data volume |
-| `docker compose start` | Start the existing stopped application |
-| `docker compose restart app` | Restart the application while retaining its data volume |
+| `internship-pipeline open` | Opens the app in your browser. |
+| `internship-pipeline status` | Shows whether the app is running and ready. |
+| `internship-pipeline status --diagnostics` | Shows job and delivery activity after you sign in. |
+| `internship-pipeline url` | Prints the app's URL. |
+| `internship-pipeline start` | Starts the app and waits until it's ready. |
+| `internship-pipeline stop` | Stops the app while keeping your data. |
+| `internship-pipeline logs` | Shows recent worker failures. |
+| `internship-pipeline update --check` | Checks for a newer compatible release without changing your installation. |
+| `internship-pipeline update` | Installs the latest compatible release. |
+| `internship-pipeline recover-owner` | Resets your username and password; stop the app first. |
+| `internship-pipeline setup-token` | Refreshes first-time account setup access; stop the app first. |
+| `internship-pipeline --help` | Lists commands and options. |
 
-The host management command and the in-container Python maintenance CLI have distinct purposes
-despite sharing the `internship-pipeline` name. Use the command for your installation type.
+Use `internship-pipeline <command> --help` for more options. If your terminal can't find the
+command, add `~/.local/bin` to your PATH or use the command path printed by the installer.
+See the [update guide](docs/cli-updates.md) for update instructions and
+[troubleshooting](docs/support.md#diagnose-a-running-installation) for diagnostics.
 
 ## Data and recovery
 
