@@ -112,6 +112,20 @@ def test_csrf_origin_validation_and_password_redaction(client: TestClient) -> No
     assert not client.app.state.identity.claimed()
 
 
+def test_job_ingestion_requires_owner_and_csrf(client: TestClient) -> None:
+    assert client.get("/api/job-ingestion").status_code == 401
+    for action in ("start", "stop"):
+        assert client.post(f"/api/job-ingestion/{action}", json={}).status_code == 401
+    headers = claim(client)
+    assert client.get("/api/job-ingestion").status_code == 200
+    for action in ("start", "stop"):
+        assert client.post(f"/api/job-ingestion/{action}", json={}).status_code == 403
+    assert client.post("/api/job-ingestion/stop", json={}, headers=headers).json()["stopped"]
+    response = client.post("/api/job-ingestion/start", json={}, headers=headers)
+    assert response.status_code == 409  # No enabled sources; stopped state is preserved.
+    assert client.get("/api/job-ingestion").json()["stopped"]
+
+
 def test_session_rotation_logout_expiry_and_login(client: TestClient) -> None:
     csrf(client)
     guest = client.cookies.get("pipeline_session")

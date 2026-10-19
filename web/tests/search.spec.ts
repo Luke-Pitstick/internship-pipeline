@@ -1,5 +1,17 @@
-import {test,expect} from './workspace-fixture';
+import {test,expect,type Page} from './workspace-fixture';
 import {readFile} from 'node:fs/promises';
+async function boardDetails(page: Page, name: string) {
+  const group = page.getByRole('region', {name:'Greenhouse boards', exact:true});
+  const toggle = group.getByRole('button', {name:/^Greenhouse boards /});
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  const row = group.getByRole('region', {name, exact:true});
+  const details = row.getByRole('button', {name:`Details for ${name}`, exact:true});
+  if (await details.getAttribute('aria-expanded') === 'false') await details.click();
+  return row;
+}
+async function openEditor(page: Page) {
+  if (!await page.getByLabel('Search name', {exact:true}).isVisible()) await page.locator('.source-editor > summary').click();
+}
 test('saved searches automatically collect and score first inventory and preserve pause history',async({page})=>{
   await page.goto(`/settings/#setup=${JSON.parse(await readFile('test-results/search-setup.json','utf8')).token}`);
 
@@ -7,6 +19,7 @@ test('saved searches automatically collect and score first inventory and preserv
   await page.getByLabel('Password',{exact:true}).fill('synthetic-owner-password');
   await page.getByRole('button',{name:'Create owner account'}).click();
   await page.getByRole('button',{name:'Sources',exact:true}).click();
+  await openEditor(page);
   await page.getByLabel('Search name',{exact:true}).fill('Synthetic Company');
   await page.getByLabel('Company board token').fill('example');
   await page.getByLabel('Daily run time').fill('09:00');
@@ -16,8 +29,10 @@ test('saved searches automatically collect and score first inventory and preserv
   await page.getByRole('button',{name:'Save search',exact:true}).click();
   // Saving a scheduled source is enough: no Run or Review backlog action is needed.
   await expect(page.getByRole('button',{name:'Review backlog',exact:true})).toHaveCount(0);
+  await boardDetails(page, 'Synthetic Company');
   await expect(page.getByText(/2 collected · 2 evaluated/)).toBeVisible({timeout:15000});
   await page.reload();await page.getByRole('button',{name:'Sources',exact:true}).click();
+  await boardDetails(page, 'Synthetic Company');
   await expect(page.getByText(/2 collected · 2 evaluated/)).toBeVisible();
   await page.getByRole('button',{name:'Pause Synthetic Company',exact:true}).click();
   await expect(page.getByRole('button',{name:'Run now',exact:true})).toBeDisabled();
@@ -27,9 +42,11 @@ test('saved searches automatically collect and score first inventory and preserv
   await page.getByText('Run details and history',{exact:true}).click();
   await page.getByRole('button',{name:'Cancel remaining run work'}).click();
   await expect(page.getByText('Run status: cancelled.')).toBeVisible();
+  await openEditor(page);
   await page.getByLabel('Search name',{exact:true}).fill('Broken source');
   await page.getByLabel('Company board token').fill('brokenboard');
   await page.getByRole('button',{name:'Save search',exact:true}).click();
+  await boardDetails(page, 'Broken source');
   await page.getByRole('region',{name:'Broken source',exact:true}).getByRole('button',{name:'Run now'}).click();
   await expect(page.getByText(/Source error: source_request_failed/)).toBeVisible({timeout:15000});
   await page.setViewportSize({width:390,height:844});
@@ -53,13 +70,27 @@ test('broad search uses supported countries, sites and searchable timezones', as
   await page.getByLabel('Password', {exact:true}).fill('synthetic-owner-password');
   await page.getByRole('button', {name:'Sign in', exact:true}).click();
   await page.getByRole('button', {name:'Sources', exact:true}).click();
+  await page.locator('.available-sources > summary').click();
+  for (const name of ['Indeed','LinkedIn','ZipRecruiter','Glassdoor','Google','Bayt','Naukri','BDJobs']) {
+    await expect(page.getByRole('button', {name:`Add ${name} search`, exact:true})).toBeVisible();
+  }
+  for (const name of ['Greenhouse','Lever','Ashby']) {
+    await expect(page.getByRole('button', {name:`Add ${name} company board`, exact:true})).toBeVisible();
+  }
+  await page.screenshot({path:'test-results/source-picker-desktop.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/source-picker-mobile.png',fullPage:true});
+  await page.getByRole('button', {name:'Add ZipRecruiter search', exact:true}).click();
+  await expect(page.getByLabel('Search name', {exact:true})).toBeFocused();
+  await expect(page.getByLabel('Source', {exact:true})).toHaveValue('jobspy');
+  await expect(page.getByRole('button', {name:'Remove ZipRecruiter', exact:true})).toBeVisible();
   await page.getByLabel('Search name', {exact:true}).fill('Synthetic broad search');
-  await page.getByLabel('Source', {exact:true}).selectOption('jobspy');
   await page.getByLabel('Search term', {exact:true}).fill('Software internship');
   await page.getByRole('button', {name:'Remove United States', exact:true}).click();
   await page.getByLabel('Country', {exact:true}).fill('Canada');
   await page.getByRole('option', {name:'Canada', exact:true}).click();
-  await page.getByRole('button', {name:'Remove Indeed', exact:true}).click();
+  await page.getByRole('button', {name:'Remove ZipRecruiter', exact:true}).click();
   await page.getByLabel('Job sites', {exact:true}).fill('LinkedIn');
   await page.getByRole('option', {name:'LinkedIn', exact:true}).click();
   await page.getByRole('button', {name:'Remove UTC', exact:true}).click();
@@ -68,11 +99,44 @@ test('broad search uses supported countries, sites and searchable timezones', as
   await page.getByRole('button', {name:'Save search', exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'Search saved.'})).toBeVisible();
   await page.reload();
-  await page.getByRole('button', {name:'Sources', exact:true}).click();
+  await page.getByLabel('Settings section').selectOption('Sources');
+  await page.getByRole('button', {name:/^Job site searches /}).click();
   await page.getByRole('button', {name:'Edit Synthetic broad search', exact:true}).click();
   await expect(page.getByRole('button', {name:'Remove Canada', exact:true})).toBeVisible();
   await expect(page.getByRole('button', {name:'Remove LinkedIn', exact:true})).toBeVisible();
   await expect(page.getByRole('button', {name:'Remove America/Toronto', exact:true})).toBeVisible();
   const data = await (await page.request.get('/api/search-settings')).json();
   expect(data.searches.find((search: {name:string})=>search.name==='Synthetic broad search')).toMatchObject({country:'canada',sites:['linkedin'],timezone:'America/Toronto'});
+});
+
+test('Settings can stop and restart ingestion without resuming paused sources', async ({page}) => {
+  await page.goto('/settings/');
+  await page.getByLabel('Username', {exact:true}).fill('synthetic-owner');
+  await page.getByLabel('Password', {exact:true}).fill('synthetic-owner-password');
+  await page.getByRole('button', {name:'Sign in', exact:true}).click();
+  await page.getByRole('button', {name:'Sources', exact:true}).click();
+  const ingestion = page.getByRole('region', {name:'Job ingestion', exact:true});
+  await ingestion.getByRole('button', {name:'Stop ingestion', exact:true}).click();
+  await expect(ingestion.getByText('Stopped — automatic searches are paused')).toBeVisible();
+  await page.reload();
+  await expect(ingestion.getByText('Stopped — automatic searches are paused')).toBeVisible();
+  await boardDetails(page, 'Synthetic Company');
+  await expect(page.getByRole('button', {name:'Run now', exact:true}).first()).toBeDisabled();
+  await page.getByRole('button', {name:'Pause Synthetic Company', exact:true}).click();
+  // Adding another scheduled source while stopped must not bypass the global control.
+  await openEditor(page);
+  await page.getByLabel('Search name', {exact:true}).fill('Stopped source');
+  await page.getByLabel('Company board token').fill('stopped');
+  await page.getByRole('button', {name:'Save search', exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Search saved.'})).toBeVisible();
+  expect((await (await page.request.get('/api/job-ingestion')).json()).active_runs).toBe(0);
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/job-ingestion-stopped-mobile.png',fullPage:true});
+  await ingestion.getByRole('button', {name:'Start ingestion', exact:true}).click();
+  await expect(ingestion.getByText('Ingestion started. Enabled sources are queued and schedules are active.')).toBeVisible();
+  await expect(page.getByRole('button', {name:'Resume Synthetic Company', exact:true})).toBeVisible();
+  await boardDetails(page, 'Stopped source');
+  await expect(page.getByRole('region', {name:'Stopped source', exact:true}).getByText(/2 collected · 2 evaluated/)).toBeVisible({timeout:15000});
+  await page.screenshot({path:'test-results/job-ingestion-active-mobile.png',fullPage:true});
 });

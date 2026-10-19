@@ -1,0 +1,21 @@
+export type SavedSource = {
+  id: string;
+  revision: number;
+  name: string;
+  source: string;
+  board: string;
+  search_term: string;
+  location: string;
+  country: string;
+  sites: string[];
+  hours_old: number;
+  results_wanted: number;
+  daily_at: string | null;
+  timezone: string;
+  max_jobs: number;
+  max_calls: number;
+  max_tokens: number;
+  paused: boolean;
+  next_run: number | null;
+  last_success: number | null;
+};

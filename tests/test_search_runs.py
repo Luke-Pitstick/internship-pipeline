@@ -439,7 +439,7 @@ def test_overlapping_searches_report_unique_inventory_and_filter_history(tmp_pat
     assert runs.history("0" * 32)["runs"] == []
 
 
-@pytest.mark.parametrize("transition", ["cancel", "new_lease"])
+@pytest.mark.parametrize("transition", ["cancel", "stop_ingestion", "new_lease"])
 def test_obsolete_fetch_rolls_back_without_stopping_collection(tmp_path, monkeypatch, transition):
     store, runs, saved = setup(tmp_path)
     run = runs.start(saved["id"])["run"]
@@ -453,6 +453,8 @@ def test_obsolete_fetch_rolls_back_without_stopping_collection(tmp_path, monkeyp
     def supersede(*args, **kwargs):
         if transition == "cancel":
             runs.cancel(run["id"])
+        elif transition == "stop_ingestion":
+            runs.stop_ingestion()
         else:
             with store.transaction() as db:
                 db.execute("UPDATE tasks SET token='new-owner' WHERE kind='collection_run'")
@@ -465,7 +467,7 @@ def test_obsolete_fetch_rolls_back_without_stopping_collection(tmp_path, monkeyp
     with store.connection() as db:
         assert db.execute("SELECT COUNT(*) FROM observations").fetchone()[0] == 0
         task = db.execute("SELECT status,token FROM tasks WHERE kind='collection_run'").fetchone()
-        if transition == "cancel":
+        if transition in {"cancel", "stop_ingestion"}:
             assert task["status"] == "done"
         else:
             assert task["status"] == "running" and task["token"] == "new-owner"
@@ -476,5 +478,77 @@ def test_obsolete_fetch_rolls_back_without_stopping_collection(tmp_path, monkeyp
         db.execute("UPDATE tasks SET lease_until=0 WHERE kind='collection_run'")
     if transition == "cancel":
         runs.start(saved["id"])
+    elif transition == "stop_ingestion":
+        runs.start_ingestion()
     assert asyncio.run(runs.process_next(settings))
     assert len(store.list_jobs()) == 1
+
+
+def test_ingestion_stop_persists_and_start_preserves_source_pauses(tmp_path):
+    store, runs, saved = setup(tmp_path, daily_at="09:00")
+    other = runs.save(SourceSave(name="Paused", board="paused", expected_revision=0))["searches"][1]
+    runs.pause(other["id"], Pause(expected_revision=1, paused=True))
+    first = runs.start(saved["id"])["run"]
+    runs.start_ingestion()
+    assert len(runs.history()["runs"]) == 1  # Reuse active work instead of overlapping.
+    assert runs.stop_ingestion()["active_runs"] == 0
+    assert runs.view(first["id"])["run"]["stage"] == "cancelled"
+    restarted = SearchRuns(Store(store.path))
+    assert restarted.ingestion_status()["stopped"]
+    assert restarted.ingestion_status()["next_run"] is None
+    assert restarted.schedule(9999999999) == 0
+    with pytest.raises(ValueError, match="ingestion is stopped"):
+        restarted.start(saved["id"])
+    # New sources and edits cannot bypass the global stop.
+    restarted.save(SourceSave(name="New source", board="new", expected_revision=0))
+    assert restarted.schedule(9999999999) == 0
+    assert restarted.start_ingestion()["active_runs"] == 2
+    sources = restarted.settings()["searches"]
+    assert next(s for s in sources if s["id"] == other["id"])["paused"]
+    assert not restarted.ingestion_status()["stopped"]
+    with store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM tasks WHERE status='pending'").fetchone()[0] == 2
+
+
+def test_ingestion_requires_enabled_sources_and_preserves_saved_work(tmp_path, monkeypatch):
+    store, runs, saved = setup(tmp_path)
+
+    async def fetch(*args):
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    run = runs.start(saved["id"])["run"]
+    assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    before = runs.view(run["id"])
+    runs.stop_ingestion()
+    assert runs.view(run["id"]) == before
+    assert len(store.list_jobs()) == 1
+    runs.pause(saved["id"], Pause(expected_revision=1, paused=True))
+    with pytest.raises(ValueError, match="Add or resume"):
+        runs.start_ingestion()
+    assert runs.ingestion_status()["stopped"]
+
+
+def test_stop_during_source_request_discards_result(tmp_path, monkeypatch):
+    store, runs, saved = setup(tmp_path)
+    runs.start(saved["id"])
+
+    async def fetch(*args):
+        runs.stop_ingestion()
+        return FetchResult(jobs=[posting()])
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    assert not asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    assert not store.list_jobs()
+    assert not asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    assert runs.history()["summary"]["ingestion_stopped"]
+
+
+def test_failed_collection_does_not_block_ingestion_restart(tmp_path):
+    store, runs, saved = setup(tmp_path)
+    run = runs.start(saved["id"])["run"]
+    with store.transaction() as db:
+        db.execute("UPDATE tasks SET status='failed' WHERE kind='collection_run'")
+    assert runs.ingestion_status()["active_runs"] == 0
+    assert runs.start_ingestion()["active_runs"] == 1
+    assert runs.view(run["id"])["run"]["stage"] == "needs_attention"

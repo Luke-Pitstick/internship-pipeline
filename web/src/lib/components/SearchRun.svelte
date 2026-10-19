@@ -3,7 +3,7 @@
   let {disabled=false,searchId='',compact=false}=$props<{disabled?:boolean;searchId?:string;compact?:boolean}>();
   const api=getContext<Api>('api');
   type Run={id:string;search_id:string;name:string;stage:string;collected:number;evaluated:number;pending:number;review:number;rejected:number;recommended:number;evaluation_errors:number;excluded:number;source_error:string|null;evaluation_error_codes:string[];limits:{jobs:number;calls:number;tokens:number};usage:{calls:number;reserved_tokens:number;input_tokens:number|null;output_tokens:number|null}};
-  type Summary={collected:number;evaluated:number;pending:number;evaluation_errors:number;excluded:number;sources:number;next_run:number|null;queued:number;collecting:number;fetched:number;scoring_resumes_at:number|null};
+  type Summary={ingestion_stopped:boolean;collected:number;evaluated:number;pending:number;evaluation_errors:number;excluded:number;sources:number;next_run:number|null;queued:number;collecting:number;fetched:number;scoring_resumes_at:number|null};
   let summary=$state<Summary|null>(null);
   let runs=$state<Run[]>([]);let busy=$state(false);let error=$state('');let connectionError=$state('');
   const run=$derived(runs.find(r=>!searchId||r.search_id===searchId)??null);
@@ -28,9 +28,10 @@
     </div>
     <div class="run-actions">
       {#if !searchId}<a class="small-button" href="/settings/#Sources">Manage sources</a>{/if}
-      <button class="secondary" disabled={disabled||busy||collecting} onclick={()=>action('start')}>{collecting?'Collecting…':busy?'Working…':searchId?'Run now':'Find new jobs'}</button>
+      <button class="secondary" disabled={disabled||busy||collecting||!summary||summary.ingestion_stopped} onclick={()=>action('start')}>{collecting?'Collecting…':busy?'Working…':searchId?'Run now':'Find new jobs'}</button>
     </div>
   </div>
+  {#if summary?.ingestion_stopped}<p role="status">Job ingestion is stopped. Start it in Settings → Sources.</p>{/if}
   {#if summary?.excluded && !searchId}<p>{summary.excluded} other listings excluded from internship discovery.</p>{/if}
   {#if summary?.scoring_resumes_at && !searchId && !compact}<p role="status">Scoring has reached its current model budget and resumes automatically at {new Date(summary.scoring_resumes_at*1000).toLocaleString()}.</p>{/if}
   {#if summary?.evaluation_errors && !searchId && !compact}<p>{summary.evaluation_errors} jobs need evaluation attention. Open a job to see its source or model error.</p>{/if}
@@ -53,7 +54,7 @@
 <section class="search-run" class:compact aria-label="Search run">
   {#if compact}
     <details class="discovery-disclosure">
-      <summary><span class="discovery-title"><span class="status-dot" class:running={collecting} aria-hidden="true"></span>Job discovery</span><span class="discovery-state">{collecting ? 'Collecting new jobs' : summary ? summary.sources ? 'Scheduled automatically' : 'Configure sources' : 'Loading discovery…'}</span></summary>
+      <summary><span class="discovery-title"><span class="status-dot" class:running={collecting} aria-hidden="true"></span>Job discovery</span><span class="discovery-state">{collecting ? 'Collecting new jobs' : summary ? summary.ingestion_stopped ? 'Ingestion stopped' : summary.sources ? 'Scheduled automatically' : 'Configure sources' : 'Loading discovery…'}</span></summary>
       {@render runContent()}
     </details>
     {#if connectionError}<p class="error" role="alert">Progress disconnected: {connectionError}. Reconnecting automatically.</p>{/if}

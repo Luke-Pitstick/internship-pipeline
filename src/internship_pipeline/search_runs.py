@@ -33,6 +33,9 @@ class _ObsoleteCollection(Exception):
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS job_ingestion (
+ id INTEGER PRIMARY KEY CHECK (id=1), stopped INTEGER NOT NULL DEFAULT 0);
+INSERT OR IGNORE INTO job_ingestion(id) VALUES(1);
 CREATE TABLE IF NOT EXISTS saved_searches (
  id TEXT PRIMARY KEY, revision INTEGER NOT NULL, config TEXT NOT NULL,
  paused INTEGER NOT NULL DEFAULT 0, next_due REAL);
@@ -168,6 +171,59 @@ class SearchRuns:
         with store.connection() as db:
             db.executescript(SCHEMA + LIMIT_SCHEMA)
 
+    def ingestion_status(self) -> dict[str, Any]:
+        with self.store.connection() as db:
+            stopped = bool(db.execute("SELECT stopped FROM job_ingestion WHERE id=1").fetchone()[0])
+            sources = db.execute(
+                "SELECT COUNT(*) AS total,COALESCE(SUM(paused=0),0) AS enabled,"
+                "MIN(CASE WHEN paused=0 THEN next_due END) AS next_run FROM saved_searches"
+            ).fetchone()
+            active = db.execute(
+                "SELECT COUNT(*) FROM search_runs WHERE cancelled=0 "
+                "AND stage IN ('queued','collecting','fetched') "
+                "AND NOT EXISTS (SELECT 1 FROM tasks WHERE kind='collection_run' "
+                "AND key='collection-run:'||search_runs.id AND status='failed')"
+            ).fetchone()[0]
+        return {
+            "stopped": stopped,
+            "sources": sources["total"],
+            "enabled_sources": sources["enabled"],
+            "active_runs": active,
+            "next_run": None if stopped else sources["next_run"],
+        }
+
+    def start_ingestion(self) -> dict[str, Any]:
+        now = time.time()
+        with self.store.transaction() as db:
+            sources = db.execute("SELECT id,config FROM saved_searches WHERE paused=0").fetchall()
+            if not sources:
+                raise ValueError("Add or resume a source before starting job ingestion.")
+            db.execute("UPDATE job_ingestion SET stopped=0 WHERE id=1")
+            for source in sources:
+                self._start(db, source["id"], now)
+                db.execute(
+                    "UPDATE saved_searches SET next_due=? WHERE id=?",
+                    (
+                        next_due(SourceConfig.model_validate_json(source["config"]), now),
+                        source["id"],
+                    ),
+                )
+        return self.ingestion_status()
+
+    def stop_ingestion(self) -> dict[str, Any]:
+        with self.store.transaction() as db:
+            db.execute("UPDATE job_ingestion SET stopped=1 WHERE id=1")
+            db.execute(
+                "UPDATE tasks SET status='done',token=NULL,lease_until=NULL,updated=? "
+                "WHERE kind='collection_run' AND status IN ('pending','running')",
+                (time.time(),),
+            )
+            db.execute(
+                "UPDATE search_runs SET cancelled=1,stage='cancelled' "
+                "WHERE stage IN ('queued','collecting','fetched')"
+            )
+        return self.ingestion_status()
+
     def settings(self) -> dict[str, Any]:
         with self.store.connection() as db:
             items = []
@@ -259,6 +315,8 @@ class SearchRuns:
         return self.settings()
 
     def _start(self, db: sqlite3.Connection, search_id: str, now: float) -> str:
+        if db.execute("SELECT stopped FROM job_ingestion WHERE id=1").fetchone()[0]:
+            raise ValueError("Job ingestion is stopped. Start it in Settings → Sources.")
         db.execute(
             "UPDATE search_runs SET stage='failed',error='collection_worker_failed' WHERE id IN "
             "(SELECT json_extract(payload,'$.run_id') FROM tasks WHERE "
@@ -310,6 +368,8 @@ class SearchRuns:
         now = time.time() if now is None else now
         count = 0
         with self.store.transaction() as db:
+            if db.execute("SELECT stopped FROM job_ingestion WHERE id=1").fetchone()[0]:
+                return 0
             for row in db.execute(
                 "SELECT * FROM saved_searches WHERE paused=0 AND next_due<=?", (now,)
             ).fetchall():
@@ -345,7 +405,14 @@ class SearchRuns:
                 )
             ]
             summary: dict[str, Any] = dict(
-                collected=0, evaluated=0, pending=0, evaluation_errors=0, excluded=0
+                collected=0,
+                evaluated=0,
+                pending=0,
+                evaluation_errors=0,
+                excluded=0,
+                ingestion_stopped=bool(
+                    db.execute("SELECT stopped FROM job_ingestion WHERE id=1").fetchone()[0]
+                ),
             )
             if not search_id:
                 for row in db.execute(
@@ -372,6 +439,8 @@ class SearchRuns:
                         ).fetchone()
                     )
                 )
+                if summary["ingestion_stopped"]:
+                    summary["next_run"] = None
                 for stage in ("queued", "collecting", "fetched"):
                     summary[stage] = db.execute(
                         "SELECT COUNT(*) FROM search_runs WHERE stage=? AND cancelled=0", (stage,)
@@ -642,6 +711,18 @@ def search_router(runs: SearchRuns, owner: Callable[..., Any]) -> APIRouter:
     @router.get("/search-settings")
     def read() -> dict[str, Any]:
         return runs.settings()
+
+    @router.get("/job-ingestion")
+    def ingestion_status() -> dict[str, Any]:
+        return runs.ingestion_status()
+
+    @router.post("/job-ingestion/start")
+    def start_ingestion() -> dict[str, Any]:
+        return invoke(runs.start_ingestion)
+
+    @router.post("/job-ingestion/stop")
+    def stop_ingestion() -> dict[str, Any]:
+        return runs.stop_ingestion()
 
     @router.post("/search-settings")
     def save(body: SourceSave) -> dict[str, Any]:
