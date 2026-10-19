@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 
-STORAGE_FORMAT = 1
+STORAGE_FORMAT = 2
 
 
 def main() -> int:

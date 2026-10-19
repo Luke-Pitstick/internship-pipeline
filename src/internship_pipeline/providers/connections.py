@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
+from internship_pipeline.providers.response_body import ProviderFailure, read_body
 from internship_pipeline.providers.structured import (
     GENERAL_ENDPOINTS,
     request_headers,
@@ -25,6 +26,13 @@ ENDPOINTS = {
     "general": GENERAL_ENDPOINTS["openai"],
 }
 ERRORS = {
+    "chatgpt_authentication": (
+        "ChatGPT access expired or was revoked. Reconnect the account in AI settings."
+    ),
+    "subscription_limit": "ChatGPT plan usage limit reached. Manage usage in ChatGPT settings.",
+    "subscription_unavailable": (
+        "ChatGPT plan usage is unavailable. Review access in ChatGPT settings."
+    ),
     "authentication": "The provider rejected authentication. Replace the API key and test again.",
     "timeout": "The provider timed out. No automatic retry was made; usage may be unknown.",
     "rate_limit": "The provider rate limit or quota was reached. Check your provider account.",
@@ -42,6 +50,21 @@ class ConnectionInput(BaseModel):
     timeout_seconds: int = Field(default=30, ge=5, le=60)
     max_output_tokens: int = Field(default=1024, ge=256, le=4096)
     expected_revision: int = Field(ge=0)
+    auth_mode: Literal["api_key", "chatgpt"] = "api_key"
+    chatgpt_account_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def authentication(self) -> ConnectionInput:
+        if self.auth_mode == "chatgpt":
+            if (
+                self.endpoint != GENERAL_ENDPOINTS["openai"]
+                or not self.chatgpt_account_id
+                or self.api_key is not None
+            ):
+                raise ValueError("Use a saved ChatGPT account with the official OpenAI endpoint.")
+        elif self.chatgpt_account_id is not None:
+            raise ValueError("A ChatGPT account requires ChatGPT authentication.")
+        return self
 
 
 @dataclass(frozen=True)
@@ -100,6 +123,7 @@ def probe_body(kind: Kind, config: ConnectionInput) -> dict[str, Any]:
             "properties": {"skill": {"type": "string"}, "evidence_id": {"type": "string"}},
             "required": ["skill", "evidence_id"],
         },
+        chatgpt=config.auth_mode == "chatgpt",
     )
 
 
@@ -215,19 +239,16 @@ async def probe(
             ) as response,
         ):
             if response.status_code in (401, 403):
-                return ProbeResult("authentication")
+                return ProbeResult(
+                    "chatgpt_authentication" if config.auth_mode == "chatgpt" else "authentication"
+                )
             if response.status_code == 429:
                 return ProbeResult("rate_limit")
             if response.status_code >= 500:
                 return ProbeResult("unavailable")
             if response.status_code != 200:
                 return ProbeResult("unsupported")
-            data = bytearray()
-            async for chunk in response.aiter_bytes():
-                data.extend(chunk)
-                if len(data) > 65_536:
-                    return ProbeResult("output")
-            body = json.loads(data)
+            body = await read_body(response, chatgpt=config.auth_mode == "chatgpt", limit=65_536)
             info = metadata(body, config.endpoint)
             # Never retain a provider field that echoes our credential.
             if info[0] and key in info[0]:
@@ -235,6 +256,8 @@ async def probe(
                 return ProbeResult("output", *info)
             validate_output(kind, body, config.endpoint)
             return ProbeResult("success", *info)
+    except ProviderFailure as exc:
+        return ProbeResult(exc.status)
     except (TimeoutError, httpx.TimeoutException):
         return ProbeResult("timeout")
     except httpx.HTTPError:

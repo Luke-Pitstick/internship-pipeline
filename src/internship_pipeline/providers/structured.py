@@ -23,9 +23,11 @@ def structured_payload(
     content: str,
     name: str,
     schema: dict[str, Any],
+    *,
+    chatgpt: bool = False,
 ) -> dict[str, Any]:
     if endpoint == GENERAL_ENDPOINTS["openai"]:
-        return {
+        payload = {
             "model": model,
             "store": False,
             "max_output_tokens": max_output_tokens,
@@ -40,6 +42,11 @@ def structured_payload(
                 }
             },
         }
+        if chatgpt:
+            payload.pop("max_output_tokens")
+            payload["stream"] = True
+            payload["input"] = [{"role": "user", "content": content}]
+        return payload
     if endpoint == GENERAL_ENDPOINTS["anthropic"]:
         return {
             "model": model,

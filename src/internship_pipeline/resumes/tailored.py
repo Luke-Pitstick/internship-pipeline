@@ -335,6 +335,15 @@ class TailoredResumes:
                 "authentication": "Model authentication failed. Replace and test "
                 "the general LLM key.",
                 "rate_limit": "The model quota was reached. Check your provider account.",
+                "chatgpt_authentication": (
+                    "ChatGPT access expired or was revoked. Reconnect the account in AI settings."
+                ),
+                "subscription_limit": (
+                    "ChatGPT plan usage limit reached. Manage usage in ChatGPT settings."
+                ),
+                "subscription_unavailable": (
+                    "ChatGPT plan access is unavailable. Review access in AI settings."
+                ),
                 "unsupported": "The selected model does not support structured generation.",
                 "unavailable": "The model is unavailable. Bounded retries are pending.",
             }[exc.status]

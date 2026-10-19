@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from internship_pipeline.profiles.imports import extract_bounded
 from internship_pipeline.providers.connections import ConnectionInput, metadata
+from internship_pipeline.providers.response_body import ProviderFailure, read_body
 from internship_pipeline.providers.structured import (
     request_headers,
     response_text,
@@ -77,6 +78,7 @@ def request_payload(
         json.dumps(data),
         "resume_selection",
         schema,
+        chatgpt=config.auth_mode == "chatgpt",
     )
     if len(json.dumps(payload).encode()) > 200_000:
         raise TailoringFailure("input_limit")
@@ -115,13 +117,14 @@ async def select_facts(
                     response.status_code,
                     "unavailable" if response.status_code >= 500 else "unsupported",
                 )
+                if status == "authentication" and config.auth_mode == "chatgpt":
+                    status = "chatgpt_authentication"
                 raise TailoringFailure(status)
-            data = bytearray()
-            async for chunk in response.aiter_bytes():
-                data.extend(chunk)
-                if len(data) > (512_000 if template else 65_536):
-                    raise TailoringFailure("output")
-            body = json.loads(data)
+            body = await read_body(
+                response,
+                chatgpt=config.auth_mode == "chatgpt",
+                limit=512_000 if template else 65_536,
+            )
             info = metadata(body, config.endpoint)
             if any(v is None for v in info) or (info[0] and key in info[0]):
                 raise TailoringFailure("output", (None, info[1], info[2]))
@@ -148,6 +151,8 @@ async def select_facts(
             return plan, info
     except TailoringFailure:
         raise
+    except ProviderFailure as exc:
+        raise TailoringFailure(exc.status) from None
     except (TimeoutError, httpx.TimeoutException):
         raise TailoringFailure("timeout") from None
     except httpx.HTTPError:

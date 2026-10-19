@@ -1,7 +1,10 @@
 import type { Api } from '#lib/api.ts';
 
 export type ModelKind = 'jev' | 'general';
-export interface ModelConfig { model: string; endpoint: string; timeout_seconds: number; max_output_tokens: number }
+export interface ModelConfig {
+  model: string; endpoint: string; timeout_seconds: number; max_output_tokens: number;
+  auth_mode?: 'api_key' | 'chatgpt'; chatgpt_account_id?: string | null;
+}
 export interface ModelConnection {
   configured: boolean; revision: number; tested_revision: number | null; ready: boolean;
   config: ModelConfig | null;

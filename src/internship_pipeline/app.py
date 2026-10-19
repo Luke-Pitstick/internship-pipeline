@@ -185,7 +185,10 @@ def create_app(
         app.state.identity = identity
         app.state.model_connections = model_connections
         app.state.assessments = assessments
-        app.add_middleware(TrustedHostMiddleware, allowed_hosts=[parsed.hostname])
+        allowed_hosts = [parsed.hostname]
+        if parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}:
+            allowed_hosts = ["localhost", "127.0.0.1"]
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
         @app.middleware("http")
         async def boundary(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -199,6 +202,8 @@ def create_app(
                     async for chunk in request.stream():
                         body.extend(chunk)
                         limit = 16384
+                        if request.url.path == "/api/chatgpt/complete":
+                            limit = 131072
                         if request.url.path == "/api/resume-imports/upload":
                             limit = 5 * 1024 * 1024
                         elif (
@@ -250,6 +255,15 @@ def create_app(
         def owner(request: Request) -> None:
             if not session(request)["authenticated"]:
                 raise HTTPException(401, "Sign in to continue")
+
+        from internship_pipeline.chatgpt.protocol import ChatGPTError
+        from internship_pipeline.chatgpt.router import build_chatgpt_router
+
+        @app.exception_handler(ChatGPTError)
+        async def chatgpt_error(_request: Request, exc: ChatGPTError) -> JSONResponse:
+            return JSONResponse({"detail": str(exc)}, status_code=409)
+
+        app.include_router(build_chatgpt_router(model_connections.chatgpt, owner, origin))
 
         def set_session(response: Response, value: tuple[str, str, int]) -> str:
             token, csrf, ttl = value

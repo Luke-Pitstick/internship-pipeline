@@ -1,6 +1,7 @@
 """Synthetic end-to-end configured transport, durable queue and real PDF generation."""
 
 import json
+import time
 from pathlib import Path
 
 import httpx
@@ -111,6 +112,100 @@ def test_real_generation_review_cache_and_revision_suppression(service):
     assert service.latest(service.job_id)["state"] == "idle"
     with pytest.raises(FileNotFoundError):
         service.pdf(draft["key"])
+
+
+def test_chatgpt_saved_connection_reaches_durable_worker_and_grounded_pdf(service):
+    """Resolve encrypted plan credentials through the durable résumé worker."""
+    account_id = "a" * 64
+    accounts = service.connections.chatgpt
+    with accounts.connection() as db:
+        db.execute(
+            "INSERT INTO chatgpt_accounts "
+            "(id,client_id,subject,email,encrypted,expires_at,status) "
+            "VALUES(?,?,?,?,?,?,'connected')",
+            (
+                account_id,
+                "oaiapp_synthetic",
+                "synthetic-subject",
+                "synthetic@example.test",
+                accounts.encrypt({"access_token": "synthetic-plan-access"}),
+                time.time() + 3600,
+            ),
+        )
+    accounts.transport = httpx.MockTransport(
+        lambda _: httpx.Response(
+            200,
+            json={
+                "models": [
+                    {
+                        "slug": "synthetic-model",
+                        "display_name": "Synthetic model",
+                        "visibility": "list",
+                    },
+                ]
+            },
+        )
+    )
+    revision = service.connections.summary()["general"]["revision"]
+    saved = service.connections.save(
+        "general",
+        ConnectionInput(
+            model="synthetic-model",
+            endpoint=ENDPOINTS["general"],
+            auth_mode="chatgpt",
+            chatgpt_account_id=account_id,
+            expected_revision=revision,
+        ),
+    )
+    attempt, _, _ = service.connections.reserve_test("general", saved["revision"])
+    service.connections.complete_test(attempt, ProbeResult("success", "synthetic-model", 12, 8))
+    calls = []
+
+    def respond(request):
+        payload = json.loads(request.content)
+        assert request.headers["authorization"] == "Bearer synthetic-plan-access"
+        assert payload["stream"] and payload["store"] is False
+        assert "max_output_tokens" not in payload
+        assert "untrusted_job" in payload["input"][0]["content"]
+        calls.append(payload)
+        event = {
+            "type": "response.completed",
+            "response": {
+                "status": "completed",
+                "model": "synthetic-model",
+                "usage": {"input_tokens": 40, "output_tokens": 20},
+                "output": [
+                    {
+                        "type": "message",
+                        "status": "completed",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": json.dumps(
+                                    {"fact_ids": ["experience-api", "project-dashboard"]}
+                                ),
+                            },
+                        ],
+                    }
+                ],
+            },
+        }
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content="data: " + json.dumps(event) + "\n\n",
+        )
+
+    service.transport = httpx.MockTransport(respond)
+    assert request(service)["state"] == "pending"
+    assert service.process_next()
+    draft = service.latest(service.job_id)
+    assert draft["state"] == "draft", draft
+    assert service.pdf(draft["key"]).startswith(b"%PDF-")
+    assert len(calls) == 1
+    accounts.disconnect(account_id)
+    with pytest.raises(ValueError, match="Reconnect|successfully test"):
+        service.request(service.job_id, draft["profile_revision"], draft["model_revision"])
 
 
 def test_checkpoint_survives_compile_failure(service):

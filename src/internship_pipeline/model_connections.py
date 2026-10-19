@@ -13,6 +13,8 @@ from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from internship_pipeline.chatgpt.accounts import ChatGPTAccounts
+from internship_pipeline.chatgpt.protocol import ChatGPTError
 from internship_pipeline.providers.connections import (
     ENDPOINTS,
     ConnectionInput,
@@ -54,6 +56,14 @@ class ModelConnectionStore:
             """)
             existing = db.execute("SELECT 1 FROM model_credentials LIMIT 1").fetchone()
             tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master")}
+            for table in ("chatgpt_accounts", "chatgpt_authorizations"):
+                if (
+                    table in tables
+                    and db.execute(
+                        f"SELECT 1 FROM {table} WHERE encrypted IS NOT NULL LIMIT 1"
+                    ).fetchone()
+                ):
+                    existing = True
             for table in ("email_config", "sheets_config"):
                 if table in tables and db.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone():
                     existing = True
@@ -76,6 +86,7 @@ class ModelConnectionStore:
             self.cipher = Fernet(key_path.read_bytes())
         except ValueError:
             raise ConnectionError("Restore a valid model-credentials.key from backup.") from None
+        self.chatgpt = ChatGPTAccounts(db_path, self.cipher)
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -105,17 +116,30 @@ class ModelConnectionStore:
                     (revision,),
                 ).fetchone()
                 ready = bool(configured and attempt and attempt["status"] == "success")
+                config = json.loads(row["config"]) if configured and row else None
+                if config and config.get("auth_mode") == "chatgpt":
+                    ready = ready and self.chatgpt.connected(config.get("chatgpt_account_id"))
                 result[kind] = {
                     "configured": configured,
                     "revision": revision,
                     "tested_revision": revision if ready else None,
                     "ready": ready,
-                    "config": json.loads(row["config"]) if configured and row else None,
+                    "config": config,
                     "last_test": dict(attempt) if attempt else None,
                 }
             return result
 
     def save(self, kind: Kind, body: ConnectionInput) -> dict[str, Any]:
+        if body.auth_mode == "chatgpt":
+            if kind != "general":
+                raise ConnectionError("ChatGPT plan usage is only available for the general LLM.")
+            try:
+                if body.model not in {
+                    m["slug"] for m in self.chatgpt.models(body.chatgpt_account_id or "")
+                }:
+                    raise ConnectionError("Select a model available to this ChatGPT account.")
+            except ChatGPTError as exc:
+                raise ConnectionError(str(exc)) from None
         supported = (
             body.endpoint in GENERAL_ENDPOINTS.values()
             if kind == "general"
@@ -137,11 +161,14 @@ class ModelConnectionStore:
             changing_provider = bool(
                 row
                 and not row["deleted"]
-                and json.loads(row["config"])["endpoint"] != body.endpoint
+                and (
+                    json.loads(row["config"])["endpoint"] != body.endpoint
+                    or json.loads(row["config"]).get("auth_mode", "api_key") != body.auth_mode
+                )
             )
-            if changing_provider and key is None:
+            if body.auth_mode == "api_key" and changing_provider and key is None:
                 raise ConnectionError("Enter an API key for the newly selected provider.")
-            if key is None and not secret.fetchone():
+            if body.auth_mode == "api_key" and key is None and not secret.fetchone():
                 raise ConnectionError("Enter an API key to create this connection.")
             config = body.model_dump(exclude={"api_key", "expected_revision"})
             db.execute(
@@ -153,6 +180,8 @@ class ModelConnectionStore:
                     "INSERT OR REPLACE INTO model_credentials VALUES(?,?)",
                     (kind, self.cipher.encrypt(key.encode())),
                 )
+            if body.auth_mode == "chatgpt":
+                db.execute("DELETE FROM model_credentials WHERE kind=?", (kind,))
         return self.summary()[kind]
 
     def remove(self, kind: Kind, expected_revision: int) -> dict[str, Any]:
@@ -187,18 +216,41 @@ class ModelConnectionStore:
                 raise ConnectionError(
                     "Save and successfully test the current model connection first."
                 )
+            config = ConnectionInput(
+                **json.loads(row["config"]), expected_revision=expected_revision
+            )
+        return config, self.credential(kind, config)
+
+    def credential(self, kind: Kind, config: ConnectionInput) -> str:
+        with self.connection() as db:
+            current = self._latest(db, kind)
+            if not current or current["deleted"] or current["revision"] != config.expected_revision:
+                raise ConnectionError("This connection changed. Reload settings before continuing.")
             encrypted = db.execute(
                 "SELECT encrypted FROM model_credentials WHERE kind=?", (kind,)
             ).fetchone()
+        if config.auth_mode == "chatgpt":
             try:
-                key = self.cipher.decrypt(encrypted[0]).decode()
-            except (InvalidToken, TypeError, UnicodeError):
-                raise ConnectionError(
-                    "Credential unavailable. Restore the key or replace API key."
-                ) from None
-            return ConnectionInput(
-                **json.loads(row["config"]), expected_revision=expected_revision
-            ), key
+                token = self.chatgpt.access_token(config.chatgpt_account_id or "")
+            except ChatGPTError as exc:
+                raise ConnectionError(str(exc)) from None
+            with self.connection() as db:
+                current = self._latest(db, kind)
+                if (
+                    not current
+                    or current["deleted"]
+                    or current["revision"] != config.expected_revision
+                ):
+                    raise ConnectionError(
+                        "This connection changed. Reload settings before continuing."
+                    )
+            return token
+        try:
+            return self.cipher.decrypt(encrypted[0]).decode()
+        except (InvalidToken, TypeError, UnicodeError):
+            raise ConnectionError(
+                "Credential unavailable. Restore the key or replace API key."
+            ) from None
 
     def reserve_test(self, kind: Kind, expected_revision: int) -> tuple[int, ConnectionInput, str]:
         from internship_pipeline.providers.connections import probe_body
@@ -221,16 +273,6 @@ class ModelConnectionStore:
             ).fetchone()
             if recent >= 5 or active:
                 raise ConnectionError("Test limit reached: one at a time, at most five per hour.")
-            encrypted = db.execute(
-                "SELECT encrypted FROM model_credentials WHERE kind=?",
-                (kind,),
-            ).fetchone()
-            try:
-                key = self.cipher.decrypt(encrypted[0]).decode()
-            except (InvalidToken, TypeError, UnicodeError):
-                raise ConnectionError(
-                    "Credential unavailable. Restore the key or replace API key."
-                ) from None
             config = ConnectionInput(**json.loads(row["config"]), expected_revision=row["revision"])
             request_size = len(
                 json.dumps(
@@ -247,11 +289,18 @@ class ModelConnectionStore:
                     kind,
                     now,
                     request_size,
-                    config.max_output_tokens if kind == "general" else None,
+                    config.max_output_tokens
+                    if kind == "general" and config.auth_mode == "api_key"
+                    else None,
                 ),
             )
             assert cursor.lastrowid is not None
-            return cursor.lastrowid, config, key
+            attempt_id = cursor.lastrowid
+        try:
+            return attempt_id, config, self.credential(kind, config)
+        except ConnectionError:
+            self.complete_test(attempt_id, ProbeResult("authentication"))
+            raise
 
     def complete_test(self, attempt: int, result: ProbeResult) -> None:
         with self.connection() as db:

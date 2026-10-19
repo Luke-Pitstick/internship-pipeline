@@ -114,6 +114,8 @@ def _credentials(root: Path) -> None:
             tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             for table, column in [
                 ("model_credentials", "encrypted"),
+                ("chatgpt_accounts", "encrypted"),
+                ("chatgpt_authorizations", "encrypted"),
                 ("email_config", "encrypted"),
                 ("sheets_config", "encrypted"),
             ]:

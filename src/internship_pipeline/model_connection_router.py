@@ -1,5 +1,6 @@
 """Authenticated configuration API; credentials are never read back."""
 
+from asyncio import to_thread
 from collections.abc import Callable
 from typing import Any
 
@@ -42,7 +43,7 @@ def build_model_connection_router(
     @router.post("/{kind}/test")
     async def test(kind: Kind, body: RevisionInput) -> dict[str, Any]:
         try:
-            attempt, config, key = store.reserve_test(kind, body.expected_revision)
+            attempt, config, key = await to_thread(store.reserve_test, kind, body.expected_revision)
         except ConnectionError as exc:
             raise HTTPException(409, str(exc)) from None
         result = await probe(kind, config, key)
