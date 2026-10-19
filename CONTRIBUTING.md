@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is preparing a release under the [MIT license](LICENSE). Review [redistribution readiness](docs/redistribution-review.md) for third-party notices and outstanding artifact review. Changes should keep the smallest complete workflow working and record which acceptance boundary they actually verify.
+This project uses the [MIT license](LICENSE). Retain the licenses and notices required by third-party dependencies in distributed artifacts. Changes should keep the smallest complete workflow working and record which acceptance boundary they actually verify.
 
 ## Development setup
 
@@ -8,7 +8,7 @@ Use Python 3.12+, uv and Node.js 22. Install the locked dependencies with `uv sy
 
 Follow [AGENTS.md](AGENTS.md). Python modules live in `src/internship_pipeline`, frontend routes/components in `web/src`, synthetic tests in `tests` and `web/tests`, and operator tooling in `deploy`. [Architecture](docs/architecture.md) explains the current seams.
 
-Planning notes, agent handoffs, review logs, release evidence, design captures and generated reports stay local under the paths listed in `.gitignore`. Previously committed copies remain available in Git history. Keep maintained guides and contracts in `docs/`; `evaluation/jev/reports/heldout.json` stays tracked because the offline regression suite reads it.
+Planning notes, agent handoffs, review logs, release evidence, design captures and generated reports stay local under the paths listed in `.gitignore`. Previously committed copies remain available in Git history. Keep maintained user guides and architecture/storage documentation in `docs/`.
 
 For a local container development setup, `deploy/dev` uses `compose.yaml` plus
 `compose.dev.yaml`. Its private `data/dev/config.json` contains `docker` (the Docker
@@ -49,7 +49,7 @@ npx playwright test --config playwright.setup.config.ts
 
 The default browser suite excludes the fresh setup test, so both commands matter. Feature suites have dedicated configurations for search, jobs, generation policy, master/tailored résumés, email and Sheets; run the configuration appropriate to the changed behavior. Browser fixtures start local listeners and use temporary synthetic instances. Install Playwright Chromium separately if it is unavailable in the development environment; CI does that before browser checks.
 
-For direct tests in an existing virtualenv, use `PYTHONPATH=src .venv/bin/python -m pytest`. Some temporary-executable tests are sensitive to a virtualenv path containing spaces; use a space-free virtualenv when reproducing that environment problem. Give concurrent pytest runs distinct unused `--basetemp` paths to avoid shared temporary-output interference. [Integrated acceptance](https://github.com/Luke-Pitstick/internship-pipeline/blob/a4979eb0c8ae22f64c8916818abd2bbb16c12b2f/docs/integrated-acceptance.md) records the current reproducible baseline rather than certifying every future edit.
+For direct tests in an existing virtualenv, use `PYTHONPATH=src .venv/bin/python -m pytest`. Some temporary-executable tests are sensitive to a virtualenv path containing spaces; use a space-free virtualenv when reproducing that environment problem. Give concurrent pytest runs distinct unused `--basetemp` paths to avoid shared temporary-output interference.
 
 ## Data and provider boundaries
 
@@ -63,7 +63,7 @@ Keep source publication time, first observation and notification time separate. 
 
 Own a bounded concern, preserve concurrent edits and remove obsolete paths instead of adding fallback compatibility. Add meaningful tests at the behavior boundary when the change warrants them, run relevant checks, then record exact commands, source revision/scope and limitations in the task handoff. Report newly exposed defects instead of relabeling a failing check as an environment pass.
 
-For container changes, use the [T18 isolated smoke/recovery runner](docs/t18-portable-images.md) only on an authorized healthy runtime. Its real-engine checks create and clean uniquely owned test resources; they are a separate boundary from native tests. Do not reset/prune an operator's runtime or remove a persistent installation to make acceptance pass. Image publication, supported platform claims and a hosted installer remain release gates in [release readiness](docs/release-readiness.md).
+For container changes, use `deploy/container-smoke.py --recovery` only on an authorized healthy runtime. Its real-engine checks create and clean uniquely owned test resources; they are a separate boundary from native tests. Do not reset/prune an operator's runtime or remove a persistent installation to make acceptance pass. Record the tested image, host architecture and runtime when reporting container verification.
 
 ## Reporting issues
 

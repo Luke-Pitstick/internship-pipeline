@@ -36,9 +36,8 @@ build/
 /web/design/
 /web/reports/
 
-# Generated evaluation output; the saved held-out report is a regression fixture
-/evaluation/jev/reports/*
-!/evaluation/jev/reports/heldout.json
+# Local Jev evaluation experiment
+/evaluation/jev/
 
 # Local planning, agent handoffs, reviews and historical release evidence
 /FEATURE_WISHLIST.md
@@ -63,3 +62,12 @@ build/
 /docs/settings-ux-review.md
 /docs/task-breakdown.md
 /docs/ui-workspace-review.md
+
+# Internal implementation writeups and historical development contracts
+/docs/t[0-9][0-9]-*.md
+/docs/*-contracts.md
+/docs/dashboard.md
+/docs/installation-manifest.md
+/docs/redistribution-inventory.json
+/docs/redistribution-review.md
+/docs/release-readiness.md

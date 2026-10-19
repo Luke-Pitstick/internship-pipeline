@@ -108,7 +108,7 @@ upstream port private; follow the [deployment guide](docs/deployment.md).
 
 Google Sheets uses a dedicated service account with Editor access to the selected spreadsheet.
 Preview mappings before syncing. Manual notes and formulas should remain outside application-owned
-columns; mapped inward status/notes changes require review. See [Sheets setup](docs/t15-spreadsheet-sync.md).
+columns; mapped inward status/notes changes require review. See [Sheets setup](docs/deployment.md#optional-email-and-google-sheets).
 
 ## How it works
 
@@ -150,7 +150,7 @@ internship-pipeline update
 These commands use the saved runtime and installation; they do not require a source checkout.
 Use `update --check` to check for a compatible release and `update` to install it.
 Rerunning the installer keeps the existing version. See the [update guide](docs/cli-updates.md)
-for older installations, and the [management guide](docs/t20-management.md) for diagnostics.
+for older installations, and the [management guide](docs/support.md#diagnose-a-running-installation) for diagnostics.
 
 For a source-based Compose installation, run these from its checkout:
 
@@ -168,7 +168,7 @@ despite sharing the `internship-pipeline` name. Use the command for your install
 ## Data and recovery
 
 Your jobs, settings, credentials, and documents are kept in persistent storage. Follow the
-[backup and recovery guide](docs/t20-management.md#private-backup-and-recovery) to make a complete
+[backup and recovery guide](docs/support.md#full-backup-and-fresh-restore) to make a complete
 backup or restore an installation.
 
 ## Development
@@ -277,8 +277,8 @@ before retrying work.
 
 SMTP acceptance does not prove mailbox receipt. Check the delivery history and inbox before
 retrying an uncertain send. For Sheets, inspect sharing permissions, mapping and changed-cell
-conflicts, then prepare a fresh preview. See [email](docs/t14-email-alerts.md),
-[Sheets](docs/t15-spreadsheet-sync.md) and [support](docs/support.md).
+conflicts, then prepare a fresh preview. See [integration setup](docs/deployment.md#optional-email-and-google-sheets) and
+[troubleshooting](docs/support.md#common-failures).
 
 ## Forgot your password?
 

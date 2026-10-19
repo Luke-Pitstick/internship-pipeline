@@ -15,7 +15,7 @@ This requires a platform facility that can stop all disk writers and attach that
 exclusively to the same image for maintenance. This repository has not verified such a
 Render procedure. If that capability is unavailable, use an operator-supported stopped
 disk recovery/export procedure and the same-image recovery instructions in
-[deployment](deployment.md) and [T17](t17-operations.md). Do not run recovery in the
+[deployment](deployment.md) and [backup and recovery](support.md#full-backup-and-fresh-restore). Do not run recovery in the
 active service shell or create a replacement empty disk. Render recovery remains an
 open platform acceptance requirement.
 
@@ -36,4 +36,4 @@ not test it, invoke a model or send notifications. The supervisor notices newly 
 roles without restart; restart after changing operational YAML. No Codex CLI/login or
 local relay is part of the deployed worker path.
 
-See [deployment](deployment.md) for recovery and private-volume handling and [dashboard](dashboard.md) for current UI behavior. This change was not deployed to a live Render service. The SSH outbox relay has been removed. Optional email and Google Sheets are configured in authenticated Settings and processed by independent integration workers.
+See [deployment](deployment.md) for recovery and private-volume handling and [README](../README.md) for current UI behavior. This change was not deployed to a live Render service. The SSH outbox relay has been removed. Optional email and Google Sheets are configured in authenticated Settings and processed by independent integration workers.
