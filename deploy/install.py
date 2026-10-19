@@ -17,6 +17,7 @@ import webbrowser
 from pathlib import Path
 from uuid import uuid4
 
+from installer_ui import InstallProgress
 from pipeline_runtime import (
     LABEL,
     Failure,
@@ -400,6 +401,9 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    progress = InstallProgress()
+    progress.header()
+    progress.start("Checking host, workspace and container engine")
     try:
         check_host()
         if not 1 <= args.ready_timeout <= 300:
@@ -495,17 +499,24 @@ def main(argv: list[str] | None = None) -> int:
                 # Record identity before engine resources; failed operations never erase state.
                 write_manifest(manifest_path, manifest)
                 runtime = Runtime(spec)
+            progress.start("Installing management command")
             install_command(install_dir, command_dir, manifest.install_id)
+            progress.start("Preparing storage and image; starting application")
             provision(runtime, manifest, install_dir, backup)
+            progress.start("Waiting for workspace readiness")
             wait_ready(runtime, manifest, timeout=args.ready_timeout)
-        print(f"Ready: {manifest.url}\nManagement command: {command_dir / 'internship-pipeline'}")
-        print(f"Manifest: {manifest_path}\nData volume: {manifest.volume_name}")
         url = runtime.browser_url(manifest)
-        print(f"Open your workspace: {url}")
+        progress.finish()
+        print("\n" + progress.style("  Your workspace is ready", "1;32", stream=sys.stdout))
+        print(f"\n  Open your workspace: {url}\n")
         print(
-            "Create your username and password, then follow guided setup. "
-            "Keep this setup link private."
+            "  Create your username and password, then follow guided setup.\n"
+            "  Keep this setup link private.\n"
         )
+        print(progress.style("  Installation details", "1", stream=sys.stdout))
+        print(f"  Ready: {manifest.url}")
+        print(f"  Management command: {command_dir / 'internship-pipeline'}")
+        print(f"  Manifest: {manifest_path}\n  Data volume: {manifest.volume_name}\n")
         if not args.no_open and (
             platform.system() == "Darwin" or os.getenv("DISPLAY") or os.getenv("WAYLAND_DISPLAY")
         ):
@@ -519,13 +530,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     except (Failure, OSError) as exc:
-        print(f"Installation stopped: {exc}", file=sys.stderr)
+        progress.finish(success=False)
+        print(progress.style(f"\nInstallation stopped: {exc}", "1;31"), file=sys.stderr)
         print(
             "Existing data and configuration are retained. Rerun the same "
             "command after resolving the error.",
             file=sys.stderr,
         )
         return 1
+    finally:
+        # Interrupts and unexpected exceptions must also stop the terminal animation.
+        progress.finish(success=False)
 
 
 if __name__ == "__main__":

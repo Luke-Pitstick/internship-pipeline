@@ -16,6 +16,7 @@ from pathlib import Path
 BUNDLE_FILES = (
     "install.sh",
     "install.py",
+    "installer_ui.py",
     "pipeline_runtime.py",
     "pipeline_management.py",
     "internship-pipeline",
@@ -28,7 +29,7 @@ MAX_ARCHIVE_BYTES = 2 * 1024 * 1024
 def build_bundle(
     deploy_dir: Path, output_dir: Path, version: str, source_commit: str
 ) -> dict[str, object]:
-    """Read the five deploy files and root license; fail rather than replace output."""
+    """Read the allowlisted deploy files and root license without replacing output."""
     if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?", version):
         raise ValueError("Use an explicit release version such as v0.1.0-rc.1.")
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):

@@ -8,6 +8,7 @@ import gzip
 import hashlib
 import hmac
 import io
+import os
 import re
 import subprocess
 import sys
@@ -22,6 +23,7 @@ from urllib.parse import urlsplit
 BUNDLE_FILES = (
     "install.sh",
     "install.py",
+    "installer_ui.py",
     "pipeline_runtime.py",
     "pipeline_management.py",
     "internship-pipeline",
@@ -81,21 +83,35 @@ def download(url: str, expected_sha256: str) -> bytes:
                 raise ValueError("Download is empty or exceeds the installer size limit.")
         chunks: list[bytes] = []
         size = 0
-        while True:
-            if time.monotonic() > deadline:
-                raise ValueError("Installer download exceeded its deadline.")
-            chunk = response.read1(65536)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > MAX_DOWNLOAD_BYTES:
-                raise ValueError("Download exceeds the installer size limit.")
-            chunks.append(chunk)
+        interactive = sys.stderr.isatty() and os.environ.get("TERM") != "dumb"
+        print("  Downloading installer bundle…", file=sys.stderr, flush=True)
+        try:
+            while True:
+                if time.monotonic() > deadline:
+                    raise ValueError("Installer download exceeded its deadline.")
+                chunk = response.read1(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MAX_DOWNLOAD_BYTES:
+                    raise ValueError("Download exceeds the installer size limit.")
+                chunks.append(chunk)
+                if interactive:
+                    detail = f"{size:,} bytes"
+                    if length is not None:
+                        filled = min(20, size * 20 // length)
+                        bar = ("=" * filled).ljust(20, "-")
+                        detail = f"[{bar}] {min(100, size * 100 // length):3d}%"
+                    print(f"\r  {detail}", end="", file=sys.stderr, flush=True)
+        finally:
+            if interactive:
+                print(file=sys.stderr)
     if size == 0 or (length is not None and size != length):
         raise ValueError("Installer download is empty or incomplete.")
     payload = b"".join(chunks)
     if not hmac.compare_digest(hashlib.sha256(payload).hexdigest(), expected_sha256):
         raise ValueError("Installer SHA-256 mismatch; nothing was extracted or executed.")
+    print("  Installer bundle verified.", file=sys.stderr, flush=True)
     return payload
 
 

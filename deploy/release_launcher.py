@@ -62,7 +62,13 @@ trap 'rm -rf -- "$temporary"' 0
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
-curl --disable --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \\
+printf '  Downloading and verifying release bootstrap…\\n' >&2
+curl_progress=--silent
+if [ -t 2 ] && [ "${{TERM:-}}" != dumb ]; then
+    curl_progress=--progress-bar
+fi
+curl --disable --fail "$curl_progress" --show-error --location \\
+    --proto '=https' --proto-redir '=https' \\
     --connect-timeout 30 --max-time 120 --max-filesize 2097152 \\
     --output "$temporary/bootstrap_installer.py" {shlex.quote(base + "/bootstrap_installer.py")}
 python3 - "$temporary/bootstrap_installer.py" {shlex.quote(bootstrap_sha256)} <<'PIPELINE_VERIFY'
