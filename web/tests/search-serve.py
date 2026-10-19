@@ -18,7 +18,7 @@ from internship_pipeline.models import FetchResult, Settings, SourceJob
 from internship_pipeline.storage import enqueue
 from internship_pipeline.search_runs import SearchRuns
 from internship_pipeline.assessments import EvaluationError
-from internship_pipeline.sources import ats
+from internship_pipeline.sources import ats, jobspy
 
 async def synthetic_fetch(company, timeout):
     if company.id.endswith('brokenboard'):
@@ -35,6 +35,9 @@ with tempfile.TemporaryDirectory(prefix='pipeline-search-browser-') as directory
     matcher.transport = httpx.MockTransport(lambda request: httpx.Response(
         200,json=response(json.loads(request.content))))
     ats.fetch_company = synthetic_fetch
+    # Restarting ingestion also runs the broad search saved by this suite.
+    # Keep it offline so a real provider cannot block the synthetic ATS queue.
+    jobspy.fetch_search = lambda query, timeout: FetchResult(jobs=[])
     settings = Settings(database_path=matcher.store.path)
     runs = SearchRuns(matcher.store)
     with matcher.store.transaction() as db:
