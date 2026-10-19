@@ -10,6 +10,15 @@ sign-in help, and interactive validation retries for account recovery. Verificat
 passed, and Chrome verified keyboard expansion and 390px/1440px layouts using a
 synthetic sign-in session. These checks do not update or verify an installed image.
 
+## Planned — CLI release updates (October 19, 2026)
+
+The proposed [CLI release update brief](../agents/cli-release-update.md) adds explicit
+latest-preview checks and updates through verified release artifacts, separate candidate
+storage, and recoverable cutover. It requires an explicitly matching data contract;
+older images without that evidence and schema migrations remain unsupported. This is
+planning only: no updater code, tests, installed-image changes, or release acceptance
+were completed by this entry. Existing installer reruns still preserve the saved image.
+
 ## Delivery rules
 
 Build in sequence. Each step names its dependency, intended files, concrete work and acceptance gate. Keep the pipeline working as capabilities are added. Do not introduce alternative databases, generic plugin systems or a custom dashboard for this single-user workload.
