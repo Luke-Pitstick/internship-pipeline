@@ -53,11 +53,15 @@ internship-pipeline open     # Open the app
 internship-pipeline status   # Check whether it's running
 internship-pipeline stop     # Stop the app
 internship-pipeline start    # Start it again
+internship-pipeline update --check  # Check for a compatible release
+internship-pipeline update         # Install the latest compatible release
 ```
 
 The installer prints the command's location if it isn't on your PATH. Your data
 persists between restarts. Rerunning the installer keeps your existing installation;
-it doesn't upgrade it.
+it doesn't upgrade it. Use the explicit update command once it is available in
+your installed release; see the [update guide](docs/cli-updates.md) for bootstrap
+and recovery instructions.
 
 ## Forgot your password?
 
@@ -77,7 +81,7 @@ troubleshooting, and Docker Compose instructions.
 - [Backups and recovery](docs/t20-management.md#private-backup-and-recovery)
 - [Privacy and data flow](docs/privacy.md)
 - [Development and contributing](CONTRIBUTING.md)
-- [Release status](docs/release-readiness.md) — currently available as a preview.
+- [Release notes](CHANGELOG.md) — changes and update requirements for v1.0.0.
 
 ## License
 

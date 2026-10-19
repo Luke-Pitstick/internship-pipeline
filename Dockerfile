@@ -7,7 +7,7 @@ COPY web/ ./
 RUN npm run check && npm run build
 
 FROM python:3.12-slim-bookworm AS pipeline
-ARG IMAGE_VERSION=0.1.0
+ARG IMAGE_VERSION=1.0.0
 ARG IMAGE_REVISION=local
 ARG IMAGE_SOURCE
 LABEL org.opencontainers.image.title="Internship Pipeline" \
