@@ -10,6 +10,49 @@ async function login(page: Page) {
 }
 const section = (page: Page, name: string) => page.getByRole('navigation', {name:'Settings categories'}).getByRole('button', {name, exact:true});
 
+test('one location input switches between required and flexible locations and persists after reload', async ({page}) => {
+  await login(page);
+  await section(page, 'Job Filters').click();
+  const locations = page.getByLabel('Locations', {exact:true});
+  const flexible = page.getByRole('checkbox', {name:'I’m open to locations beyond those selected'});
+  await expect(locations).toHaveCount(1);
+  await expect(page.getByLabel(/^(Required|Preferred) locations$/)).toHaveCount(0);
+  await flexible.uncheck();
+  await locations.fill('Denver, CO');
+  await locations.press('Enter');
+  await page.getByRole('button', {name:'Save changes', exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Job filters saved.'})).toBeVisible();
+  const required = await (await page.request.get('/api/profile-settings')).json();
+  expect(required.preferences.hard.locations).toEqual(['Denver, CO']);
+  expect(required.preferences.soft.locations).toEqual([]);
+  await page.reload();
+  await expect(flexible).not.toBeChecked();
+  await expect(page.getByRole('button', {name:'Remove Denver, CO', exact:true})).toBeVisible();
+
+  await flexible.check();
+  await locations.fill('Boulder, CO');
+  await locations.press('Enter');
+  await page.getByRole('button', {name:'Save changes', exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Job filters saved.'})).toBeVisible();
+  const preferred = await (await page.request.get('/api/profile-settings')).json();
+  expect(preferred.preferences.hard.locations).toEqual([]);
+  expect(preferred.preferences.soft.locations).toEqual(['Denver, CO', 'Boulder, CO']);
+  expect(preferred.preferences.hard.countries).toEqual(required.preferences.hard.countries);
+  await page.reload();
+  await expect(flexible).toBeChecked();
+  await expect(page.getByRole('button', {name:'Remove Boulder, CO', exact:true})).toBeVisible();
+
+  await flexible.uncheck();
+  await page.getByRole('button', {name:'Discard changes', exact:true}).click();
+  await expect(flexible).toBeChecked();
+  await expect(page.getByRole('button', {name:'Remove Denver, CO', exact:true})).toBeVisible();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({width, height:1000});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results-settings/locations-${width}.png`,fullPage:true});
+  }
+});
+
 test('section saves and discards are independent, history preserves drafts, and leaving warns', async ({page}) => {
   await login(page);
   const before = await (await page.request.get('/api/profile-settings')).json();
