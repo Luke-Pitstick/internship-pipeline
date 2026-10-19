@@ -10,6 +10,13 @@ sign-in help, and interactive validation retries for account recovery. Verificat
 passed, and Chrome verified keyboard expansion and 390px/1440px layouts using a
 synthetic sign-in session. These checks do not update or verify an installed image.
 
+Local development follow-up: built `internship-pipeline:development` from the
+working checkout, started the separate Compose dev project with source/frontend
+bind mounts and a checksum-verified data copy, and replaced the local curl command
+and container. The dev container passed readiness and a synthetic password-reset,
+retry, and sign-in check using the mounted source. The original data volume was
+retained. The three dev-command lifecycle tests, Ruff, and strict mypy passed.
+
 ## Planned — CLI release updates (October 19, 2026)
 
 The proposed [CLI release update brief](../agents/cli-release-update.md) adds explicit

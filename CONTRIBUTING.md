@@ -8,6 +8,21 @@ Use Python 3.12+, uv and Node.js 22. Install the locked dependencies with `uv sy
 
 Follow [AGENTS.md](AGENTS.md) and the ordered [implementation plan](docs/implementation-plan.md). Python modules live in `src/internship_pipeline`, frontend routes/components in `web/src`, synthetic tests in `tests` and `web/tests`, operator tooling in `deploy`, and task contracts/evidence in `docs`. [Architecture](docs/architecture.md) explains the current seams.
 
+For a local container development setup, `deploy/dev` uses `compose.yaml` plus
+`compose.dev.yaml`. Its private `data/dev/config.json` contains `docker` (the Docker
+executable's absolute path), `host` (the local Docker socket URI), `volume` (an
+existing dedicated development volume), and `port` (for example, 8080). The curl
+installation is independent of this setup.
+
+Run `deploy/dev build` once, then `deploy/dev start`. The container mounts this
+checkout's `src/` and `web/build/` read-only. After Python edits, use
+`deploy/dev restart`; after frontend edits, run `npm run build` in `web/` and refresh
+the browser. Rebuild the container after changing dependencies or the Dockerfile.
+`deploy/dev recover-owner` stops the app, runs the current checkout's password reset
+interactively, and starts it again after success. `status`, `logs`, `open`, `url`,
+and `stop` also target this development setup. Link `deploy/dev` into your command
+directory as `internship-pipeline` if you want those commands to use the checkout.
+
 ## Checks
 
 Run from the repository root:

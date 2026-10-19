@@ -1,0 +1,17 @@
+services:
+  app:
+    image: internship-pipeline:development
+    build:
+      args:
+        IMAGE_VERSION: development
+        IMAGE_REVISION: working-tree
+    environment:
+      PYTHONPATH: /app/src
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./src:/app/src:ro
+      - ./web/build:/app/web/build:ro
+volumes:
+  pipeline-data:
+    external: true
+    name: ${PIPELINE_DEV_VOLUME:?Set the development data volume}

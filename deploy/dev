@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Run this checkout with Compose and the private data/dev/config.json settings."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import webbrowser
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=f"Development checkout: {ROOT}")
+    parser.add_argument(
+        "command",
+        choices=[
+            "build",
+            "start",
+            "stop",
+            "restart",
+            "status",
+            "logs",
+            "open",
+            "url",
+            "recover-owner",
+        ],
+    )
+    args = parser.parse_args()
+    config_path = ROOT / "data/dev/config.json"
+    if not config_path.is_file():
+        parser.error(f"Create the local development settings first: {config_path}")
+    config = json.loads(config_path.read_text())
+    origin = f"http://localhost:{int(config['port'])}"
+    env = dict(os.environ)
+    env.pop("DOCKER_CONTEXT", None)
+    env.pop("DOCKER_HOST", None)
+    env.update(
+        PIPELINE_DEV_VOLUME=config["volume"],
+        PIPELINE_PORT=str(config["port"]),
+        PIPELINE_ORIGIN=origin,
+    )
+    compose = [
+        config["docker"],
+        "--host",
+        config["host"],
+        "compose",
+        "--project-name",
+        "internship-pipeline-dev",
+        "--project-directory",
+        str(ROOT),
+        "--env-file",
+        "/dev/null",
+        "-f",
+        str(ROOT / "compose.yaml"),
+        "-f",
+        str(ROOT / "compose.dev.yaml"),
+    ]
+
+    def run(*arguments: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [*compose, *arguments], cwd=ROOT, env=env, check=True, text=True, capture_output=capture
+        )
+
+    def start() -> None:
+        run("up", "--detach", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "90")
+        print(f"Development app ready: {origin}\nSource: {ROOT / 'src'}")
+
+    def open_app() -> None:
+        result = run(
+            "exec",
+            "-T",
+            "app",
+            "python",
+            "-m",
+            "internship_pipeline.cli",
+            "setup-link",
+            "--data-dir",
+            "/var/data",
+            "--origin",
+            origin,
+            capture=True,
+        )
+        url = result.stdout.strip()
+        if not (url == origin + "/" or url.startswith(origin + "/#setup=")):
+            raise ValueError("The development app did not return a valid setup link.")
+        if not webbrowser.open(url):
+            print(f"Open this private link in your browser: {url}")
+
+    try:
+        if args.command == "build":
+            subprocess.run(["npm", "run", "build"], cwd=ROOT / "web", check=True)
+            run("build", "app")
+        elif args.command == "start":
+            start()
+        elif args.command == "restart":
+            run("stop", "app")
+            start()
+        elif args.command == "stop":
+            run("stop", "app")
+        elif args.command == "status":
+            print(f"Development checkout: {ROOT}")
+            run("ps", "--all")
+        elif args.command == "logs":
+            run("logs", "--tail", "100", "app")
+        elif args.command == "url":
+            print(origin)
+        elif args.command == "open":
+            open_app()
+        elif args.command == "recover-owner":
+            if not sys.stdin.isatty():
+                parser.error(
+                    "Run password reset directly in your terminal so you can type privately."
+                )
+            run("stop", "app")
+            run(
+                "run",
+                "--rm",
+                "--no-deps",
+                "--pull",
+                "never",
+                "--entrypoint",
+                "python",
+                "app",
+                "-m",
+                "internship_pipeline.cli",
+                "recover-owner",
+                "--data-dir",
+                "/var/data",
+            )
+            start()
+            print("Password reset complete. Run internship-pipeline open to sign in.")
+    except subprocess.CalledProcessError as exc:
+        print(
+            "Development command did not finish. The app's saved data is retained.", file=sys.stderr
+        )
+        return exc.returncode
+    except (OSError, ValueError) as exc:
+        print(f"Development setup error: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
