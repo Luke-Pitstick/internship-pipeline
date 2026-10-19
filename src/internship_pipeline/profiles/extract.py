@@ -78,6 +78,7 @@ def tex_text(source: str) -> str:
             for name in ("section", "subsection", "subsubsection")
         ]
         + [
+            latex2text.MacroTextSpec("par", simplify_repl="\n"),
             latex2text.MacroTextSpec("href", simplify_repl="%(2)s"),
             latex2text.MacroTextSpec("url", simplify_repl="%(1)s"),
             latex2text.MacroTextSpec("textcolor", simplify_repl="%(3)s"),

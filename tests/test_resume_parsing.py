@@ -139,6 +139,28 @@ def test_realistic_resume_fills_all_sections_and_saves_literal_evidence(tmp_path
     assert imports.template() == (TEX if kind == "tex" else None)
 
 
+def test_tex_paragraph_commands_keep_contact_and_education_fields_separate(tmp_path):
+    source = r"""\documentclass{article}
+\begin{document}
+Synthetic Candidate\par
+synthetic@example.test\par
+\section{Education}
+Example University\par
+Bachelor of Science in Computing\par
+\section{Experience}
+Built an example reporting tool.\par
+\end{document}
+"""
+    imports = ResumeImports(Store(tmp_path / "state.sqlite3"))
+    draft = imports.upload(source.encode(), "tex", 0)
+    filled, _ = imports.prepare(draft["id"], reviewed(draft))
+    assert filled.profile.name == "Synthetic Candidate"
+    assert filled.profile.email == "synthetic@example.test"
+    assert filled.profile.education[0].institution == "Example University"
+    assert filled.profile.education[0].degree == "Bachelor of Science in Computing"
+    assert any(fact.text == "Built an example reporting tool." for fact in filled.profile.facts)
+
+
 @pytest.mark.parametrize(
     "rows",
     [

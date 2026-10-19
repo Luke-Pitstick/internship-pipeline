@@ -120,6 +120,7 @@ for(const [category,label,value] of [
   await owner(page);
   await page.getByRole('button',{name:category,exact:true}).click();
   if(label.includes('spreadsheet URL')) await page.getByRole('button',{name:'Google Sheets',exact:true}).click();
+  if(category === 'Sources') await page.locator('.source-editor > summary').click();
   await page.locator(label).fill(value);
   expect(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
   await page.getByRole('button',{name:'Profile',exact:true}).click();

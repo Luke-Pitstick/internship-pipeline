@@ -18,9 +18,9 @@ test('master PDF uses saved facts, generates, previews, downloads, caches and ha
   await page.getByRole('button', {name: 'Create owner account'}).click();
   await page.getByLabel('Name', {exact: true}).fill('Synthetic Candidate');
   await page.getByLabel('Email', {exact: true}).fill('synthetic@example.test');
-  await page.getByRole('button', {name: 'Add fact or skill'}).click();
-  await page.getByLabel('Supporting fact').fill('Built a Python survey API processing 120 synthetic requests per day.');
-  await page.getByLabel('Confirmation', {exact: true}).selectOption('confirmed');
+  await page.getByRole('button', {name: 'Add experience', exact: true}).click();
+  await page.getByLabel('Responsibilities & accomplishments', {exact: true}).fill('Built a Python survey API processing 120 synthetic requests per day.');
+  await page.getByRole('checkbox', {name: 'I confirm this experience', exact: true}).check();
   await page.getByRole('button', {name: 'Add education'}).click();
   await page.getByLabel('Institution', {exact: true}).fill('Example University');
   await page.getByLabel('Degree', {exact: true}).fill('Bachelor of Science');
