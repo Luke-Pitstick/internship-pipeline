@@ -130,8 +130,8 @@ def render_master(snapshot: Snapshot) -> MasterDocument:
             ]
         )
         for fact in selected:
-            required.append(plain(fact.text))
-            body.append(r"\item " + escape(fact.text))
+            required.append(plain(fact.evidence_text))
+            body.append(r"\item " + escape(fact.evidence_text))
         body.append(r"\end{itemize}")
     skills: dict[str, list[str]] = {}
     for fact in facts:

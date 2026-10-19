@@ -1,14 +1,18 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import type { Profile, FieldErrors } from '#lib/settings.ts';
+  import { newFact, type Fact, type Profile, type FieldErrors } from '#lib/settings.ts';
+  import ProfileEntry from './ProfileEntry.svelte';
+  import ProfileSkills from './ProfileSkills.svelte';
   import ListField from './ListField.svelte';
-  import { countryOptions, skillOptions } from '#lib/input-options.ts';
+  import { countryOptions } from '#lib/input-options.ts';
   let { profile = $bindable(), errors = {}, disabled = false }: {profile: Profile; errors?: FieldErrors; disabled?: boolean} = $props();
   const id = () => crypto.randomUUID();
-  async function addFact(index = profile.facts.length) {
-    profile.facts.splice(index, 0, {id: id(), kind: 'experience', status: 'unknown', text: '', skills: []});
+  const sections = [{kind: 'experience', title: 'Experience', singular: 'experience', help: 'Add your work, internships, research or volunteer experience.'}, {kind: 'project', title: 'Projects', singular: 'project', help: 'Show what you built, the skills you used and where to find it.'}] as const;
+  async function addEntry(kind: Fact['kind']) {
+    const fact = newFact(kind);
+    profile.facts.push(fact);
     await tick();
-    document.getElementById(`profile.facts.${index}.text`)?.focus();
+    document.getElementById(`${fact.id}-title`)?.focus();
   }
 </script>
 {#snippet error(path: string)}{#if errors[path]}<p class="field-error" id={`${path}-error`}>{errors[path]}</p>{/if}{/snippet}
@@ -19,24 +23,18 @@
   <label for="profile.email">Email</label><input id="profile.email" name="profile.email" type="email" bind:value={profile.email} maxlength="254" autocomplete="email" aria-invalid={!!errors['profile.email']} aria-describedby={errors['profile.email'] ? 'profile.email-error' : undefined} />
   {@render error('profile.email')}
 </div>
-<div class="form-group">
-  <div class="section-actions"><h3>Experience, projects & skills</h3><button type="button" class="secondary" disabled={disabled || profile.facts.length >= 100} onclick={() => addFact(0)}>Add fact or skill</button></div>
-  <p class="field-help">Add one supported claim per entry. You can edit or remove imported facts and add your own.</p>
-  {#each profile.facts as fact, i (fact.id)}
-    <fieldset class="fact-entry"><legend>Fact {i + 1}</legend>
-      <div class="entry-actions">
-        <button type="button" class="secondary" disabled={disabled || profile.facts.length >= 100} onclick={() => addFact(i + 1)}>Add fact below {i + 1}</button>
-        <button type="button" class="subtle remove-entry" disabled={disabled} onclick={() => profile.facts.splice(i, 1)}>Remove fact {i + 1}</button>
-      </div>
-      <label for={`fact-kind-${fact.id}`}>Type</label><select id={`fact-kind-${fact.id}`} bind:value={fact.kind}><option value="experience">Experience</option><option value="project">Project</option><option value="skill">Skill</option></select>
-      <label for={`profile.facts.${i}.text`}>Supporting fact</label><textarea id={`profile.facts.${i}.text`} name={`profile.facts.${i}.text`} bind:value={fact.text} maxlength="2000" rows="3" aria-invalid={!!errors[`profile.facts.${i}.text`]} aria-describedby={errors[`profile.facts.${i}.text`] ? `profile.facts.${i}.text-error` : undefined}></textarea>
-      {@render error(`profile.facts.${i}.text`)}
-      <ListField {disabled} options={skillOptions} label="Related skills" name={`profile.facts.${i}.skills`} error={errors[`profile.facts.${i}.skills`]} bind:values={fact.skills} help="Only confirmed facts contribute evidence." />
-      <label for={`fact-status-${fact.id}`}>Confirmation</label><select id={`fact-status-${fact.id}`} bind:value={fact.status}><option value="unknown">Unknown / needs confirmation</option><option value="confirmed">Confirmed by me</option></select>
-      <p class="field-help fact-id">Fact ID: {fact.id}</p>
-    </fieldset>
-  {/each}
-</div>
+{#each sections as section}
+  <section class="form-group" aria-labelledby={`profile-${section.kind}-heading`}>
+    <div class="section-actions"><h3 id={`profile-${section.kind}-heading`}>{section.title}</h3><button type="button" class="secondary" disabled={disabled || profile.facts.length >= 100} onclick={() => addEntry(section.kind)}>Add {section.singular}</button></div>
+    <p class="field-help">{section.help}</p>
+    {#each profile.facts.map((fact, index) => ({fact, index})).filter(entry => entry.fact.kind === section.kind) as entry, number (entry.fact.id)}
+      <ProfileEntry bind:fact={profile.facts[entry.index]} index={entry.index} number={number + 1} {errors} {disabled} onremove={() => profile.facts.splice(entry.index, 1)} />
+    {:else}
+      <p class="empty-section">No {section.singular === 'experience' ? 'experience' : 'projects'} added yet.</p>
+    {/each}
+  </section>
+{/each}
+<ProfileSkills bind:profile {disabled} {errors} />
 <div class="form-group">
   <div class="section-actions"><h3>Education</h3><button type="button" class="secondary" disabled={disabled || profile.education.length >= 20} onclick={() => profile.education.unshift({id: id(), status: 'unknown', institution: '', degree: '', field: '', graduation_date: null})}>Add education</button></div>
   {#each profile.education as education, i (education.id)}
@@ -47,7 +45,6 @@
       <label for={`education-field-${education.id}`}>Field of study</label><input id={`education-field-${education.id}`} bind:value={education.field} maxlength="200" />
       <label for={`education-date-${education.id}`}>Expected or completed graduation date</label><input id={`education-date-${education.id}`} type="date" value={education.graduation_date ?? ''} onchange={event => education.graduation_date = event.currentTarget.value || null} />
       <label for={`education-status-${education.id}`}>Education confirmation</label><select id={`education-status-${education.id}`} bind:value={education.status}><option value="unknown">Unknown / needs confirmation</option><option value="confirmed">Confirmed by me</option></select>
-      <p class="field-help fact-id">Fact ID: {education.id}</p>
     </fieldset>
   {/each}
 </div>
@@ -56,6 +53,7 @@
   .section-actions h3 { margin: 0; }
   .entry-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
   .remove-entry { color: #a83424; }
+  .empty-section { color: var(--muted); margin: 20px 0 0; }
 </style>
 <div class="form-group">
   <h3>Availability & eligibility</h3><p class="field-help">Enter confirmed information only. Leaving a date or authorization blank means unknown; it does not mean unavailable or ineligible.</p>

@@ -23,6 +23,7 @@ from internship_pipeline.profile_settings import (
     RevisionConflict,
     SaveSettings,
 )
+from internship_pipeline.resumes.master_template import escape, render_master
 from internship_pipeline.storage import Store
 
 
@@ -115,6 +116,71 @@ def test_confirmed_evidence_and_hard_soft_separation(tmp_path: Path) -> None:
     )
     assert third.candidate().constraints.degree_level is None
     assert len(third.candidate().facts) == 3
+
+
+def test_structured_entries_survive_save_and_supply_resume_evidence(tmp_path: Path) -> None:
+    profiles = ProfileSettings(Store(tmp_path / "state.sqlite3"))
+    experience = Fact(
+        kind="experience",
+        title="Software intern",
+        company="Example Company",
+        location="Denver, CO",
+        start_date="2026-06",
+        current=True,
+        text="Built a reporting tool.",
+        skills=["Python"],
+        status="confirmed",
+    )
+    project = Fact(
+        kind="project",
+        title="Course planner",
+        start_date="2026-01",
+        end_date="2026-05",
+        links=["https://example.test/planner"],
+        skills=["TypeScript"],
+        status="confirmed",
+    )
+    snapshot = profiles.save(
+        SaveSettings(
+            expected_revision=0,
+            profile=Profile(name="Synthetic Candidate", facts=[experience, project]),
+            preferences=Preferences(),
+        )
+    )
+    assert profiles.read() == snapshot
+    evidence = snapshot.candidate().facts
+    assert evidence[0].text == (
+        "Software intern | Example Company | Denver, CO | 2026-06 – Present\n"
+        "Built a reporting tool."
+    )
+    assert "https://example.test/planner" in evidence[1].text
+    document = render_master(snapshot)
+    for detail in [
+        "Software intern",
+        "Example Company",
+        "Denver, CO",
+        "Present",
+        "Course planner",
+        "2026-05",
+        "https://example.test/planner",
+    ]:
+        assert escape(detail) in document.source
+    assert evidence[0].skills == ["Python"]
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"start_date": "2026-06", "end_date": "2026-05"},
+        {"start_date": "2026-13"},
+        {"current": True, "end_date": "2026-06"},
+        {"links": ["javascript:alert(1)"]},
+        {"links": ["not a URL"]},
+    ],
+)
+def test_invalid_entry_dates_and_links_are_rejected(fields: dict) -> None:
+    with pytest.raises(ValidationError):
+        Fact(**fields)
 
 
 @pytest.mark.parametrize(

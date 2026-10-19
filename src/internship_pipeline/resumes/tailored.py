@@ -403,7 +403,9 @@ class TailoredResumes:
         config, secret = self.connections.ready_connection("general", model_revision)
         template = self.imports.template()
         facts = [
-            f.model_dump(mode="json") for f in snapshot.profile.facts if f.status == "confirmed"
+            {**f.model_dump(mode="json"), "text": f.evidence_text}
+            for f in snapshot.profile.facts
+            if f.status == "confirmed"
         ]
         if row["selection"]:
             selection = Selection.model_validate_json(row["selection"])
@@ -499,9 +501,11 @@ class TailoredResumes:
             changes={
                 "selected_fact_ids": selection.fact_ids,
                 "omitted_fact_ids": omitted,
-                "selected": [{"id": id, "text": by_id[id].text} for id in selection.fact_ids],
+                "selected": [
+                    {"id": id, "text": by_id[id].evidence_text} for id in selection.fact_ids
+                ],
                 "omitted": [
-                    {"id": f.id, "text": f.text, "status": f.status}
+                    {"id": f.id, "text": f.evidence_text, "status": f.status}
                     for f in snapshot.profile.facts
                     if f.id in omitted
                 ],

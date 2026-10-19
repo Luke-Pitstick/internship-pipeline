@@ -10,7 +10,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, HttpUrl, TypeAdapter, field_validator, model_validator
 
 from internship_pipeline.models import (
     CandidateProfile,
@@ -28,12 +28,43 @@ class Fact(Record):
     status: Literal["confirmed", "unknown"] = "unknown"
     text: str = Field(default="", max_length=2000)
     skills: list[str] = Field(default_factory=list, max_length=30)
+    title: str = Field(default="", max_length=200)
+    company: str = Field(default="", max_length=200)
+    location: str = Field(default="", max_length=200)
+    start_date: str | None = Field(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    end_date: str | None = Field(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    current: bool = False
+    links: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator("links")
+    @classmethod
+    def valid_links(cls, values: list[str]) -> list[str]:
+        for value in values:
+            if len(value) > 2048:
+                raise ValueError("Links must contain at most 2048 characters")
+            TypeAdapter(HttpUrl).validate_python(value)
+        return values
 
     @model_validator(mode="after")
     def confirmed_text(self) -> Fact:
-        if self.status == "confirmed" and not self.text.strip():
-            raise ValueError("Confirmed facts need supporting text")
+        if self.status == "confirmed" and not (
+            self.text.strip() or (self.kind != "skill" and self.title.strip())
+        ):
+            raise ValueError("Confirmed entries need a title or supporting text")
+        if self.current and self.end_date:
+            raise ValueError("Present entries cannot have an end date")
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("End date must be on or after the start date")
         return self
+
+    @property
+    def evidence_text(self) -> str:
+        """Keep structured details in the evidence consumed by matching and résumés."""
+        dates = " – ".join(
+            filter(None, [self.start_date, "Present" if self.current else self.end_date])
+        )
+        heading = " | ".join(filter(None, [self.title, self.company, self.location, dates]))
+        return "\n".join(filter(None, [heading, self.text, *self.links]))
 
 
 class Education(Record):
@@ -131,7 +162,7 @@ class Snapshot(Record):
     def candidate(self) -> CandidateProfile:
         """Only confirmed claims enter downstream candidate evidence."""
         facts = [
-            ExperienceFact(id=f.id, text=f.text, skills=f.skills)
+            ExperienceFact(id=f.id, text=f.evidence_text, skills=f.skills)
             for f in self.profile.facts
             if f.status == "confirmed"
         ]

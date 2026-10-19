@@ -1,7 +1,14 @@
 export const categories = ['Profile', 'Job Filters', 'Sources', 'Resume Generation', 'AI Models', 'Notifications & Integrations', 'Diagnostics'] as const;
 export type Category = typeof categories[number];
 export type Confirmation = 'confirmed' | 'unknown';
-export interface Fact { id: string; kind: 'experience'|'project'|'skill'; status: Confirmation; text: string; skills: string[] }
+export interface Fact {
+  id: string; kind: 'experience'|'project'|'skill'; status: Confirmation; text: string; skills: string[];
+  title: string; company: string; location: string; start_date: string|null; end_date: string|null;
+  current: boolean; links: string[];
+}
+export function newFact(kind: Fact['kind']): Fact {
+  return {id: crypto.randomUUID(), kind, status: 'unknown', text: '', skills: [], title: '', company: '', location: '', start_date: null, end_date: null, current: false, links: []};
+}
 export interface Education { id: string; status: Confirmation; institution: string; degree: string; field: string; graduation_date: string|null }
 export interface Profile { name: string; email: string; facts: Fact[]; education: Education[]; available_from: string|null; available_until: string|null; requires_sponsorship: boolean|null; work_authorization: string[] }
 export interface Preferences { hard: { countries: string[]; locations: string[]; term_keywords: string[] }; soft: { roles: string[]; locations: string[]; skills: string[] } }
@@ -12,7 +19,10 @@ export function validateSettings(snapshot: Snapshot): FieldErrors {
   if (snapshot.profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(snapshot.profile.email)) errors['profile.email'] = 'Enter a valid email or leave it unknown.';
   if (snapshot.profile.available_from && snapshot.profile.available_until && snapshot.profile.available_until < snapshot.profile.available_from) errors['profile.available_until'] = 'End date must be on or after the start date.';
   snapshot.profile.facts.forEach((fact, index) => {
-    if (fact.status === 'confirmed' && !fact.text.trim()) errors[`profile.facts.${index}.text`] = 'Add supporting text before confirming this fact.';
+    const path = `profile.facts.${index}`;
+    if (fact.status === 'confirmed' && !fact.text.trim() && !(fact.kind !== 'skill' && fact.title.trim())) errors[`${path}.text`] = 'Add a title or description before confirming this entry.';
+    if (fact.start_date && fact.end_date && fact.end_date < fact.start_date) errors[`${path}.end_date`] = 'End date must be on or after the start date.';
+    if (fact.links.some(link => { try { return !['https:', 'http:'].includes(new URL(link).protocol) || link.length > 2048; } catch { return true; } })) errors[`${path}.links`] = 'Enter complete links starting with https:// or http://.';
   });
   snapshot.profile.education.forEach((education, index) => {
     if (education.status === 'confirmed') {

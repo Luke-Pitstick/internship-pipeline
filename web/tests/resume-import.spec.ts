@@ -31,14 +31,15 @@ test('resume import fills the existing editable profile fields before saving', a
   await expect(page.getByLabel('Degree', {exact: true})).toHaveValue('Bachelor of Science in Computing');
   await expect(page.getByRole('group', {name: 'Review extracted facts'})).toHaveCount(0);
   expect((await (await page.request.get('/api/profile-settings')).json()).revision).toBe(before.revision);
-  const removedText = await page.getByRole('group', {name: 'Fact 2', exact: true}).getByLabel('Supporting fact').inputValue();
-  await page.getByRole('button', {name: 'Remove fact 2', exact: true}).click();
-  await expect(page.getByLabel('Supporting fact', {exact: true})).toHaveCount(2);
-  await page.getByRole('button', {name: 'Add fact below 1', exact: true}).click();
-  const added = page.getByRole('group', {name: 'Fact 2', exact: true});
-  await expect(added.getByLabel('Supporting fact')).toBeFocused();
-  await added.getByLabel('Supporting fact').fill('Added a new synthetic project after importing.');
-  await added.getByLabel('Confirmation', {exact: true}).selectOption('confirmed');
+  const experience = page.getByRole('group', {name: 'Experience 1', exact: true});
+  const removedText = await experience.getByLabel('Responsibilities & accomplishments').inputValue();
+  await experience.getByRole('button', {name: 'Remove experience 1', exact: true}).click();
+  await page.getByRole('button', {name: 'Add project', exact: true}).click();
+  const added = page.getByRole('group', {name: 'Project 2', exact: true});
+  await expect(added.getByLabel('Project title', {exact: true})).toBeFocused();
+  await added.getByLabel('Project title', {exact: true}).fill('Synthetic imported project');
+  await added.getByLabel('Project description & accomplishments').fill('Added a new synthetic project after importing.');
+  await added.getByLabel('I confirm this project').check();
   await page.getByLabel('Name', {exact: true}).fill('Reviewed Synthetic Candidate');
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
   await expect(page.getByRole('status').filter({hasText: /Profile saved\./})).toBeVisible();
@@ -76,8 +77,8 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   await page.getByLabel('Resume document').setInputFiles('tests/fixtures/resume.synthetic.docx');
   await page.getByRole('button', {name: 'Fill profile from resume'}).click();
   await expect(page.getByLabel('Name', {exact: true})).toHaveValue('Synthetic Candidate');
-  await expect(page.getByLabel('Supporting fact', {exact: true})).toHaveCount(4);
-  const skillField = page.locator('.choice-field').filter({has: page.getByLabel('Related skills', {exact:true})}).nth(1);
+  await expect(page.getByLabel('Project description & accomplishments', {exact: true})).toHaveCount(2);
+  const skillField = page.locator('.choice-field').filter({has: page.getByLabel('Your skills', {exact:true})});
   await expect(skillField.getByRole('button', {name:'Remove Python', exact:true})).toBeVisible();
   await expect(skillField.getByRole('button', {name:'Remove SQL', exact:true})).toBeVisible();
   await expect(page.getByLabel('Will you need employer sponsorship?')).toHaveValue('unknown');
@@ -103,13 +104,11 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   await page.getByRole('button', {name: 'Fill profile from resume'}).click();
   await expect(page.getByRole('status').filter({hasText: 'Profile fields filled.'})).toBeVisible();
   // Remove an outdated imported claim through the same ordinary profile editor.
-  const outdated = page.locator('fieldset.fact-entry').filter({has: page.getByLabel('Supporting fact', {exact: true})}).nth(1);
-  await expect(outdated.getByLabel('Supporting fact', {exact: true})).toHaveValue('Python, SQL');
-  await outdated.getByRole('button', {name: /Remove fact/}).click();
+  await page.locator('.choice-field').filter({has: page.getByLabel('Your skills', {exact:true})}).getByRole('button', {name: 'Remove SQL', exact:true}).click();
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
   await expect(page.getByRole('status').filter({hasText: /Profile saved\./})).toBeVisible();
   saved = await (await page.request.get('/api/profile-settings')).json();
-  expect(saved.profile.facts.find((item: {id: string}) => item.id === manual.id)).toEqual(manual);
+  expect(saved.profile.facts.find((item: {id: string}) => item.id === manual.id)).toMatchObject(manual);
   expect(saved.profile.facts.some((item: {text: string}) => item.text === 'Python, SQL')).toBe(false);
   expect(saved.profile.facts.some((item: {text: string}) => item.text === 'Python, Go')).toBe(true);
 
