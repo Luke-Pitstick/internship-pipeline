@@ -219,3 +219,32 @@ test('mobile job focus, readable layouts, reduced motion and browser back work t
   await page.addStyleTag({content: '.dashboard {font-size:200%} .dashboard p,.dashboard button,.dashboard input,.dashboard select {font-size:inherit}'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('mark applied directly from mobile results, recover from errors and undo after reload', async ({page}) => {
+  await page.goto('/');
+  await page.getByLabel('Username',{exact:true}).fill('synthetic-owner');
+  await page.getByLabel('Password',{exact:true}).fill('synthetic-password-long');
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await page.setViewportSize({width:390,height:844});
+  const card = page.locator('.job-card').nth(8);
+  const id = await card.locator('[data-job]').getAttribute('data-job');
+  const mark = card.getByRole('button', {name:/^Mark as applied to /});
+  await expect(page.getByRole('button',{name:'Applied',exact:true})).toBeVisible();
+  await page.route(`**/api/jobs/${id}/applied`, route => route.fulfill({status:503,json:{detail:'Synthetic tracking unavailable'}}), {times:1});
+  await mark.click();
+  await expect(page.getByRole('alert')).toContainText('Synthetic tracking unavailable');
+  await expect(mark).toBeEnabled();
+  await mark.focus();
+  await page.keyboard.press('Enter');
+  await expect(card.getByRole('button',{name:/^Undo applied to /})).toBeVisible();
+  await expect(page.locator('.job-detail')).toBeHidden();
+  await expect(page).not.toHaveURL(/selected=/);
+  await page.getByRole('button',{name:'Applied',exact:true}).click();
+  await expect(page.locator(`[data-job="${id}"]`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Applied',exact:true})).toHaveAttribute('aria-pressed','true');
+  const appliedCard = page.locator('.job-card').filter({has: page.locator(`[data-job="${id}"]`)});
+  await appliedCard.getByRole('button',{name:/^Undo applied to /}).click();
+  await expect(page.locator(`[data-job="${id}"]`)).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

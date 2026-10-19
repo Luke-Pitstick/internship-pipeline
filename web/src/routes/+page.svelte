@@ -23,7 +23,7 @@
   type DetailSection = typeof sections[number];
   let detailSection = $state<DetailSection>('Overview');
   let detailPane = $state<HTMLElement>();
-  const viewLabels: Record<string, string> = {All: 'All jobs', Recommendations: 'Recommended', 'Needs review': 'Needs review', Saved: 'Saved', Applied: 'Applied', Rejected: 'Dismissed'};
+  const viewLabels: Record<string, string> = {All: 'All jobs', Recommendations: 'Recommended', Applied: 'Applied', 'Needs review': 'Needs review', Saved: 'Saved', Rejected: 'Dismissed'};
   const viewDescriptions: Record<string, string> = {All: 'Your collected internships, ready to sort.', Recommendations: 'Roles recommended by your assessment or personal decision.', 'Needs review': 'Unapplied roles that need a closer look, including unscored jobs.', Saved: 'Your shortlist, including jobs you have already applied to.', Applied: 'Applications you have explicitly marked as submitted.', Rejected: 'Jobs you dismissed or personally rejected. You can restore them.'};
   let updating = $state(false);
   let searchDraft = $state('');
@@ -81,14 +81,15 @@
     void refresh();
   }
   async function closeDetail() { detailOpen = false; writeUrl(); await tick(); if (selectedButton?.isConnected) selectedButton.focus(); else document.querySelector<HTMLButtonElement>('[data-job]')?.focus(); }
-  async function status(value: JobStatus) {
-    if (!selected || updating) return;
-    const job = selected;
+  async function status(job: Job, value: JobStatus) {
+    if (updating) return;
     updating = true; actionError = ''; feedback = '';
     try {
-      const result = await api.request<{applied_at: string | null}>(`/api/jobs/${job.id}/applied`, {status: value === 'Applied' ? 'applied' : 'not_applied'});
-      const updated = { ...job, status: value, appliedAt: result.applied_at };
-      if (selected?.id === job.id) { selected = updated; feedback = value === 'Applied' ? 'Marked as applied.' : 'Application status reset to To review.'; }
+      const response = await api.request<{applied_at: string | null}>(`/api/jobs/${job.id}/applied`, {status: value === 'Applied' ? 'applied' : 'not_applied'});
+      const updated = { ...job, status: value, appliedAt: response.applied_at };
+      result.rows = result.rows.map(row => row.id === job.id ? updated : row);
+      if (selected?.id === job.id) selected = updated;
+      feedback = value === 'Applied' ? `Marked ${job.title} at ${job.company} as applied.` : `Application status reset for ${job.title} at ${job.company}.`;
       await refresh();
     } catch (reason) { actionError = (reason as Error).message; }
     finally { updating = false; }
@@ -190,17 +191,22 @@
     <div class="view-context"><p>{query.search ? `Results for “${query.search}” · ${viewLabels[query.status]}` : viewDescriptions[query.status]}</p>{#if query.search || query.status !== 'All'}<button onclick={() => {query.search = ''; searchDraft = ''; query.status = 'All'; changeQuery();}}>Clear filters</button>{/if}</div>
   </div>
   {#if error}<div class="request-error" role="alert"><p>{error}</p><button class="small-button" onclick={() => refresh()}>Retry loading jobs</button></div>{/if}
+  <div class="action-feedback" aria-live="polite">{#if updating}<p>Saving changes…</p>{:else if feedback}<p>{feedback}</p>{/if}</div>
+  {#if actionError}<p class="action-error" role="alert">{actionError} Your change wasn’t saved. Try the action again.</p>{/if}
   <div class="jobs-workspace" class:has-selection={!!selected} class:detail-open={detailOpen}>
     <section class="jobs-list" aria-label="Job results" aria-busy={loading}>
       <div class="job-cards">
         {#each result.rows as job (job.id)}
-          <button class="job-card" class:selected={selected?.id === job.id} aria-pressed={selected?.id === job.id} data-job={job.id} onclick={(event) => select(job, event)}>
+          <article class="job-card" class:selected={selected?.id === job.id} aria-label={`${job.title} at ${job.company}`}>
+          <button class="job-select" aria-pressed={selected?.id === job.id} data-job={job.id} onclick={(event) => select(job, event)}>
             <span class="job-card-top"><span class="job-card-company">{job.company}</span><span class="score-pill" class:strong-match={job.score !== null && job.score >= 75}>{job.score === null ? 'Unscored' : `${Math.round(job.score)} / 100 fit`}</span></span>
             <strong class="job-title">{job.title}</strong>
             <span class="job-location">{job.location ?? 'Location not provided'}</span>
             <span class="job-dates"><span>{job.postedAt ? `Posted ${formatDate(job.postedAt)}` : 'Posted date unknown'}</span>{#if job.deadline}<span>Closes {formatDate(job.deadline)}</span>{/if}</span>
             <span class="job-meta"><span class:review={job.eligibility === 'Needs review'} class:eligible={job.eligibility === 'Eligible'} class="eligibility">{job.eligibility}</span><span class="workspace-tags">{#if job.workspace?.saved}<span class="workspace-tag saved">Saved</span>{/if}{#if job.workspace?.dismissed || job.workspace?.decision === 'rejected'}<span class="workspace-tag">Dismissed</span>{/if}{#if job.status === 'Applied'}<span class="workspace-tag applied">Applied</span>{/if}</span></span>
           </button>
+          <button class="small-button applied-action" class:is-applied={job.status === 'Applied'} aria-label={`${job.status === 'Applied' ? 'Undo applied' : 'Mark as applied'} to ${job.title} at ${job.company}`} disabled={updating} onclick={() => status(job, job.status === 'Applied' ? 'To review' : 'Applied')}>{job.status === 'Applied' ? 'Undo applied' : 'Mark as applied'}</button>
+          </article>
         {:else}
           {#if loading}<div class="jobs-skeleton" role="status"><span class="sr-only">Loading opportunities…</span>{#each [1, 2, 3] as row}<div class="skeleton-row" aria-hidden="true"><span></span><span></span><span></span></div>{/each}</div>
           {:else if !error}<div class="empty-state">
@@ -223,11 +229,9 @@
       <div class="detail-top"><h2 bind:this={detailHeading} tabindex="-1">{selected.title}</h2></div>
       <p class="detail-location">{selected.location ?? 'Location not provided'}</p>
       <div class="detail-states"><span class="eligibility" class:review={selected.eligibility === 'Needs review'} class:eligible={selected.eligibility === 'Eligible'}>{selected.eligibility}</span>{#if selected.status === 'Applied'}<span class="workspace-tag applied">Applied {formatDate(selected.appliedAt)}</span>{/if}{#if selected.workspace?.dismissed || selected.workspace?.decision === 'rejected'}<span class="workspace-tag">Dismissed</span>{/if}</div>
-      <div class="detail-actions"><a class="primary" href={selected.applicationUrl} target="_blank" rel="noopener noreferrer">Open original application <Icon name="external" /></a><button class="secondary" aria-pressed={selected.workspace?.saved ?? false} disabled={updating} onclick={() => workspace({saved: !selected?.workspace?.saved})}>{selected.workspace?.saved ? 'Unsave job' : 'Save job'}</button></div>
-      <div class="tracking-actions"><button class="small-button" disabled={updating} onclick={() => status(selected?.status === 'Applied' ? 'To review' : 'Applied')}>{selected.status === 'Applied' ? 'Undo applied' : 'Mark as applied'}</button><button class="subtle" disabled={updating} onclick={toggleDismissed}>{selected.workspace?.dismissed || selected.workspace?.decision === 'rejected' ? 'Restore dismissed job' : 'Dismiss job'}</button></div>
+      <div class="detail-actions"><a class="primary" href={selected.applicationUrl} target="_blank" rel="noopener noreferrer">Open original application <Icon name="external" /></a><button class="secondary applied-action" class:is-applied={selected.status === 'Applied'} disabled={updating} onclick={() => selected && status(selected, selected.status === 'Applied' ? 'To review' : 'Applied')}>{selected.status === 'Applied' ? 'Undo applied' : 'Mark as applied'}</button><button class="secondary" aria-pressed={selected.workspace?.saved ?? false} disabled={updating} onclick={() => workspace({saved: !selected?.workspace?.saved})}>{selected.workspace?.saved ? 'Unsave job' : 'Save job'}</button></div>
+      <div class="tracking-actions"><button class="subtle" disabled={updating} onclick={toggleDismissed}>{selected.workspace?.dismissed || selected.workspace?.decision === 'rejected' ? 'Restore dismissed job' : 'Dismiss job'}</button></div>
       <p class="status-note">{selected.status === 'Applied' ? 'You marked this application as submitted.' : 'Apply on the company’s site, then mark it as applied here.'}</p>
-      <div class="action-feedback" aria-live="polite">{#if updating}<p>Saving changes…</p>{:else if feedback}<p>{feedback}</p>{/if}</div>
-      {#if actionError}<p class="action-error" role="alert">{actionError} Your change wasn’t saved. Try the action again.</p>{/if}
       <div class="detail-tabs" role="tablist" aria-label="Job information">
         {#each sections as section, index}<button role="tab" id={`job-tab-${index}`} aria-selected={detailSection === section} aria-controls="job-tab-panel" tabindex={detailSection === section ? 0 : -1} onclick={() => chooseSection(section)} onkeydown={(event) => sectionKey(event, index)}>{section}{#if section === 'Notes' && notesDirty}<span aria-label="unsaved"> ·</span>{/if}</button>{/each}
       </div>
@@ -281,6 +285,10 @@
   .job-cards { max-height:calc(100dvh - 195px); overflow:auto; scrollbar-gutter:stable; }
   .job-card { padding:20px; gap:7px; border-left:3px solid transparent; }
   .job-card.selected { border-left-color:var(--accent); }
+  .job-select { display:flex; flex-direction:column; gap:7px; width:100%; text-align:left; padding:0; }
+  .applied-action { color:var(--accent); border-color:var(--accent); min-height:44px; }
+  .job-card .applied-action { align-self:flex-start; margin-top:8px; }
+  .applied-action.is-applied { color:var(--positive); border-color:var(--positive); background:var(--positive-surface); }
   .job-card-top { justify-content:space-between; gap:12px; }
   .job-card-company { color:var(--muted); font-weight:600; overflow-wrap:anywhere; }
   .score-pill { font-size:12px; background:var(--surface-subtle); padding:4px 8px; border-radius:4px; }
