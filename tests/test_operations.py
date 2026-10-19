@@ -28,6 +28,7 @@ from internship_pipeline.profiles.imports import ResumeImports, Review, Selectio
 from internship_pipeline.resumes.master import MasterResumes
 from internship_pipeline.resumes.tailored import TailoredResumes
 from internship_pipeline.storage import Store, enqueue
+from internship_pipeline.storage_format import STORAGE_FORMAT
 
 service = tailored_fixture
 
@@ -51,7 +52,7 @@ def test_backup_restore_reserved_paths_preserves_both_database_identities(tmp_pa
     backup = tmp_path / (name + "-backup")
     restored = tmp_path / (name + "-restored")
     backup_installation(root, settings, backup)
-    verify_backup(backup)
+    assert verify_backup(backup)["storage_format"] == STORAGE_FORMAT
     with sqlite3.connect(backup / "state.sqlite3") as db:
         assert db.execute("SELECT key FROM tasks").fetchone()[0] == "synthetic-job"
     restore_installation(backup, restored)
@@ -62,6 +63,32 @@ def test_backup_restore_reserved_paths_preserves_both_database_identities(tmp_pa
     assert sorted(path.name for path in tmp_path.iterdir()) == sorted(
         [name, name + "-backup", name + "-restored"]
     )
+
+
+@pytest.mark.parametrize("storage_format", [None, 0, STORAGE_FORMAT + 1, True, 1.0, "1"])
+def test_restore_refuses_missing_or_mismatched_storage_format_before_creating_destination(
+    tmp_path, storage_format
+):
+    root = tmp_path / "source"
+    settings = Settings(database_path=root / "state.sqlite3", artifact_dir=root / "artifacts")
+    store = Store(settings.database_path)
+    identity(root)
+    ModelConnectionStore(store.path, root / "model-credentials.key")
+    backup = tmp_path / "backup"
+    backup_installation(root, settings, backup)
+    manifest_path = backup / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    if storage_format is None:
+        del manifest["storage_format"]
+    else:
+        manifest["storage_format"] = storage_format
+    manifest_path.write_text(json.dumps(manifest))
+    before = {p.name: p.read_bytes() for p in backup.iterdir() if p.is_file()}
+    destination = tmp_path / "new-parent/restored"
+    with pytest.raises(OperationError, match="storage format"):
+        restore_installation(backup, destination)
+    assert not destination.parent.exists()
+    assert before == {p.name: p.read_bytes() for p in backup.iterdir() if p.is_file()}
 
 
 @pytest.mark.parametrize("database", ["state.sqlite3", "identity.sqlite3"])

@@ -128,6 +128,8 @@ def test_saved_runtime_stdin_command_timeout_includes_receiver_read(tmp_path):
         stream.write(b"synthetic" * 10000)
         stream.seek(0)
         start = time.monotonic()
-        with pytest.raises(runtime.Failure, match="could not complete"):
+        with pytest.raises(
+            runtime.Failure, match=r"docker run did not respond within 0\.05 seconds"
+        ):
             engine.run("run", "-i", "exact-image", stdin=stream, timeout=0.05)
         assert time.monotonic() - start < 2

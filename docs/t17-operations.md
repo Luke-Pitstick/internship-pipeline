@@ -8,6 +8,11 @@ Settings → Diagnostics exposes source last attempt/success and freshness age, 
 
 ## Backup contract
 
+Current manifests also declare the application's [storage format](storage-format.md)
+separately from the backup envelope version. Restore refuses missing or mismatched
+storage formats before creating a destination; recover older backups with their
+exact source image rather than relabelling their data.
+
 `backup` captures **both** jobs and identity SQLite databases through SQLite's backup API after obtaining an exclusive installation lock. It includes the exact `model-credentials.key`, effective settings, configured company/search registries, the configuration directory, retained upload provenance/extracted sources in the jobs database, any existing uploads directory, and the entire configured artifact directory (master and tailored documents). Current T10 retains extraction and provenance in SQLite rather than keeping every original uploaded binary; backups preserve every retained source/evidence record and any operator-retained upload files. Email and Sheets credentials/configuration/accepted deliveries/journals/checkpoints live in the same jobs database and use that exact key.
 
 The application factory, lifespan, bootstrap, CLI commands and workers hold shared locks while they can write. Backup refuses to proceed while these supported runtimes are active. Stop the service and all workers first. Direct unsupervised Python scripts that bypass application/CLI entry points are outside this stopped-instance contract; stop them too. A running-instance copy is intentionally unsupported. The two sequential snapshots are coherent because every supported writer is stopped, and SQLite incorporates committed WAL content into standalone snapshots without copying WAL/SHM files.

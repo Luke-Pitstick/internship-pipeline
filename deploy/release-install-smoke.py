@@ -46,6 +46,35 @@ def checked_file(path: Path, expected: str) -> bytes:
     return content
 
 
+def verify_image_storage_format(engine: str, image_id: str, expected: int) -> None:
+    """Compare source-bound metadata with an offline, data-free image inspection."""
+    declaration = json.loads(
+        command(
+            engine,
+            "run",
+            "--rm",
+            "--pull",
+            "never",
+            "--network",
+            "none",
+            "--read-only",
+            "--entrypoint",
+            "python",
+            image_id,
+            "-B",
+            "-m",
+            "internship_pipeline.storage_format",
+        )
+    )
+    if (
+        not isinstance(declaration, dict)
+        or set(declaration) != {"storage_format"}
+        or type(declaration["storage_format"]) is not int
+        or declaration["storage_format"] != expected
+    ):
+        raise RuntimeError("Image storage format differs from source-bound release metadata")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=("docker", "podman"), required=True)
@@ -70,6 +99,9 @@ def main() -> None:
     ):
         raise RuntimeError("Installer metadata differs from the accepted candidate")
     version, image = metadata["version"], metadata["image"]
+    storage_format = metadata.get("storage_format")
+    if type(storage_format) is not int or storage_format < 1:
+        raise RuntimeError("Release metadata must declare a positive integer storage format")
     launcher_bytes = checked_file(assets / "install.sh", metadata["launcher_sha256"])
     expected_launcher = render_launcher(
         repository=metadata["repository"],
@@ -121,6 +153,7 @@ def main() -> None:
         "Engine returned an invalid image identity",
     )
     image_id = "sha256:" + raw_image_id.removeprefix("sha256:")
+    verify_image_storage_format(args.engine, image_id, storage_format)
     manager = str(source_command / "internship-pipeline")
     browser = smoke.Browser(manifest["origin"])
     smoke.ready(browser, "setup")
@@ -344,6 +377,7 @@ def main() -> None:
                 "version": version,
                 "source_commit": args.source_commit,
                 "image": image,
+                "storage_format": storage_format,
                 "config_digest": image_id,
                 "engine": args.engine,
                 "architecture": platform.machine(),
@@ -355,6 +389,7 @@ def main() -> None:
                 "synthetic_pdf_metrics": metrics,
                 "passed": [
                     "asset_hashes",
+                    "image_storage_format",
                     "fresh_install",
                     "owner_claim",
                     "saved_rerun",

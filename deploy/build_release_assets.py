@@ -15,8 +15,10 @@ from build_installer_bundle import ARCHIVE_FILES, build_bundle
 from release_launcher import render_launcher
 
 GENERATOR_FILES = ("build_release_assets.py", "build_installer_bundle.py", "release_launcher.py")
+STORAGE_FORMAT_SOURCE = "src/internship_pipeline/storage_format.py"
 SOURCE_FILES = (
     "LICENSE",
+    STORAGE_FORMAT_SOURCE,
     "deploy/bootstrap_installer.py",
     "pyproject.toml",
     "uv.lock",
@@ -81,6 +83,23 @@ def build_release_assets(
     clean_source(source_dir, source_commit)
     if output_dir.exists() or output_dir.is_symlink():
         raise ValueError("Release output already exists; use a fresh directory.")
+    # Execute only the verified declaration from the selected source revision.
+    # Isolated Python needs neither project dependencies nor installation data.
+    declaration = json.loads(
+        subprocess.check_output(
+            [sys.executable, "-I", "-S", "-B", str(source_dir / STORAGE_FORMAT_SOURCE)],
+            text=True,
+            timeout=10,
+        )
+    )
+    if (
+        not isinstance(declaration, dict)
+        or set(declaration) != {"storage_format"}
+        or type(declaration["storage_format"]) is not int
+        or declaration["storage_format"] < 1
+    ):
+        raise ValueError("Source must declare a positive integer storage format.")
+    storage_format = declaration["storage_format"]
     bootstrap_path = source_dir / "deploy/bootstrap_installer.py"
     if bootstrap_path.is_symlink() or not bootstrap_path.is_file():
         raise ValueError("The bootstrap must be a regular source file.")
@@ -110,6 +129,7 @@ def build_release_assets(
         "version": version,
         "source_commit": source_commit,
         "image": image,
+        "storage_format": storage_format,
         "bootstrap_sha256": bootstrap_digest,
         "bundle_sha256": bundle["archive_sha256"],
         "launcher_sha256": hashlib.sha256(launcher).hexdigest(),
@@ -152,7 +172,7 @@ def main() -> int:
             image=args.image,
             candidate=candidate,
         )
-    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+    except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         print(f"Release assets failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, sort_keys=True, indent=2))

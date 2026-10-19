@@ -26,6 +26,25 @@ older images without that evidence and schema migrations remain unsupported. Thi
 planning only: no updater code, tests, installed-image changes, or release acceptance
 were completed by this entry. Existing installer reruns still preserve the saved image.
 
+## October 19, 2026 — storage format declaration
+
+The current source declares [storage format 1](storage-format.md) independently of
+app versions and backup/host manifest versions. A standard-library inspection module
+and the application maintenance CLI report it without loading configuration or
+creating application data. Release assets derive it from verified source; downloaded
+release acceptance compares the exact image's declaration with the metadata. New
+backup manifests include it, and restore refuses missing/mismatched values before
+creating a destination. The update brief now reuses this declaration.
+
+Verification: the broad storage, backup/recovery, release-assets/publication,
+installer, and management run passed 287 cases with one skip and one stale
+runtime-timeout wording assertion. That assertion was aligned with the existing
+diagnostic; the affected storage/release/recovery rerun passed all 35 cases,
+including one additional source-integrity case. Scoped Ruff, formatting, application
+mypy and strict release-generator mypy pass. All candidate data and engine responses
+in these checks are synthetic. Actual image-format acceptance still requires the
+publication workflow; no installed image, private data, or public release changed.
+
 ## Delivery rules
 
 Build in sequence. Each step names its dependency, intended files, concrete work and acceptance gate. Keep the pipeline working as capabilities are added. Do not introduce alternative databases, generic plugin systems or a custom dashboard for this single-user workload.

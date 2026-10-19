@@ -23,6 +23,7 @@ from internship_pipeline.identity import SCHEMA as IDENTITY_SCHEMA
 from internship_pipeline.models import Settings
 from internship_pipeline.storage import SCHEMA as STATE_SCHEMA
 from internship_pipeline.storage import Store
+from internship_pipeline.storage_format import STORAGE_FORMAT
 
 
 class OperationError(ValueError):
@@ -187,7 +188,12 @@ def backup_installation(root: Path, settings: Settings, destination: Path) -> di
                 }
                 with path.open("rb") as stream:
                     os.fsync(stream.fileno())
-            manifest = {"format": 1, "created_at": time.time(), "files": entries}
+            manifest = {
+                "format": 1,
+                "storage_format": STORAGE_FORMAT,
+                "created_at": time.time(),
+                "files": entries,
+            }
             (stage / "manifest.json").write_text(json.dumps(manifest, indent=2))
             (stage / "manifest.json").chmod(0o600)
             with (stage / "manifest.json").open("rb") as stream:
@@ -207,6 +213,14 @@ def verify_backup(source: Path) -> dict[str, Any]:
         manifest: dict[str, Any] = json.loads((source / "manifest.json").read_text())
         if manifest["format"] != 1 or not isinstance(manifest["files"], dict):
             raise ValueError
+        if (
+            type(manifest.get("storage_format")) is not int
+            or manifest["storage_format"] != STORAGE_FORMAT
+        ):
+            raise OperationError(
+                f"Backup storage format is missing or differs from this image's format "
+                f"{STORAGE_FORMAT}. Use the exact image that created the backup."
+            )
         actual = {str(p.relative_to(source)) for p in _files(source)} - {"manifest.json"}
         if actual != set(manifest["files"]):
             raise ValueError
@@ -232,6 +246,8 @@ def verify_backup(source: Path) -> dict[str, Any]:
                 _verify_database(db, name)
         _credentials(source)
         return manifest
+    except OperationError as exc:
+        raise OperationError(f"Backup verification failed: {exc}") from None
     except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
         raise OperationError(
             "Backup verification failed; preserve the source and inspect local storage."

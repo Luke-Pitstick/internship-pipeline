@@ -77,6 +77,9 @@ def parser() -> argparse.ArgumentParser:
         "--config", type=Path, help="Settings YAML; relative paths use the working directory"
     )
     commands = cli.add_subparsers(dest="command", required=True)
+    commands.add_parser(
+        "storage-format", help="Print the image's storage format without opening application data"
+    )
     for name in ("recover-owner", "setup-token", "setup-link"):
         account = commands.add_parser(name, help="Manage account access on this computer")
         account.add_argument(
@@ -245,6 +248,10 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
 
 def _main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "storage-format":
+        from internship_pipeline.storage_format import main as storage_format_main
+
+        return storage_format_main()
     try:
         if args.command in {"backup", "restore"}:
             from internship_pipeline.app import runtime_settings
@@ -401,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     from internship_pipeline.operations import OperationError, installation_lock
 
     args = parser().parse_args(argv)
-    if args.command in {"backup", "restore"}:
+    if args.command in {"backup", "restore", "storage-format"}:
         return _main(argv)
     try:
         if args.command in {"recover-owner", "setup-token", "setup-link"}:

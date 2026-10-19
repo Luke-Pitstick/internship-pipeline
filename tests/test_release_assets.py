@@ -19,7 +19,7 @@ VERSION = "v0.1.0-rc.1"
 IMAGE = "ghcr.io/example/pipeline@sha256:" + "a" * 64
 
 
-def source_repository(path: Path) -> tuple[Path, str]:
+def source_repository(path: Path, storage_format: object = 1) -> tuple[Path, str]:
     path.mkdir()
     (path / "deploy").mkdir()
     for name in assets.ARCHIVE_FILES:
@@ -32,6 +32,11 @@ def source_repository(path: Path) -> tuple[Path, str]:
     (path / "uv.lock").write_text("# synthetic lock\n")
     (path / "web").mkdir()
     (path / "web/package-lock.json").write_text('{"synthetic": true}\n')
+    declaration = path / assets.STORAGE_FORMAT_SOURCE
+    declaration.parent.mkdir(parents=True)
+    declaration.write_text(
+        f"import json\nprint(json.dumps({{'storage_format': {storage_format!r}}}))\n"
+    )
     subprocess.run(["git", "init", "-q", str(path)], check=True)
     subprocess.run(["git", "-C", str(path), "add", "."], check=True)
     subprocess.run(
@@ -68,6 +73,7 @@ def test_assets_repeat_exactly_and_bind_all_bytes(tmp_path: Path) -> None:
         )
         assert metadata["source_commit"] == revision
         assert metadata["image"] == IMAGE
+        assert metadata["storage_format"] == 1
     one, two = tmp_path / "one", tmp_path / "two"
     assert {p.name: p.read_bytes() for p in one.iterdir()} == {
         p.name: p.read_bytes() for p in two.iterdir()
@@ -112,6 +118,35 @@ def test_invalid_source_and_identities_fail_before_output(tmp_path: Path, change
     assert not (tmp_path / "out").exists()
 
 
+@pytest.mark.parametrize("storage_format", [0, -1, True, 1.0, "1", None])
+def test_invalid_storage_format_fails_before_output(tmp_path: Path, storage_format: object) -> None:
+    source, revision = source_repository(tmp_path / "source", storage_format)
+    with pytest.raises(ValueError, match="storage format"):
+        assets.build_release_assets(
+            source,
+            tmp_path / "out",
+            repository=REPOSITORY,
+            version=VERSION,
+            source_commit=revision,
+            image=IMAGE,
+        )
+    assert not (tmp_path / "out").exists()
+
+
+def test_storage_format_comes_from_selected_source_revision(tmp_path: Path) -> None:
+    source, revision = source_repository(tmp_path / "source", storage_format=7)
+    metadata = assets.build_release_assets(
+        source,
+        tmp_path / "out",
+        repository=REPOSITORY,
+        version=VERSION,
+        source_commit=revision,
+        image=IMAGE,
+    )
+    assert metadata["storage_format"] == 7
+    assert json.loads((tmp_path / "out/release-metadata.json").read_text())["storage_format"] == 7
+
+
 def test_existing_release_directory_is_never_replaced(tmp_path: Path) -> None:
     source, revision = source_repository(tmp_path / "source")
     output = tmp_path / "out"
@@ -130,13 +165,14 @@ def test_existing_release_directory_is_never_replaced(tmp_path: Path) -> None:
     assert sentinel.read_text() == "previous release"
 
 
-def test_assume_unchanged_cannot_certify_modified_installer(tmp_path: Path) -> None:
+@pytest.mark.parametrize("filename", ["deploy/install.py", assets.STORAGE_FORMAT_SOURCE])
+def test_assume_unchanged_cannot_certify_modified_source(tmp_path: Path, filename: str) -> None:
     source, revision = source_repository(tmp_path / "source")
     subprocess.run(
-        ["git", "-C", str(source), "update-index", "--assume-unchanged", "deploy/install.py"],
+        ["git", "-C", str(source), "update-index", "--assume-unchanged", filename],
         check=True,
     )
-    (source / "deploy/install.py").write_text("uncommitted sentinel\n")
+    (source / filename).write_text("uncommitted sentinel\n")
     assert not subprocess.check_output(["git", "-C", str(source), "status", "--porcelain"])
     with pytest.raises(ValueError, match="committed bytes"):
         assets.build_release_assets(
