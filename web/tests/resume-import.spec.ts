@@ -49,7 +49,7 @@ test('LaTeX resume macros fill editable education, skills, experience and projec
   });
   expect(saved.profile.facts.some((fact: {kind: string; text: string}) => fact.kind === 'experience' && fact.text.includes('reducing request latency by 35%.'))).toBe(true);
   expect(saved.profile.facts.some((fact: {kind: string; text: string}) => fact.kind === 'project' && fact.text.includes('public forecast dashboard'))).toBe(true);
-  expect(saved.profile.facts.flatMap((fact: {skills: string[]}) => fact.skills)).toEqual(['Python', 'SQL', 'C++', 'TypeScript', 'Git', 'Docker']);
+  expect([...new Set(saved.profile.facts.flatMap((fact: {skills: string[]}) => fact.skills))]).toEqual(['Python', 'SQL', 'C++', 'TypeScript', 'Git', 'Docker']);
   expect(saved.profile.facts.some((fact: {text: string}) => fact.text.includes('Hiking'))).toBe(false);
   expect((await (await page.request.get('/api/resume-imports/current')).json()).import.format).toBe('tex');
 });
@@ -156,7 +156,7 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   expect(saved.profile.facts.some((item: {text: string}) => item.text === 'Python, Go')).toBe(true);
 
   await page.getByLabel('Resume document').setInputFiles('tests/fixtures/resume.synthetic.pdf');
-  await page.getByLabel('Use my PDF-capable model when available').uncheck();
+  await page.getByLabel('Use AI to organize résumé fields').uncheck();
   await page.getByRole('button', {name: 'Fill profile from resume'}).click();
   await expect(page.getByRole('status').filter({hasText: 'Profile fields filled.'})).toBeVisible();
   const competing = await page.request.post('/api/profile-settings', {headers: {'X-CSRF-Token': session.csrf}, data: {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -31,6 +32,10 @@ HEADINGS = {
     "work history": "experience",
     "relevant experience": "experience",
     "research experience": "experience",
+    "technical experience": "experience",
+    "industry experience": "experience",
+    "internship experience": "experience",
+    "professional and leadership experience": "experience",
     "leadership experience": "experience",
     "volunteer experience": "experience",
     "education": "education",
@@ -73,9 +78,24 @@ def suggestions(lines: list[dict[str, str]]) -> list[dict[str, Any]]:
     contacts: set[str] = set()
     section = "uncertain"
     for index, line in enumerate(lines):
-        if line["id"] in consumed:
+        if line["id"] in consumed or re.fullmatch(r"[•●▪◦‣*\-–| ]+", line["text"]):
             continue
         value = line["text"]
+        if "fields" in line:
+            fields = json.loads(line["fields"])
+            result.append(
+                {
+                    "line_id": line["id"],
+                    "kind": fields["kind"],
+                    "selected": True,
+                    "skills": fields.get("skills", []),
+                    "institution": fields.get("institution", ""),
+                    "degree": fields.get("degree", ""),
+                    "source_line_ids": [],
+                    "value": "",
+                }
+            )
+            continue
         found = heading(value)
         if found is not None:
             section = found
@@ -207,4 +227,25 @@ def suggestions(lines: list[dict[str, str]]) -> list[dict[str, Any]]:
                 "value": excerpt,
             }
         )
+    vocabulary = list(
+        dict.fromkeys(
+            skill for item in result if item["kind"] == "skill" for skill in item["skills"]
+        )
+    )
+    by_id = {line["id"]: line["text"] for line in lines}
+    for item in result:
+        if item["selected"] and item["kind"] in {"experience", "project"}:
+            text = "\n".join(by_id[i] for i in [item["line_id"], *item["source_line_ids"]])
+            item["skills"] = list(
+                dict.fromkeys(
+                    [
+                        *item["skills"],
+                        *[
+                            skill
+                            for skill in vocabulary
+                            if re.search(r"(?<!\w)" + re.escape(skill) + r"(?!\w)", text)
+                        ],
+                    ]
+                )
+            )[:30]
     return result

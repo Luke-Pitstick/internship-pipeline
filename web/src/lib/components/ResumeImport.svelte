@@ -13,7 +13,7 @@
   let file = $state<File>();
   let fileInput = $state<HTMLInputElement>();
   let busy = $state(false);
-  let useModel = $state(true);
+  let useModel = $state(false);
   let feedback = $state('');
   let failure = $state(false);
   let conflict = $state(false);
@@ -54,8 +54,12 @@
       source = draft.lines;
       if (fileInput) fileInput.value = '';
       file = undefined; onpending(false);
-      const method = draft.method === 'native_pdf' ? 'Your PDF model read the résumé.' : 'Your résumé was parsed locally.';
-      feedback = `${method} Profile fields filled. Review and edit them below, then choose ${saveLabel}. Missing details stay blank. ${draft.warnings.join(' ')}`;
+      const method = draft.method === 'native_pdf' ? 'Your PDF model read the résumé.' : draft.method === 'ai_text' ? 'Your model organized the locally extracted résumé text.' : 'Your résumé was parsed locally.';
+      const counts = (['experience', 'project', 'education'] as const).map(kind => {
+        const count = draft.suggestions.filter(item => item.selected && item.kind === kind).length;
+        return kind === 'project' ? `${count} project${count === 1 ? '' : 's'}` : `${count} ${kind} ${count === 1 ? 'entry' : 'entries'}`;
+      }).join(', ');
+      feedback = `${method} Profile fields filled. Found ${counts}. Review and edit the fields below, then choose ${saveLabel}. Missing details stay blank. ${draft.warnings.join(' ')}`;
     } catch (reason) {
       failure = true; feedback = (reason as Error).message;
       conflict = reason instanceof ApiError && reason.status === 409;
@@ -72,10 +76,10 @@
   <p class="field-help">Upload a PDF, DOCX or LaTeX (.tex) file to fill your profile fields. Review and correct them before saving. A saved .tex import also becomes your template for AI tailoring.</p>
   <label class="upload-label" for="resume-document">Resume document</label>
   <input id="resume-document" aria-describedby="resume-file-help" bind:this={fileInput} type="file" accept=".tex,.pdf,.docx,application/x-tex,text/x-tex,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={blocked} onchange={event => chooseFile(event.currentTarget.files?.[0])} />
-  <p class="field-help" id="resume-file-help">PDF or Word (.docx), up to 5 MiB; UTF-8 LaTeX (.tex), up to 100,000 characters. Word and TeX are parsed locally without AI. Local PDF parsing needs selectable text; a supported PDF model can also read scans.</p>
-  {#if file?.name.toLowerCase().endsWith('.pdf')}
-    <label><input type="checkbox" bind:checked={useModel} disabled={busy} /> Use my PDF-capable model when available</label>
-    <p class="field-help">Sends this PDF to your saved, tested API model if it supports native PDF input. Provider usage charges apply. Otherwise, parsing stays local. ChatGPT account connections use local parsing.</p>
+  <p class="field-help" id="resume-file-help">PDF or Word (.docx), up to 5 MiB; UTF-8 LaTeX (.tex), up to 100,000 characters. Local PDF parsing needs selectable text; a supported PDF model can also read scans.</p>
+  {#if file}
+    <label><input type="checkbox" bind:checked={useModel} disabled={busy} /> Use AI to organize résumé fields</label>
+    <p class="field-help">Optional. Sends the PDF to your saved, tested API model when it supports native PDFs; otherwise sends the locally extracted text, including contact details and links. AI imports allow up to 8,192 output tokens, independently of résumé-generation settings, and provider charges apply. ChatGPT account connections use local parsing. Leave unchecked to keep this import entirely local.</p>
   {/if}
   {#if file}<p class="selected-file">{file.name} <span>· {Math.max(1, Math.round(file.size / 1024))} KB</span></p>{/if}
   {#if file}<button type="button" class="subtle" disabled={busy || disabled} onclick={cancel}>Discard selected résumé file</button>{/if}
@@ -95,7 +99,7 @@
   .selected-file { margin: 12px 0; font-size: 14px; overflow-wrap: anywhere; }
   .selected-file span { color: var(--muted); }
   .secondary { margin-top: 16px; }
-  .source-text { max-height: 320px; overflow-y: auto; overflow-wrap: anywhere; padding: 8px; }
+  .source-text { max-height: 320px; overflow-y: auto; overflow-wrap: anywhere; padding: 8px; white-space: pre-line; }
   details { margin-top: 16px; } summary { cursor: pointer; }
   .error { color: #a83424; }
 </style>

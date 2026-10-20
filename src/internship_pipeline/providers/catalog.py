@@ -113,6 +113,23 @@ async def list_models(
                             models[slug]["pdf_input"] = (
                                 isinstance(modalities, list) and "file" in modalities
                             )
+                            parameters = item.get("supported_parameters", [])
+                            if isinstance(parameters, list) and "temperature" in parameters:
+                                models[slug]["temperature"] = True
+                            reasoning = item.get("reasoning")
+                            if isinstance(reasoning, dict) and reasoning.get("mandatory") is False:
+                                efforts = reasoning.get("supported_efforts", [])
+                                if efforts is None or (
+                                    isinstance(efforts, list) and "none" in efforts
+                                ):
+                                    models[slug]["reasoning_none"] = True
+                        if anthropic:
+                            capabilities = item.get("capabilities", {})
+                            models[slug]["pdf_input"] = isinstance(capabilities, dict) and all(
+                                isinstance(capabilities.get(name), dict)
+                                and capabilities[name].get("supported") is True
+                                for name in ("pdf_input", "structured_outputs")
+                            )
                 if not anthropic or not body.get("has_more"):
                     return list(models.values())
                 cursor = body.get("last_id")

@@ -8,7 +8,7 @@ export interface ImportSelection {
 export interface ImportDraft {
   id: string; expected_revision: number; lines: SourceLine[]; suggestions: ImportSelection[];
   removable: {id: string; text: string}[];
-  method: 'local' | 'native_pdf'; warnings: string[];
+  method: 'local' | 'native_pdf' | 'ai_text'; warnings: string[];
 }
 export interface ImportReview {
   expected_revision: number;

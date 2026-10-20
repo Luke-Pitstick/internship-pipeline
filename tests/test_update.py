@@ -520,10 +520,26 @@ def test_target_image_declaration_must_match_metadata_before_downtime(workspace,
     assert not any(call[0] == "stop" for call in state["calls"])
 
 
-def test_known_older_preview_is_not_a_downgrade_path(workspace):
+def test_known_older_source_is_not_a_downgrade_path(workspace, monkeypatch):
     root, source, state = workspace
     atomic_json(
-        root / "release.json", {**asdict(RELEASE), "version": "v0.1.0-rc.3", "image": OLD_IMAGE}
+        root / "release.json",
+        {
+            **asdict(RELEASE),
+            "version": "v0.1.0-rc.3",
+            "image": OLD_IMAGE,
+            "source_commit": "a" * 40,
+        },
+    )
+    monkeypatch.setattr(
+        "pipeline_release.fetch",
+        lambda url: json.dumps(
+            {
+                "status": "behind",
+                "base_commit": {"sha": "a" * 40},
+                "merge_base_commit": {"sha": "d" * 40},
+            }
+        ).encode(),
     )
     result = update.check(root, source, RELEASE)
     assert not result["eligible"] and "downgrade" in result["reason"]
@@ -532,13 +548,27 @@ def test_known_older_preview_is_not_a_downgrade_path(workspace):
     assert not (root / "updates").exists()
 
 
-@pytest.mark.parametrize("version", ["v1.0.0-rc.99", "v0.9.9"])
-def test_stable_installation_refuses_older_releases(workspace, version):
+def test_numbering_reset_updates_newer_source_and_preserves_storage(workspace, monkeypatch):
     root, source, _ = workspace
-    atomic_json(root / "release.json", {**asdict(RELEASE), "version": "v1.0.0", "image": OLD_IMAGE})
-    result = update.check(root, source, replace(RELEASE, version=version))
-    assert not result["eligible"] and "downgrade" in result["reason"]
-    assert not (root / "updates").exists()
+    atomic_json(
+        root / "release.json",
+        {**asdict(RELEASE), "version": "v1.0.3", "image": OLD_IMAGE, "source_commit": "a" * 40},
+    )
+    monkeypatch.setattr(
+        "pipeline_release.fetch",
+        lambda url: json.dumps(
+            {
+                "status": "ahead",
+                "base_commit": {"sha": "a" * 40},
+                "merge_base_commit": {"sha": "a" * 40},
+            }
+        ).encode(),
+    )
+    target = replace(RELEASE, version="v0.1.4")
+    result = update.check(root, source, target)
+    assert result["eligible"] and result["update_available"]
+    assert update.apply(root, target)["updated"]
+    assert private_json(root / "release.json")["version"] == "v0.1.4"
 
 
 def test_stable_promotion_of_same_image_updates_bundle_and_receipt(workspace):

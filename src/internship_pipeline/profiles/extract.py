@@ -160,6 +160,66 @@ def tex_source(data: bytes) -> str:
     return source
 
 
+def pdf_rows(data: bytes) -> list[dict[str, str]]:
+    """Keep word geometry and link targets until columns have been resolved."""
+    import pdfplumber
+    from pdfplumber.utils.clustering import cluster_objects
+
+    rows: list[dict[str, str]] = []
+    with pdfplumber.open(io.BytesIO(data)) as document:
+        for index, page in enumerate(document.pages):
+            if len(page.chars) > MAX_TEXT:
+                raise DocumentError(
+                    "Extracted text exceeds 100,000 characters. Use a shorter resume."
+                )
+            page = page.dedupe_chars()
+            words = page.extract_words(x_tolerance_ratio=0.15, y_tolerance=3)
+            for group in cluster_objects(words, "top", 3):
+                cells: list[dict[str, Any]] = []
+                for word in sorted(group, key=lambda word: word["x0"]):
+                    # A large physical gap is a table cell, not a word space.
+                    if not cells or word["x0"] - cells[-1]["x1"] > max(
+                        12, (word["bottom"] - word["top"]) * 1.5
+                    ):
+                        cells.append(dict(word))
+                    else:
+                        cells[-1]["text"] += " " + word["text"]
+                        cells[-1]["x1"] = word["x1"]
+                        cells[-1]["bottom"] = max(cells[-1]["bottom"], word["bottom"])
+                for cell in cells:
+                    links = []
+                    for link in page.hyperlinks:
+                        uri = link.get("uri") or ""
+                        if (
+                            uri.startswith(("https://", "http://"))
+                            and len(uri) <= 2048
+                            and not re.search(r"\s|[<>|]", uri)
+                            and link["x0"] < cell["x1"]
+                            and link["x1"] > cell["x0"]
+                            and link["top"] < cell["bottom"]
+                            and link["bottom"] > cell["top"]
+                            and uri not in cell["text"]
+                        ):
+                            links.append(uri)
+                    if links:
+                        cell["text"] += " | " + " | ".join(dict.fromkeys(links))
+                if cells and any(re.search(r"\w", cell["text"]) for cell in cells):
+                    rows.append(
+                        {
+                            "id": str(len(rows)),
+                            "location": f"Page {index + 1}",
+                            "text": " | ".join(cell["text"] for cell in cells),
+                            "layout": json.dumps(
+                                [{key: cell[key] for key in ("x0", "x1", "text")} for cell in cells]
+                            ),
+                        }
+                    )
+                    if len(rows) > 500:
+                        raise DocumentError("Use a resume with at most 500 text lines.")
+            page.close()
+    return rows
+
+
 def extract(data: bytes, kind: str) -> list[dict[str, str]]:
     if not data or len(data) > MAX_UPLOAD:
         raise DocumentError("Upload a nonempty document of at most 5 MiB.")
@@ -176,7 +236,7 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
             raise DocumentError("Encrypted PDFs are unsupported. Export an unencrypted copy.")
         if len(reader.pages) > 30:
             raise DocumentError("Use a resume with at most 30 pages.")
-        for index, page in enumerate(reader.pages):
+        for page in reader.pages:
             contents = page.get_contents()
             if contents is None:
                 continue
@@ -184,16 +244,13 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
                 raise DocumentError("PDF page content exceeds 2 MiB. Export a simpler PDF.")
             if kind == "pdf-native":
                 continue
-            text = (
-                page.extract_text(extraction_mode="layout", layout_mode_space_vertically=False)
-                or ""
-            )
-            chunks.append((f"Page {index + 1}", text))
         if kind == "pdf-native":
             return [
                 {"id": str(i + 1), "location": f"Page {i + 1}", "text": ""}
                 for i in range(len(reader.pages))
             ]
+        rows = pdf_rows(data)
+        chunks = [(row["location"], row["text"]) for row in rows]
     elif kind == "docx":
         from docx import Document
         from docx.table import Table
@@ -248,20 +305,18 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
     lines: list[dict[str, str]] = []
     for location, text in chunks:
         for raw in text.splitlines():
-            layout = raw if kind == "pdf" else ""
-            if layout:
-                raw = re.sub(r" {3,}", " | ", raw.strip())
             clean = " ".join(raw.replace("\u00ad", "").split())
             clean = clean.translate(LIGATURES)
-            if not clean:
+            if not clean or re.fullmatch(r"[•●▪◦‣*\-–|]+", clean):
                 continue
             if len(clean) > 2000:
                 raise DocumentError(
                     "A text block exceeds 2,000 characters. Re-export with paragraphs."
                 )
             lines.append({"id": str(len(lines)), "location": location, "text": clean})
-            if layout:
-                lines[-1]["layout"] = layout
+    if kind == "pdf":
+        for line, row in zip(lines, rows, strict=True):
+            line["layout"] = row["layout"]
     if len(lines) > 500:
         raise DocumentError("Use a resume with at most 500 text lines.")
     if not lines:

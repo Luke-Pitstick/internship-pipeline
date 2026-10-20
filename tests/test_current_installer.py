@@ -26,6 +26,8 @@ def execute(
 ):
     release = {
         "tag_name": VERSION,
+        "id": 123,
+        "published_at": "2026-10-20T12:00:00Z",
         "draft": False,
         "assets": [
             {"name": name}

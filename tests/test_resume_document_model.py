@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from test_resume_import import pdf_bytes, reviewed
 
-from internship_pipeline.profiles import pdf_model
+from internship_pipeline.profiles import document_model
 from internship_pipeline.profiles.extract import DocumentError
 from internship_pipeline.profiles.imports import ResumeImports, build_resume_import_router
 from internship_pipeline.providers.connections import ConnectionInput
@@ -17,15 +17,26 @@ from internship_pipeline.providers.structured import GENERAL_ENDPOINTS
 from internship_pipeline.storage import Store
 
 KEY = "synthetic-pdf-key"
-ROWS = [
-    "Synthetic Candidate",
-    "synthetic@example.test",
-    "Experience",
-    "Software Engineer | Example Labs | Remote | June 2024 - Present",
-    "* Built a reporting service.",
-    "Skills",
-    "Python, SQL",
-]
+DOCUMENT = {
+    "name": "Synthetic Candidate",
+    "email": "synthetic@example.test",
+    "education": [],
+    "entries": [
+        {
+            "page": 1,
+            "kind": "experience",
+            "title": "Software Engineer",
+            "company": "Example Labs",
+            "location": "Remote",
+            "start": "June 2024",
+            "end": "Present",
+            "bullets": ["Built a reporting service."],
+            "skills": [],
+            "links": [],
+        }
+    ],
+    "skills": ["Python", "SQL"],
+}
 
 
 def config(provider="openai", model="gpt-4.1", **changes):
@@ -58,8 +69,8 @@ class Connections:
         return self.selected, KEY
 
 
-def response(provider, rows=ROWS):
-    text = json.dumps({"rows": [{"page": 1, "text": text} for text in rows]})
+def response(provider, document=DOCUMENT):
+    text = json.dumps(document)
     if provider == "openai":
         return {
             "status": "completed",
@@ -115,7 +126,7 @@ def test_native_pdf_wire_format_and_transcription(provider):
         return httpx.Response(200, json=response(provider))
 
     lines = asyncio.run(
-        pdf_model.read_pdf(
+        document_model.read_document(
             config(provider),
             KEY,
             data,
@@ -123,7 +134,8 @@ def test_native_pdf_wire_format_and_transcription(provider):
             transport=httpx.MockTransport(respond),
         )
     )
-    assert [line["text"] for line in lines] == ROWS
+    assert len(lines) == 4
+    assert json.loads(lines[2]["fields"])["title"] == "Software Engineer"
     assert all("AI transcription" in line["location"] for line in lines)
     assert len(calls) == 1
 
@@ -131,15 +143,15 @@ def test_native_pdf_wire_format_and_transcription(provider):
 @pytest.mark.parametrize("model", ["gpt-3.5-turbo", "gpt-4o-audio-preview", "gpt-99", "o3-mini"])
 def test_unknown_and_text_models_do_not_access_credentials(model):
     connections = Connections(config(model=model))
-    assert asyncio.run(pdf_model.connection(connections)) is None
+    assert asyncio.run(document_model.connection(connections)) is None
     assert not connections.credentials_read
 
 
 def test_untested_and_subscription_connections_are_local():
-    assert asyncio.run(pdf_model.connection(Connections(ready=False))) is None
+    assert asyncio.run(document_model.connection(Connections(ready=False))) is None
     selected = config(auth_mode="chatgpt", chatgpt_account_id="a" * 64)
     connections = Connections(selected)
-    assert asyncio.run(pdf_model.connection(connections)) is None
+    assert asyncio.run(document_model.connection(connections)) is None
     assert not connections.credentials_read
 
 
@@ -161,16 +173,36 @@ def test_openrouter_needs_file_modality(modalities, expected):
             },
         )
     )
-    assert bool(asyncio.run(pdf_model.connection(connections, transport=transport))) is expected
+    assert (
+        bool(asyncio.run(document_model.connection(connections, transport=transport))) is expected
+    )
 
 
 def test_anthropic_needs_current_catalog_membership():
     connections = Connections(config("anthropic", "claude-sonnet-4-6"))
-    for models, expected in [([], False), ([{"id": "claude-sonnet-4-6"}], True)]:
+    for models, expected in [
+        ([], False),
+        ([{"id": "claude-sonnet-4-6"}], False),
+        (
+            [
+                {
+                    "id": "claude-sonnet-4-6",
+                    "capabilities": {
+                        "pdf_input": {"supported": True},
+                        "structured_outputs": {"supported": True},
+                    },
+                }
+            ],
+            True,
+        ),
+    ]:
         transport = httpx.MockTransport(
             lambda request, models=models: httpx.Response(200, json={"data": models})
         )
-        assert bool(asyncio.run(pdf_model.connection(connections, transport=transport))) is expected
+        assert (
+            bool(asyncio.run(document_model.connection(connections, transport=transport)))
+            is expected
+        )
 
 
 @pytest.mark.parametrize(
@@ -187,21 +219,19 @@ def test_bad_model_output_is_rejected_without_retry(failure):
         elif failure == "refusal":
             body["output"][0]["content"] = [{"type": "refusal", "refusal": "No"}]
         elif failure in {"bad_page", "oversize", "credential"}:
-            body["output"][0]["content"][0]["text"] = json.dumps(
-                {
-                    "rows": [
-                        {
-                            "page": 2 if failure == "bad_page" else 1,
-                            "text": "x" * 2001 if failure == "oversize" else KEY,
-                        }
-                    ]
-                }
-            )
+            document = json.loads(json.dumps(DOCUMENT))
+            if failure == "bad_page":
+                document["entries"][0]["page"] = 2
+            elif failure == "oversize":
+                document["entries"][0]["bullets"] = ["x" * 2001]
+            else:
+                document["name"] = KEY
+            body["output"][0]["content"][0]["text"] = json.dumps(document)
         return httpx.Response(429 if failure == "429" else 200, json=body)
 
     with pytest.raises(DocumentError, match="could not read"):
         asyncio.run(
-            pdf_model.read_pdf(
+            document_model.read_document(
                 config(),
                 KEY,
                 pdf_bytes(),
@@ -217,7 +247,7 @@ def test_scan_fills_structured_profile_and_reviewed_provenance(tmp_path, monkeyp
     app = FastAPI()
     app.include_router(build_resume_import_router(store, lambda: None, Connections()))
     calls = []
-    original = pdf_model.read_pdf
+    original = document_model.read_document
 
     async def read(*args):
         calls.append(args)
@@ -231,10 +261,10 @@ def test_scan_fills_structured_profile_and_reviewed_provenance(tmp_path, monkeyp
             ),
         )
 
-    monkeypatch.setattr(pdf_model, "read_pdf", read)
+    monkeypatch.setattr(document_model, "read_document", read)
     with TestClient(app) as client:
         result = client.post(
-            "/api/resume-imports/upload?format=pdf&expected_revision=0",
+            "/api/resume-imports/upload?format=pdf&expected_revision=0&use_model=true",
             content=pdf_bytes(text=False),
         )
     assert result.status_code == 200, result.text
@@ -249,7 +279,7 @@ def test_scan_fills_structured_profile_and_reviewed_provenance(tmp_path, monkeyp
         "Remote",
     )
     assert fact.start_date == "2024-06" and fact.current and fact.end_date is None
-    assert fact.text == "* Built a reporting service."
+    assert fact.text == "• Built a reporting service."
     assert service.settings.read().revision == 0
     assert all("AI transcription" in item["location"] for item in evidence)
     assert service.confirm(draft["id"], reviewed(draft)).profile == filled.profile
@@ -265,10 +295,10 @@ def test_local_opt_out_and_failed_model_use_deterministic_import(tmp_path, monke
         calls.append(args)
         raise DocumentError("The model could not read the PDF.")
 
-    monkeypatch.setattr(pdf_model, "read_pdf", fail)
+    monkeypatch.setattr(document_model, "read_document", fail)
     with TestClient(app) as client:
-        url = "/api/resume-imports/upload?format=pdf&expected_revision=0"
-        local = client.post(url + "&use_model=false", content=pdf_bytes())
+        url = "/api/resume-imports/upload?format=pdf&expected_revision=0&use_model=true"
+        local = client.post(url.replace("use_model=true", "use_model=false"), content=pdf_bytes())
         assert local.status_code == 200 and local.json()["method"] == "local"
         assert not calls
         failed = client.post(url, content=pdf_bytes())

@@ -12,21 +12,13 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 REPOSITORY = "Luke-Pitstick/internship-pipeline"
 VERSION = r"v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?"
 LIMIT = 2 * 1024 * 1024
-
-
-def version_key(version: str) -> tuple[int, int, int, int, int]:
-    """Order numeric versions, with a stable release after its release candidates."""
-    if not re.fullmatch(VERSION, version):
-        raise ValueError("Release version is invalid.")
-    package, _, candidate = version[1:].partition("-rc.")
-    major, minor, patch = map(int, package.split("."))
-    return major, minor, patch, int(not candidate), int(candidate or 0)
 
 
 def fetch(url: str) -> bytes:
@@ -58,6 +50,32 @@ def fetch(url: str) -> bytes:
         raise ValueError(
             "Could not download GitHub release metadata; check connectivity and retry."
         ) from None
+
+
+def require_forward_source(installed: str, target: str) -> None:
+    """Admit newer code independently of the human-facing release numbering."""
+    if not all(
+        isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha) for sha in (installed, target)
+    ):
+        raise ValueError("Release source identity is invalid; update refused.")
+    if installed == target:
+        return
+    try:
+        # Page two omits file patches; only ancestry metadata is needed.
+        comparison = json.loads(
+            fetch(
+                f"https://api.github.com/repos/{REPOSITORY}/compare/"
+                f"{installed}...{target}?per_page=1&page=2"
+            )
+        )
+        if (
+            comparison["status"] != "ahead"
+            or comparison["base_commit"]["sha"] != installed
+            or comparison["merge_base_commit"]["sha"] != installed
+        ):
+            raise ValueError("Target source is older or divergent; downgrade refused.")
+    except (KeyError, TypeError, json.JSONDecodeError):
+        raise ValueError("Could not verify release source ancestry; update refused.") from None
 
 
 @dataclass(frozen=True)
@@ -128,7 +146,7 @@ class Release:
 
 
 def select_release(releases: Any) -> str:
-    """Select the newest complete version for both installation and updates."""
+    """Select the most recently published complete release, including numbering resets."""
     try:
         if isinstance(releases, dict) and "rate limit" in str(releases.get("message", "")).lower():
             raise ValueError("GitHub API rate limit exceeded; wait for its reset and retry.")
@@ -153,9 +171,18 @@ def select_release(releases: Any) -> str:
             }
             if not required <= {asset["name"] for asset in item.get("assets", [])}:
                 continue
-            complete.append(version)
+            published = item.get("published_at")
+            identifier = item.get("id")
+            if (
+                not isinstance(published, str)
+                or not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", published)
+                or type(identifier) is not int
+                or identifier <= 0
+            ):
+                raise ValueError("Published release identity or timestamp is invalid.")
+            complete.append((datetime.fromisoformat(published), identifier, version))
         if complete:
-            return max(complete, key=version_key)
+            return max(complete)[2]
     except (KeyError, TypeError, json.JSONDecodeError):
         raise ValueError(
             "GitHub returned malformed release metadata; nothing was updated."

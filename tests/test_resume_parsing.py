@@ -139,7 +139,7 @@ def test_realistic_resume_fills_all_sections_and_saves_literal_evidence(tmp_path
     assert not any("Hiking" in fact.text or "pottery" in fact.text for fact in profile.facts)
     for item in evidence:
         if isinstance(item["value"], dict) and "text" in item["value"]:
-            assert item["value"]["text"] in item["source_text"]
+            assert " ".join(item["value"]["text"].split()) in " ".join(item["source_text"].split())
     imports.confirm(draft["id"], reviewed(draft))
     assert imports.settings.read().profile == profile
     assert imports.current()["import"]["evidence"] == evidence

@@ -53,7 +53,7 @@ def test_provider_catalog_headers_names_and_order(provider):
         {"id": "z-model", "name": "z-model" if provider == "openai" else "Z Model"},
         {"id": "a-model", "name": "a-model" if provider == "openai" else "A Model"},
     ]
-    if provider == "openrouter":
+    if provider in {"openrouter", "anthropic"}:
         for item in expected:
             item["pdf_input"] = False
     assert models == expected

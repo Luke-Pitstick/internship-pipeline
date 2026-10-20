@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
-from internship_pipeline.model_connections import ModelConnectionStore
+from internship_pipeline.model_connections import ConnectionError, ModelConnectionStore
 from internship_pipeline.models import Record, utcnow
 from internship_pipeline.profile_settings import (
     Education,
@@ -29,7 +29,7 @@ from internship_pipeline.profile_settings import (
     Snapshot,
 )
 from internship_pipeline.profiles.draft import suggestions
-from internship_pipeline.profiles.entries import entry_fields
+from internship_pipeline.profiles.entries import education_field, entry_fields
 from internship_pipeline.profiles.extract import MAX_UPLOAD, DocumentError, tex_source
 from internship_pipeline.profiles.layout import reading_order
 from internship_pipeline.storage import Store
@@ -271,6 +271,13 @@ class ResumeImports:
             if selection.value and selection.value not in source_text:
                 raise DocumentError("A selected value must be an exact excerpt of the source.")
             text = selection.value or source_text
+            model_fields = json.loads(line["fields"]) if "fields" in line else {}
+            if model_fields and (
+                selection.kind != model_fields["kind"]
+                or selection.value
+                or selection.source_line_ids
+            ):
+                raise DocumentError("Model source selections must retain their original entry.")
             if any(
                 not skill.strip() or len(skill) > 200 or skill not in text
                 for skill in selection.skills
@@ -306,13 +313,18 @@ class ResumeImports:
                     status="confirmed",
                     institution=selection.institution,
                     degree=selection.degree,
-                    field=selection.degree.partition(" in ")[2],
+                    field=model_fields.get("field") or education_field(selection.degree),
                 )
                 profile.education.append(entry)
                 field, value = entry.id, entry.model_dump(mode="json")
             else:
-                details = entry_fields(text, selection.kind)
+                details = (
+                    {key: value for key, value in model_fields.items() if key != "kind"}
+                    if model_fields
+                    else entry_fields(text, selection.kind)
+                )
                 fact_text = details.pop("text", text)
+                skills = list(dict.fromkeys([*details.pop("skills", []), *selection.skills]))[:30]
                 if any(
                     f.text == fact_text
                     and f.kind == selection.kind
@@ -327,7 +339,7 @@ class ResumeImports:
                     status="confirmed",
                     kind=cast(Literal["experience", "project", "skill"], selection.kind),
                     text=fact_text,
-                    skills=selection.skills,
+                    skills=skills,
                     **details,
                 )
                 profile.facts.append(fact)
@@ -427,7 +439,7 @@ def build_resume_import_router(
         request: Request,
         format: str,
         expected_revision: int,
-        use_model: bool = True,
+        use_model: bool = False,
     ) -> Any:
         if expected_revision < 0:
             raise HTTPException(422, "Use the saved nonnegative profile revision.")
@@ -441,27 +453,85 @@ def build_resume_import_router(
         extracted = None
         warnings = []
         method = "local"
-        if format == "pdf" and use_model:
-            from internship_pipeline.profiles import pdf_model
+        if use_model:
+            from internship_pipeline.profiles import document_model
 
-            selected = await pdf_model.connection(connections)
+            selected = await document_model.connection(connections) if format == "pdf" else None
+            native = selected is not None
+            summary = connections.summary()["general"]
+            if (
+                not selected
+                and summary["ready"]
+                and summary["config"].get("auth_mode") != "chatgpt"
+            ):
+                try:
+                    selected = connections.ready_connection("general", summary["revision"])
+                except ConnectionError:
+                    raise HTTPException(409, "Model settings changed. Upload again.") from None
             if selected:
                 if not _MODEL_SLOT.acquire(blocking=False):
-                    raise HTTPException(429, "Another PDF is processing. Try again shortly.")
+                    raise HTTPException(429, "Another résumé is processing. Try again shortly.")
                 try:
-                    pages = await run_in_threadpool(
-                        safely, lambda: extract_bounded(bytes(body), "pdf-native")
-                    )
+                    if native:
+                        pages = await run_in_threadpool(
+                            safely, lambda: extract_bounded(bytes(body), "pdf-native")
+                        )
+                        content: bytes | str = bytes(body)
+                        page_count = len(pages)
+                    else:
+                        extracted = await run_in_threadpool(
+                            safely, lambda: extract_bounded(bytes(body), format)
+                        )
+                        if format == "pdf":
+                            extracted = reading_order(extracted)
+                        page_count = (
+                            max(
+                                (int(row["location"].split()[1]) for row in extracted),
+                                default=1,
+                            )
+                            if format == "pdf"
+                            else 1
+                        )
+                        content = json.dumps(
+                            [
+                                {"location": row["location"], "text": row["text"]}
+                                for row in extracted
+                            ]
+                        )
                     config, key = selected
                     try:
-                        extracted = await pdf_model.read_pdf(config, key, bytes(body), len(pages))
-                        method = "native_pdf"
+                        model_lines = await document_model.read_document(
+                            config, key, content, page_count
+                        )
+                        if extracted is not None:
+                            for category in ("experience", "project"):
+
+                                def count_entries(
+                                    rows: list[dict[str, str]], category: str = category
+                                ) -> int:
+                                    return sum(
+                                        item["selected"] and item["kind"] == category
+                                        for item in suggestions(rows)
+                                    )
+
+                                if count_entries(model_lines) < count_entries(extracted):
+                                    raise DocumentError(
+                                        "The model omitted an entry found locally. Local parsing "
+                                        "was used; review the complete extracted text."
+                                    )
+                        extracted = model_lines
+                        method = "native_pdf" if native else "ai_text"
                     except DocumentError as exc:
                         warnings.append(str(exc))
                     if connections.summary()["general"]["revision"] != config.expected_revision:
                         raise HTTPException(409, "Model settings changed. Upload again.")
                 finally:
                     _MODEL_SLOT.release()
+            else:
+                warnings.append(
+                    "AI was not used: connect and test an API model in AI Models. "
+                    "This import was parsed locally."
+                )
         result = await run_in_threadpool(
             safely,
             lambda: service.upload(

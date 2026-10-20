@@ -1,6 +1,6 @@
 [project]
 name = "internship-pipeline"
-version = "1.0.3"
+version = "0.1.4"
 description = "Fast internship discovery, grounded resume tailoring, and alerts"
 requires-python = ">=3.12"
 license = "MIT"
@@ -24,6 +24,7 @@ dependencies = [
     "py-landlock>=0.1.1,<0.2 ; sys_platform == 'linux'",
     "pyjwt[crypto]>=2.10,<3",
     "httpx-sse>=0.4,<1",
+    "pdfplumber>=0.11,<0.12",
 ]
 
 [project.scripts]

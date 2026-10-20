@@ -6,10 +6,12 @@ Database schema upgrades run transactionally on an isolated restored copy.
 There is no background updater. The public installer follows
 only complete published releases; draft assets are unavailable to normal updates.
 
-Stable releases and numbered release candidates share numeric version ordering;
-`v1.0.0` supersedes `v1.0.0-rc.99`. A known newer installation refuses a downgrade.
-Promoting the same image from RC to stable still installs the stable command bundle
-and records its release identity.
+Stable releases and numbered release candidates use publication order. This allows
+the October 2026 numbering reset from `1.0.x` to `0.1.x`; `v0.1.4` contains newer
+code than `v1.0.3`. Updates verify through GitHub's commit ancestry API that the
+target source descends from the installed source, and refuse older, divergent or
+unverifiable code before downtime. A same-source promotion needs no comparison
+request and still installs the selected command bundle and release identity.
 
 ```sh
 internship-pipeline update --check
@@ -21,8 +23,8 @@ reason when blocked. It does not stop the app, pull a target image, or change
 application data. `--json` produces structured stdout; update progress stays on
 stderr. Both commands accept the usual `--install-dir PATH`.
 
-If the installed management command predates `update`, use the explicit installer
-bootstrap after this feature is published:
+When moving from the old `1.0.x` numbering, or if the installed command predates
+`update`, use the current bootstrap once to load the new release-selection policy:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Luke-Pitstick/internship-pipeline/main/install.sh | sh -s -- --update

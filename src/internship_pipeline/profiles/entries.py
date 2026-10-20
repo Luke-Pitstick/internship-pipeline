@@ -25,6 +25,7 @@ DATE = (
 )
 DATE_RANGE = re.compile(rf"({DATE})\s*(?:--?|[–—]|to)\s*({DATE}|Present|Current|Now)\b", re.I)
 URL = re.compile(r"https?://[^\s|<>]+", re.I)
+DATE_ONLY = re.compile(rf"(?:Expected\s+)?{DATE}", re.I)
 
 
 def month_date(value: str) -> str | None:
@@ -46,7 +47,7 @@ def month_date(value: str) -> str | None:
 
 def entry_start(rows: list[dict[str, str]], index: int, kind: str) -> bool:
     text = rows[index]["text"]
-    if BULLET.match(text) or len(text) > 250 or text.endswith((".", "!", "?", ",")):
+    if BULLET.match(text) or len(text) > 700 or text.endswith((".", "!", "?", ",")):
         return False
     following = [row["text"] for row in rows[index + 1 : index + 4]]
     if kind == "project":
@@ -55,6 +56,7 @@ def entry_start(rows: list[dict[str, str]], index: int, kind: str) -> bool:
         (
             ROLE.search(text)
             or DATE_RANGE.search(text)
+            or ("|" in text and following and BULLET.match(following[0]))
             or (following and ROLE.search(following[0]) and not BULLET.match(following[0]))
         )
         and any(BULLET.match(row) for row in following)
@@ -85,11 +87,18 @@ def entry_fields(text: str, kind: str) -> dict[str, Any]:
     clean = []
     for part in parts:
         part = DATE_RANGE.sub("", part).strip(" ,;–—-")
+        if DATE_ONLY.fullmatch(part):
+            if kind == "project" and not date_match:
+                result["start_date"] = month_date(part)
+            continue
         if part and not URL.fullmatch(part):
             clean.append(part)
     if kind == "experience":
         title = next((part for part in clean if ROLE.search(part)), "")
-        # A lone prose sentence is not a title or organization.
+        # Header position is evidence too: don't require every profession to be
+        # in a vocabulary. Only use this for a structured header above bullets.
+        if not title and len(clean) >= 2 and date_match:
+            title = clean[0]
         if title and len(title) <= 200:
             result["title"] = title
             remaining = [part for part in clean if part != title]
@@ -99,6 +108,16 @@ def entry_fields(text: str, kind: str) -> dict[str, Any]:
                 result["location"] = remaining[-1]
     elif clean and len(clean[0]) <= 200:
         result["title"] = clean[0]
+    if kind == "project":
+        skills = [
+            skill.strip()
+            for part in clean[1:]
+            if "," in part or ";" in part
+            for skill in re.split(r"[,;]", part)
+            if skill.strip()
+        ]
+        if skills and len(skills) <= 30 and all(len(skill) <= 200 for skill in skills):
+            result["skills"] = skills
     links = list(dict.fromkeys(match.rstrip(".,;)") for match in URL.findall(text)))
     if links:
         result["links"] = links[:10]
@@ -110,8 +129,38 @@ def entry_fields(text: str, kind: str) -> dict[str, Any]:
     preserve_headers = (
         partial_dates
         or not result.get("title")
-        or len(clean) > (1 if kind == "project" else 3)
+        or (
+            kind == "project"
+            and any(
+                "," not in part
+                and ";" not in part
+                and part.lower() not in {"github", "demo", "website", "code", "live", "link"}
+                for part in clean[1:]
+            )
+        )
+        or (kind == "experience" and len(clean) > 3)
         or (date_match and "start_date" not in result)
     )
-    result["text"] = text if preserve_headers else "\n".join(rows[first_bullet:])
+    # Rejoin physical wrapping while keeping distinct bullets distinct.
+    bullets: list[str] = []
+    for row in rows[first_bullet:]:
+        if BULLET.match(row) or not bullets:
+            bullets.append(row)
+        else:
+            bullets[-1] += " " + row
+    result["text"] = text if preserve_headers else "\n".join(bullets)
     return result
+
+
+def education_field(degree: str) -> str:
+    """Preserve dual fields of study without inventing a degree or a day."""
+    from internship_pipeline.profiles.draft import DEGREE
+
+    fields = []
+    for part in degree.split(","):
+        match = DEGREE.match(part.strip())
+        if match:
+            value = part.strip()[match.end() :].lstrip(". ").removeprefix("in ").strip()
+            if value:
+                fields.append(value)
+    return ", ".join(fields)[:200]

@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 
 from install import BUNDLE_FILES, create_container, secure_directory
 from installer_ui import InstallProgress
-from pipeline_release import VERSION, Release, latest, version_key
+from pipeline_release import Release, latest, require_forward_source
 from pipeline_runtime import (
     LABEL,
     Failure,
@@ -129,9 +129,11 @@ def check(root: Path, manifest: Manifest, release: Release) -> dict[str, Any]:
     except Failure as exc:
         reason = str(exc)
     installed_version = installed.get("version")
-    if isinstance(installed_version, str) and re.fullmatch(VERSION, installed_version):
-        if version_key(release.version) < version_key(installed_version):
-            reason = "Latest release is older than the installed release; downgrade refused."
+    if installed:
+        try:
+            require_forward_source(installed.get("source_commit"), release.source_commit)
+        except ValueError as exc:
+            reason = str(exc)
     return {
         "installed_version": installed_version,
         "installed_image": manifest.image,

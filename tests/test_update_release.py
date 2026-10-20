@@ -22,6 +22,8 @@ from test_update import RELEASE  # noqa: E402
 def entry(version, **extra):
     return {
         "tag_name": version,
+        "id": 1,
+        "published_at": "2026-10-20T12:00:00Z",
         "draft": False,
         "assets": [
             {"name": name}
@@ -50,17 +52,65 @@ def test_drafts_incomplete_and_unrelated_tags_do_not_replace_complete_release():
     assert releases.select_release(listing) == RELEASE.version
 
 
+def test_publication_order_supports_numbering_reset_independent_of_listing_order():
+    old = entry("v1.0.3", id=200, published_at="2026-10-19T12:00:00Z")
+    reset = entry("v0.1.4-rc.1", id=201)
+    stable = entry("v0.1.4", id=202)
+    assert releases.select_release([old, reset]) == reset["tag_name"]
+    assert releases.select_release([stable, old, reset]) == stable["tag_name"]
+    assert releases.select_release([reset, old, stable]) == stable["tag_name"]
+
+
+@pytest.mark.parametrize("bad", [None, "", "not-a-date", "2026-13-20T12:00:00Z"])
+def test_complete_release_without_valid_publication_time_is_rejected(bad):
+    with pytest.raises(ValueError):
+        releases.select_release([entry("v0.1.4", published_at=bad)])
+
+
+@pytest.mark.parametrize("status", ["behind", "diverged", "identical", "ahead"])
+def test_update_direction_is_proven_from_source_ancestry(monkeypatch, status):
+    base, target = "a" * 40, "b" * 40
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return json.dumps(
+            {"status": status, "base_commit": {"sha": base}, "merge_base_commit": {"sha": base}}
+        ).encode()
+
+    monkeypatch.setattr(releases, "fetch", fetch)
+    if status == "ahead":
+        releases.require_forward_source(base, target)
+    else:
+        with pytest.raises(ValueError, match="downgrade"):
+            releases.require_forward_source(base, target)
+    assert calls == [
+        f"https://api.github.com/repos/{releases.REPOSITORY}/compare/"
+        f"{base}...{target}?per_page=1&page=2"
+    ]
+
+
+def test_same_source_promotion_needs_no_ancestry_network_request(monkeypatch):
+    monkeypatch.setattr(releases, "fetch", Mock(side_effect=AssertionError("Unexpected network")))
+    releases.require_forward_source("a" * 40, "a" * 40)
+
+
 @pytest.mark.parametrize(
-    "versions,expected",
+    "body",
     [
-        (["v1.0.0-rc.99", "v1.0.0"], "v1.0.0"),
-        (["v1.0.0", "v1.0.1-rc.1"], "v1.0.1-rc.1"),
-        (["v1.0.0-rc.2", "v1.0.0-rc.10"], "v1.0.0-rc.10"),
-        (["v1.0.0", "v0.9.9"], "v1.0.0"),
+        {},
+        [],
+        {
+            "status": "ahead",
+            "base_commit": {"sha": "a" * 40},
+            "merge_base_commit": {"sha": "c" * 40},
+        },
     ],
 )
-def test_latest_complete_version_uses_numeric_order_and_stable_precedence(versions, expected):
-    assert releases.select_release([entry(version) for version in versions]) == expected
+def test_missing_or_divergent_ancestry_is_rejected(monkeypatch, body):
+    monkeypatch.setattr(releases, "fetch", lambda url: json.dumps(body).encode())
+    with pytest.raises(ValueError):
+        releases.require_forward_source("a" * 40, "b" * 40)
 
 
 def test_stable_release_metadata_is_valid_and_incomplete_stable_is_skipped():
