@@ -36,7 +36,7 @@
     <div><label for={`${fact.id}-start`}>Start date</label><input id={`${fact.id}-start`} name={`${path}.start_date`} type="month" value={fact.start_date ?? ''} onchange={event => fact.start_date = event.currentTarget.value || null} /></div>
     <div><label for={`${path}.end_date`}>End date</label><input id={`${path}.end_date`} name={`${path}.end_date`} type="month" disabled={fact.current} value={fact.end_date ?? ''} onchange={event => fact.end_date = event.currentTarget.value || null} aria-invalid={!!errors[`${path}.end_date`]} aria-describedby={errors[`${path}.end_date`] ? `${path}.end_date-error` : undefined} />{@render error('end_date')}</div>
   </div>
-  <label class="check-label" for={`${fact.id}-present`}><input id={`${fact.id}-present`} type="checkbox" checked={fact.current} onchange={event => { fact.current = event.currentTarget.checked; if (fact.current) fact.end_date = null; }} />{fact.kind === 'experience' ? 'I currently work here' : 'This project is ongoing'} <span class="field-help">(Present)</span></label>
+  <label class="check-label" for={`${fact.id}-present`}><input id={`${fact.id}-present`} type="checkbox" checked={fact.current} onchange={event => { fact.current = event.currentTarget.checked; if (fact.current) fact.end_date = null; }} /><span>{fact.kind === 'experience' ? 'I currently work here' : 'This project is ongoing'} <span class="field-help">(Present)</span></span></label>
   <label for={`${path}.text`}>{fact.kind === 'experience' ? 'Responsibilities & accomplishments' : 'Project description & accomplishments'}</label>
   <textarea id={`${path}.text`} name={`${path}.text`} bind:value={fact.text} maxlength="2000" rows="3" aria-invalid={!!errors[`${path}.text`]} aria-describedby={errors[`${path}.text`] ? `${path}.text-error` : undefined}></textarea>
   {@render error('text')}
@@ -49,7 +49,7 @@
     {/each}
     {@render error('links')}
   {/if}
-  <label class="check-label" for={`${fact.id}-confirmed`}><input id={`${fact.id}-confirmed`} type="checkbox" checked={fact.status === 'confirmed'} onchange={event => fact.status = event.currentTarget.checked ? 'confirmed' : 'unknown'} />I confirm this {label.toLowerCase()}</label>
+  <label class="check-label" for={`${fact.id}-confirmed`}><input id={`${fact.id}-confirmed`} type="checkbox" checked={fact.status === 'confirmed'} onchange={event => fact.status = event.currentTarget.checked ? 'confirmed' : 'unknown'} /><span>I confirm this {label.toLowerCase()}</span></label>
 </fieldset>
 
 <style>
@@ -59,7 +59,7 @@
   .entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
   .entry-grid > div, .link-row > input { min-width: 0; }
   .full-width { grid-column: 1 / -1; }
-  .check-label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0; font-weight: 400; }
+  .check-label { display: flex; align-items: center; gap: 12px; margin: 18px 0; font-weight: 400; }
   .check-label input { width: 18px; min-height: 18px; height: 18px; margin: 0; flex: 0 0 18px; accent-color: var(--accent); }
   .links-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; font-weight: 600; }
   .link-row { display: flex; align-items: center; gap: 12px; }

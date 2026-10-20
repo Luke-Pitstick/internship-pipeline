@@ -666,7 +666,7 @@ progress::-moz-progress-bar {
   font-size:16px;
   margin-bottom:20px;
 }
-.form-group label:not(.toggle-label) {
+.form-group label:not(.toggle-label):not(.check-label) {
   display:block;
   font-size:14px;
   font-weight:600;
