@@ -346,6 +346,7 @@ def test_readiness_is_independent_and_requires_tested_current_jev(tmp_path):
         "search-runs",
         "email-delivery",
         "sheets-sync",
+        "discovery",
         "master-resumes",
         "tailored-resumes",
         "matcher",
@@ -356,6 +357,7 @@ def test_readiness_is_independent_and_requires_tested_current_jev(tmp_path):
         "search-runs",
         "email-delivery",
         "sheets-sync",
+        "discovery",
         "master-resumes",
         "tailored-resumes",
     ]

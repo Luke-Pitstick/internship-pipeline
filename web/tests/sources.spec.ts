@@ -118,3 +118,22 @@ test('source load failures offer a retry and show the empty library after recove
   await page.getByRole('button', {name:'Retry loading sources'}).click();
   await expect(page.getByText('No saved sources yet. Add a job site search or company board below.')).toBeVisible();
 });
+
+
+test('automatic discovery status is visible and refreshing preserves a source draft', async ({page}) => {
+  await login(page);
+  await page.route('**/api/source-discovery', route => route.fulfill({json:{pending:11800,monitored:81,failed:3,unsupported:2,directory_checked_at:1792500000,directory_error:null,stopped:false}}));
+  await page.getByRole('button', {name:'Sources',exact:true}).click();
+  const discovery=page.getByRole('region',{name:'Automatic company discovery'});
+  await expect(discovery.getByText(/81 boards validated/)).toBeVisible();
+  await expect(discovery.getByText(/3 unavailable boards/)).toBeVisible();
+  await page.locator('.available-sources > summary').click();
+  await page.getByRole('button',{name:'Add Ashby company board'}).click();
+  await page.getByLabel('Search name',{exact:true}).fill('Unsaved company');
+  await discovery.getByRole('button',{name:'Refresh source list'}).click();
+  await expect(page.getByLabel('Search name',{exact:true})).toHaveValue('Unsaved company');
+  for(const width of [1440,390]) {
+    await page.setViewportSize({width,height:1000});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+});

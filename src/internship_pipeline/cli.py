@@ -134,7 +134,7 @@ def parser() -> argparse.ArgumentParser:
     add.add_argument("name")
     add.add_argument("careers_url")
     add.add_argument("--priority", action="store_true")
-    discovery = commands.add_parser("discover", help="Find candidate boards; review before adding")
+    discovery = commands.add_parser("discover", help="Find company boards for automatic validation")
     discovery.add_argument("query", nargs="?")
     discovery.add_argument("--limit", type=int, default=200)
     discovery.add_argument(
@@ -230,7 +230,7 @@ def run_worker(settings: Settings, store: Store, role: str, once: bool) -> int:
         elif role == "discovery":
             from internship_pipeline.maintenance import refresh_discovery
 
-            asyncio.run(refresh_discovery(store, settings))
+            asyncio.run(refresh_discovery(store, settings, stop=stop))
             worked = False
         elif role == "collector":
             profile = ProfileSettings(store).read().candidate()
@@ -365,7 +365,7 @@ def _main(argv: list[str] | None = None) -> int:
             from internship_pipeline.maintenance import refresh_discovery
 
             count = asyncio.run(refresh_discovery(store, settings, force=True))
-            print(f"Enabled {count} verified boards; their first scan establishes a backlog")
+            print(f"Enabled {count} verified recurring company sources")
         elif args.command == "scan":
             pipeline = _pipeline(settings, store)
             register_targets(

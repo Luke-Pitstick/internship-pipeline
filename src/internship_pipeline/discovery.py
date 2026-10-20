@@ -51,14 +51,14 @@ async def validate_company(company: Company, timeout: float = 30) -> BoardValida
 
 
 def discover_companies(
-    name: str | None = None, limit: int = 200, timeout: float = 30
+    name: str | None = None, limit: int | None = 200, timeout: float = 30
 ) -> list[Company]:
     """Fetch directory candidates; callers validate and baseline before enabling.
 
     Directory presence proves neither internship relevance nor a working board.
     This synchronous daily task belongs outside the fast polling event loop.
     """
-    if limit < 1 or timeout <= 0:
+    if (limit is not None and limit < 1) or timeout <= 0:
         raise ValueError("limit and timeout must be positive")
     import httpx
     from ats_scrapers import Client
@@ -81,6 +81,8 @@ def discover_companies(
     for row in rows:
         try:
             provider, slug = str(row["ats"]), str(row["slug"])
+            if provider not in COMPLETE_PROVIDERS:
+                continue
             company = Company(
                 id=f"{provider}:{slug}",
                 name=str(row["name"]),
@@ -90,7 +92,7 @@ def discover_companies(
             )
             if resolve_board(company).supported:
                 companies[company.id] = company
-                if len(companies) >= limit:
+                if limit is not None and len(companies) >= limit:
                     break
         except (KeyError, ValueError, TypeError):
             continue

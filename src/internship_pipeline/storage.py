@@ -552,9 +552,10 @@ class Store:
             return [
                 Company.model_validate_json(row[0])
                 for row in connection.execute(
-                    "SELECT company FROM candidates WHERE status IN ('pending','failed') "
+                    "SELECT company FROM candidates WHERE (status='pending' OR "
+                    "(status='failed' AND created<?)) "
                     "ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END,created LIMIT ?",
-                    (limit,),
+                    (utcnow().timestamp() - 86400, limit),
                 )
             ]
 
@@ -572,10 +573,10 @@ class Store:
             ).fetchone()
             if row and row[0] > now and not force:
                 return False
-            # A crash retries on the next day; already validated candidates retain their state.
+            # A short lease resumes discovery after a crash; candidate state is durable.
             connection.execute(
                 "INSERT INTO maintenance VALUES('discovery',?) ON CONFLICT(name) "
                 "DO UPDATE SET next_due=excluded.next_due",
-                (now + 86400,),
+                (now + 300,),
             )
             return True

@@ -37,10 +37,11 @@ def configured_roles(settings: Settings) -> list[str]:
         )
         if complete and complete[0]:
             roles.insert(0, "search-runs")
+            roles.append("discovery")
             try:
                 load_companies(settings.companies_path)
                 load_searches(settings.searches_path)
-                roles.extend(["collector", "discovery"])
+                roles.append("collector")
             except ConfigurationError:
                 pass
         profile, revision = current_revisions(db)

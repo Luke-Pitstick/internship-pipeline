@@ -139,7 +139,7 @@ def test_multiple_sources_validation_snapshot_and_overlap(tmp_path):
             SourceConfig(name="Board", source=source, board="example").target("id").provider
             == source
         )
-    for token in ["../etc", "https://example.test", "example?query", "a.b", ""]:
+    for token in ["../etc", "https://example.test", "example?query", ""]:
         with pytest.raises(ValidationError):
             SourceConfig(name="Synthetic", board=token)
     with pytest.raises(ValidationError):
@@ -552,3 +552,32 @@ def test_failed_collection_does_not_block_ingestion_restart(tmp_path):
     assert runs.ingestion_status()["active_runs"] == 0
     assert runs.start_ingestion()["active_runs"] == 1
     assert runs.view(run["id"])["run"]["stage"] == "needs_attention"
+
+
+def test_saved_job_search_discovers_employer_boards_automatically(tmp_path, monkeypatch):
+    store = Store(tmp_path / "jobs.sqlite3")
+    runs = SearchRuns(store)
+    source = runs.save(
+        SourceSave(name="Search", source="jobspy", search_term="internship", expected_revision=0)
+    )["searches"][0]
+
+    def fetch(query, timeout):
+        return FetchResult(
+            jobs=[
+                posting().model_copy(
+                    update={
+                        "source": "jobspy:indeed",
+                        "board_id": query.id,
+                        "apply_url": "https://jobs.ashbyhq.com/example.ai/job-1",
+                        "source_url": "https://indeed.com/viewjob?jk=1",
+                    }
+                )
+            ]
+        )
+
+    monkeypatch.setattr("internship_pipeline.sources.jobspy.fetch_search", fetch)
+    runs.start(source["id"])
+    assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    candidates = store.candidate_companies()
+    assert len(candidates) == 1
+    assert candidates[0].careers_url == "https://jobs.ashbyhq.com/example.ai"

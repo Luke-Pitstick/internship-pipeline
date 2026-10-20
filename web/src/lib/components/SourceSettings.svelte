@@ -2,6 +2,7 @@
   import {getContext,onMount,tick} from 'svelte';
   import {Api} from '#lib/api.ts';
   import SourceLibrary from './SourceLibrary.svelte';
+  import AutomaticSources from './AutomaticSources.svelte';
   import type { SavedSource as Search } from '#lib/source-settings.ts';
   import JobIngestion from '#lib/components/JobIngestion.svelte';
   import ChoiceField from './ChoiceField.svelte';
@@ -59,7 +60,7 @@
   async function action(s:Search,kind:string){busy=true;try{searches=(await api.request<{searches:Search[]}>(`/api/search-settings/${s.id}/${kind}`,{expected_revision:s.revision,...(kind==='pause'?{paused:!s.paused}:{})})).searches;error=false;message=kind==='delete'?'Search removed; history is retained.':s.paused?'Search resumed.':'Search paused; existing work continues until cancelled.';}catch(e){error=true;message=(e as Error).message;}finally{busy=false;}}
   onMount(()=>{void load();});
 </script>
-{#if allowRun}<JobIngestion />{/if}
+{#if allowRun}<JobIngestion /><AutomaticSources onrefresh={load} />{/if}
 <SourceLibrary {searches} {ready} {busy} {allowRun} onedit={showEditor} onaction={action} />
 {#if error && !ready}<p role="alert">{message}</p><button class="secondary" onclick={load}>Retry loading sources</button>{/if}
 {#if ready && !editorOpen}<p class="source-message" role={error?'alert':'status'}>{message}</p>{/if}
@@ -94,7 +95,7 @@
     <div class="form-group"><ChoiceField name="search-sites" label="Job sites" options={sites} bind:values={draft.sites} max={8} required disabled={busy||!ready} help="Choose one or more sites to search."/></div>
     <div class="form-group"><label for="search-age">Hours old</label><input id="search-age" type="number" bind:value={draft.hours_old} min="1" max="8760" required/></div>
     <div class="form-group"><label for="search-results">Results wanted</label><input id="search-results" type="number" bind:value={draft.results_wanted} min="1" max="1000" required/></div>
-  {:else}<div class="form-group"><label for="source-board">Company board token</label><input id="source-board" bind:value={draft.board} required maxlength="80" pattern={'[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}'}/><p class="field-help">For {boards.find(board=>board.value===draft.source)?.example}, enter example.</p></div>{/if}
+  {:else}<div class="form-group"><label for="source-board">Company board token</label><input id="source-board" bind:value={draft.board} required maxlength="80" pattern={'[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}'}/><p class="field-help">For {boards.find(board=>board.value===draft.source)?.example}, enter example.</p></div>{/if}
   <div class="form-group"><label for="search-time">Daily run time (clear for manual only)</label><input id="search-time" type="time" bind:value={schedule}/></div>
   <div class="form-group"><ChoiceField name="search-zone" label="IANA timezone" options={timezoneOptions} max={1} required disabled={busy||!ready} bind:values={() => draft.timezone ? [draft.timezone] : [], values => {draft.timezone=values[0]??'';}} placeholder="Search cities or timezones…" help="A nonexistent DST time skips that day; repeated times run once."/></div>
   <details><summary>Model usage limits</summary><p class="field-help">Limit how much evaluation and generation each run can request.</p>

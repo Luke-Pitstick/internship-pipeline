@@ -136,6 +136,7 @@ def test_directory_limit_applies_after_support_filtering(monkeypatch):
     assert len(candidates) == 200
     assert all(company.provider == "ashby" and not company.enabled for company in candidates)
     assert candidates[-1].id == "ashby:example-199"
+    assert len(discovery.discover_companies(limit=None)) == 201
 
 
 def test_directory_schema_mismatch_is_explicit(monkeypatch):

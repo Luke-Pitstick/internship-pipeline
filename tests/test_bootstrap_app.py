@@ -29,11 +29,16 @@ def test_configured_collection_does_not_require_models_or_notifications(tmp_path
         "search-runs",
         "email-delivery",
         "sheets-sync",
-        "collector",
         "discovery",
+        "collector",
     ]
     settings = settings.model_copy(update={"companies_path": tmp_path / "absent"})
-    assert configured_roles(settings) == ["search-runs", "email-delivery", "sheets-sync"]
+    assert configured_roles(settings) == [
+        "search-runs",
+        "email-delivery",
+        "sheets-sync",
+        "discovery",
+    ]
 
 
 @pytest.mark.parametrize("reload", [False, True])
@@ -58,6 +63,8 @@ def test_real_supervisor_setup_restart_and_graceful_shutdown(tmp_path: Path, rel
         "title='Synthetic internship', description='Internship', "
         "apply_url='https://example.test/jobs/1')])\n"
         "jobspy.fetch_search = fetch\n"
+        "from internship_pipeline import discovery\n"
+        "discovery.discover_companies = lambda **kwargs: []\n"
     )
     env = {
         **os.environ,

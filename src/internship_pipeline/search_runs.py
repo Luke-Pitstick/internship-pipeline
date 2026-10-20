@@ -99,7 +99,7 @@ class SourceConfig(BaseModel):
             if self.board:
                 raise ValueError("Broad search does not use a company board")
         else:
-            if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}", self.board):
+            if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}", self.board):
                 raise ValueError("Enter only the company board token")
             if self.search_term:
                 raise ValueError("Company boards do not use a search term")
@@ -227,12 +227,14 @@ class SearchRuns:
     def settings(self) -> dict[str, Any]:
         with self.store.connection() as db:
             items = []
+            successes = dict(
+                db.execute(
+                    "SELECT search_id,MAX(collected_at) FROM search_runs "
+                    "WHERE stage='collected' AND error IS NULL GROUP BY search_id"
+                )
+            )
             for row in db.execute("SELECT * FROM saved_searches ORDER BY rowid"):
-                success = db.execute(
-                    "SELECT MAX(collected_at) FROM search_runs WHERE "
-                    "search_id=? AND stage='collected' AND error IS NULL",
-                    (row["id"],),
-                ).fetchone()[0]
+                success = successes.get(row["id"])
                 items.append(
                     {
                         "id": row["id"],
@@ -243,7 +245,10 @@ class SearchRuns:
                         "last_success": success,
                     }
                 )
+        from internship_pipeline.maintenance import discovery_status
+
         return {
+            "discovery": discovery_status(self.store),
             "searches": items,
             "sources": ["greenhouse", "lever", "ashby", "jobspy"],
             "sites": sorted(SUPPORTED_SITES),
@@ -694,6 +699,10 @@ class SearchRuns:
         except _ObsoleteCollection:
             queue.complete(task)  # Token matching preserves work already claimed by a new owner.
             return False
+        if isinstance(target, SearchQuery) and result.jobs:
+            from internship_pipeline.discovery import candidates_from_jobs
+
+            self.store.add_candidates(candidates_from_jobs(result.jobs))
         return True
 
 
@@ -711,6 +720,12 @@ def search_router(runs: SearchRuns, owner: Callable[..., Any]) -> APIRouter:
     @router.get("/search-settings")
     def read() -> dict[str, Any]:
         return runs.settings()
+
+    @router.get("/source-discovery")
+    def source_discovery() -> dict[str, Any]:
+        from internship_pipeline.maintenance import discovery_status
+
+        return {**discovery_status(runs.store), "stopped": runs.ingestion_status()["stopped"]}
 
     @router.get("/job-ingestion")
     def ingestion_status() -> dict[str, Any]:
