@@ -434,6 +434,9 @@ def create_app(
 
         app.include_router(profile_settings_router(profiles, owner))
         app.include_router(build_model_connection_router(model_connections, owner))
+        from internship_pipeline.scoring_limits_router import make_scoring_limits_router
+
+        app.include_router(make_scoring_limits_router(store, owner))
         from internship_pipeline.profiles.imports import build_resume_import_router
 
         app.include_router(build_resume_import_router(store, owner, model_connections))

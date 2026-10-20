@@ -20,6 +20,21 @@ test('model connections save, edit, test, persist and remove without revealing c
     await page.getByRole('button', {name: 'Sign in', exact: true}).click();
   }
   await page.getByRole('button', {name: 'AI Models', exact: true}).click();
+  const limits = page.getByRole('region', {name: 'Scoring limits', exact: true});
+  await expect(limits.getByLabel('Scoring calls per hour')).toHaveValue('60');
+  await limits.getByLabel('Scoring calls per hour').fill('300');
+  await limits.getByLabel('Scoring calls per day').fill('1500');
+  await limits.getByLabel('Scoring tokens per day').fill('50000000');
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('link', {name: 'Jobs', exact: true}).click();
+  await expect(limits.getByLabel('Scoring tokens per day')).toHaveValue('50000000');
+  await limits.getByRole('button', {name: 'Save scoring limits', exact: true}).click();
+  await expect(limits.getByRole('status')).toHaveText('Scoring limits saved. Paused jobs will resume when the new limits allow.');
+  await page.reload();
+  await page.getByRole('button', {name: 'AI Models', exact: true}).click();
+  await expect(limits.getByLabel('Scoring calls per hour')).toHaveValue('300');
+  await expect(limits.getByLabel('Scoring calls per day')).toHaveValue('1500');
+  await expect(limits.getByLabel('Scoring tokens per day')).toHaveValue('50000000');
   const jev = page.locator('form').filter({has: page.getByRole('heading', {name: 'Jev', exact: true})});
   const general = page.locator('form').filter({has: page.getByRole('heading', {name: 'General LLM', exact: true})});
   await jev.getByLabel('API key', {exact: true}).fill('synthetic-browser-secret');

@@ -3,6 +3,7 @@
   import { Api } from '#lib/api.ts';
   import ChatGPTConnection from '#lib/components/ChatGPTConnection.svelte';
   import ApiModelPicker from '#lib/components/ApiModelPicker.svelte';
+  import ScoringLimits from '#lib/components/ScoringLimits.svelte';
   import { generalProviders, endpoints, modelConnections, type ModelConfig, type ModelConnections, type ModelKind } from '#lib/model-connections.ts';
   let {ondirty=()=>{}}=$props<{ondirty?:(value:boolean)=>void}>();
   const client = modelConnections(getContext<Api>('api'));
@@ -18,6 +19,7 @@
   let keys = $state({jev: '', general: ''});
   let busy = $state<ModelKind | null>(null);
   let loading = $state(false);
+  let scoringDirty = $state(false);
   let message = $state('');
   let error = $state('');
   let confirmRemove = $state<ModelKind | null>(null);
@@ -35,7 +37,7 @@
     keys.general = '';
     message = ''; error = '';
   }
-  $effect(()=>{ondirty(kinds.some(kind=>dirty(kind)));});
+  $effect(()=>{ondirty(scoringDirty || kinds.some(kind=>dirty(kind)));});
   async function load() {
     if (loading) return;
     loading = true; error = '';
@@ -109,6 +111,8 @@
     </form>
   {/each}
 {:else if !error}<p>Loading model connections…</p>{/if}
+
+<ScoringLimits ondirty={value => {scoringDirty = value;}} />
 
 <style>
   .connection-notes { margin: 0 0 16px; }
