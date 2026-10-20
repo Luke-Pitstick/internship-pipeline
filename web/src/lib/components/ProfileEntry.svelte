@@ -19,9 +19,11 @@
   {#if errors[`${path}.${field}`]}<p class="field-error" id={`${path}.${field}-error`}>{errors[`${path}.${field}`]}</p>{/if}
 {/snippet}
 
-<fieldset class="fact-entry" {disabled}>
-  <legend>{label} {number}</legend>
-  <div class="entry-actions"><button type="button" class="subtle remove-entry" onclick={onremove}>Remove {label.toLowerCase()} {number}</button></div>
+<fieldset class="fact-entry" {disabled} aria-labelledby={`${fact.id}-heading`}>
+  <div class="entry-actions">
+    <h4 id={`${fact.id}-heading`}>{label} {number}</h4>
+    <button type="button" class="subtle remove-entry" onclick={onremove}>Remove {label.toLowerCase()} {number}</button>
+  </div>
   <div class="entry-grid">
     <div class:full-width={fact.kind === 'project'}>
       <label for={`${fact.id}-title`}>{fact.kind === 'experience' ? 'Job title' : 'Project title'}</label>
@@ -51,7 +53,8 @@
 </fieldset>
 
 <style>
-  .entry-actions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .entry-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .entry-actions h4 { margin: 0; font-size: 1rem; }
   .remove-entry { color: #a83424; }
   .entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
   .entry-grid > div, .link-row > input { min-width: 0; }
