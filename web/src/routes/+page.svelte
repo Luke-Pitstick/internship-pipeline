@@ -286,7 +286,7 @@
   .job-card { padding:20px; gap:7px; border-left:3px solid transparent; }
   .job-card.selected { border-left-color:var(--accent); }
   .job-select { display:flex; flex-direction:column; gap:7px; width:100%; text-align:left; padding:0; }
-  .applied-action { color:var(--accent); border-color:var(--accent); min-height:44px; }
+  .applied-action,.detail-actions .secondary { color:var(--accent); border-color:var(--accent); min-height:44px; }
   .job-card .applied-action { align-self:flex-start; margin-top:8px; }
   .applied-action.is-applied { color:var(--positive); border-color:var(--positive); background:var(--positive-surface); }
   .job-card-top { justify-content:space-between; gap:12px; }
