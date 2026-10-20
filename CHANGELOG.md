@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.3
+
+- Résumé imports fill structured experience, project, and education fields, with
+  improved TeX command handling and PDF column ordering.
+- PDF imports can use the saved, tested API model when native PDF support is
+  established. The upload control explains external processing and allows local
+  parsing; AI transcriptions are labeled for review against the original PDF.
+- Profile entry headings sit inside their card borders.
+- Updates show installer-bundle download and verification progress once while
+  continuing to verify supporting files silently.
+
+Use the [update guide](docs/cli-updates.md) to update an existing installation.
+Storage format remains **2**; updates require matching declared storage formats.
+
 ## 1.0.2
 
 - Sign-in refreshes the browser session before checking credentials, so password
