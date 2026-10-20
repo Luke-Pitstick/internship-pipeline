@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2
+
+- Sign-in refreshes the browser session before checking credentials, so password
+  recovery and session expiry no longer leave the open form unable to sign in.
+  Incorrect credentials show “Incorrect username or password.”
+
+Use the [update guide](docs/cli-updates.md) to update an existing installation.
+Storage format remains **2**; updates require matching declared storage formats.
+
 ## 1.0.1
 
 - Profile settings group experience, projects, and skills into structured sections.

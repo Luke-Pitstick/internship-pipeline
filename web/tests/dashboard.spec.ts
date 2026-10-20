@@ -54,9 +54,12 @@ test('owner claim, separate settings, logout and login work without profile or m
   await expect(page.getByLabel('Operator setup token')).toHaveCount(0);
   await page.getByLabel('Username', {exact: true}).fill('synthetic-owner');
   await page.getByLabel('Password', {exact: true}).fill('wrong-password');
+  // A reset or an expired cookie can invalidate the session while this form stays open.
+  await page.context().clearCookies();
   await page.getByRole('button', {name: 'Sign in', exact: true}).click();
   await expect(page.getByRole('alert')).toHaveText('Incorrect username or password');
   await page.getByLabel('Password', {exact: true}).fill('synthetic-owner-password');
+  await page.context().clearCookies();
   await page.getByRole('button', {name: 'Sign in', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Settings', exact: true})).toBeVisible();
   await page.goto('/');

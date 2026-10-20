@@ -164,6 +164,41 @@ def test_session_rotation_logout_expiry_and_login(client: TestClient) -> None:
     assert client.get("/api/jobs").status_code == 401
 
 
+def test_login_after_password_reset_refreshes_revoked_guest_session(client: TestClient) -> None:
+    headers = claim(client)
+    assert client.post("/api/logout", json={}, headers=headers).status_code == 200
+    stale_headers = csrf(client)
+    new_password = "synthetic-new-owner-password"
+    client.app.state.identity.recover("owner", new_password)
+
+    # The open form's cookie and CSRF token were revoked by password recovery.
+    response = client.post(
+        "/api/login",
+        headers=stale_headers,
+        json={"username": "owner", "password": new_password},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Sign in to continue"
+
+    headers = csrf(client)
+    for username, password in (("owner", PASSWORD), ("wrong-owner", new_password)):
+        response = client.post(
+            "/api/login",
+            headers=headers,
+            json={"username": username, "password": password},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Incorrect username or password"
+    response = client.post(
+        "/api/login",
+        headers=headers,
+        json={"username": "owner", "password": new_password},
+    )
+    assert response.status_code == 200
+    assert response.json()["authenticated"] is True
+    assert client.get("/api/jobs").status_code == 200
+
+
 def test_login_throttles_survive_restart(client: TestClient) -> None:
     claim(client)
     headers = csrf(client)

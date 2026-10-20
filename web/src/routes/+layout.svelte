@@ -59,6 +59,8 @@
   async function submit(event: SubmitEvent) {
     event.preventDefault(); busy = true; error = '';
     try {
+      // Recovery and expiry can invalidate the session while the sign-in form stays open.
+      session = await api.session();
       session = await api.request<Session>(session?.claimed ? '/api/login' : '/api/claim', {
         username, password, ...(!session?.claimed ? { setup_token: setupToken } : {})
       });
