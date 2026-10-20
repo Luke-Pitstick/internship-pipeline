@@ -15,7 +15,13 @@ import pytest
 
 DEPLOY = Path(__file__).resolve().parents[1] / "deploy"
 sys.path.insert(0, str(DEPLOY))
-from pipeline_runtime import Failure, Runtime, load_manifest, validate_image  # noqa: E402
+from pipeline_runtime import (  # noqa: E402
+    Failure,
+    Runtime,
+    RuntimeCommandFailure,
+    load_manifest,
+    validate_image,
+)
 
 SPEC = importlib.util.spec_from_file_location("installer_candidate", DEPLOY / "install.py")
 assert SPEC and SPEC.loader
@@ -323,6 +329,24 @@ def test_runtime_errors_explain_cause_without_exposing_engine_output(
     assert expected in error
     assert "private-runtime-output" not in error
     assert manifest.runtime.endpoint in error or manifest.runtime.executable in error
+
+
+def test_failed_runtime_command_keeps_bounded_private_evidence(fake, monkeypatch):
+    manifest = installed(fake)
+    private_output = "x" * 70000 + "private-traceback"
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda argv, **kwargs: subprocess.CompletedProcess(
+            argv, 17, private_output, private_output
+        ),
+    )
+    with pytest.raises(RuntimeCommandFailure, match=r"docker run failed \(exit 17\)") as caught:
+        Runtime(manifest.runtime).run("run", "synthetic")
+    assert "private-traceback" not in str(caught.value)
+    assert caught.value.returncode == 17
+    assert caught.value.stdout == private_output[-65536:]
+    assert caught.value.stderr == private_output[-65536:]
 
 
 @pytest.mark.parametrize("failure", ["launch", "readiness"])

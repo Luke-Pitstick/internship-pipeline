@@ -3,8 +3,8 @@
 The current application declares **storage format 2** in
 `src/internship_pipeline/storage_format.py`. This identifies the persistent data
 contract independently of the application version, host installation manifest
-schema, and backup archive format. Declaring a format does not rewrite databases
-or convert existing data.
+schema, and backup archive format. SQLite schema revisions are tracked separately
+with `PRAGMA user_version` and upgraded by ordered transactional migrations.
 
 ## Inspecting a release
 
@@ -18,7 +18,7 @@ It prints `{"storage_format": 2}` using only the Python standard library. It doe
 not read configuration, create an installation, acquire a data lock, or start
 workers. The application maintenance CLI also accepts
 `python -m internship_pipeline.cli storage-format`. The separately installed
-host-management command does not yet expose this inspection command or updates.
+host-management command exposes release eligibility through `update --check`.
 
 Release generation executes the declaration from the verified, clean source
 revision and records its value as `storage_format` in `release-metadata.json`.
@@ -46,6 +46,27 @@ format number is a declaration of compatible structure and meaning; it does not
 replace database integrity, credential decryption, document verification, or
 testing an actual source/target release pair.
 
+## Database schema migrations
+
+`schema_migrations.py` contains ordered migrations for each database. Existing
+unversioned databases start at revision 0. State revision 1 creates `scoring_limits`
+and preserves saved limits in releases that already created that table. New
+installations initialize the version-zero baseline and apply the same migrations.
+
+Add database changes as new migrations; do not edit the baseline schema or rewrite
+an existing migration. Use `execute`/`executemany` for DDL and data changes.
+Migration functions must not commit, use `executescript`, open another connection,
+or perform external I/O. Pending migrations and the recorded version commit in
+one SQLite transaction under a write lock. An exception or killed process rolls
+them back, and concurrent openers cannot apply a migration twice. An image refuses
+a schema version newer than its migration list.
+
+Backups are validated against their recorded schema revision. During an update,
+the target image migrates only the restored candidate databases, then checks the
+real application and retained files before activation. The original databases
+and verified source backup remain available for rollback. Tests include the frozen
+v1.0.1 state schema, migration retry, concurrent opens, and a killed migration.
+
 ## Backups and format changes
 
 New backup manifests record both `format: 1` (the backup envelope) and
@@ -56,11 +77,11 @@ declarations are refused before creating a destination. Older backups remain
 recoverable through the exact older image that created them; they are not
 silently relabelled as format 2.
 
-Review every persistence change against this contract. Keep the identifier when
-old data can be read with the same meaning and written compatibly without
-conversion. Increment it for incompatible database, stored-value, configuration,
-encryption, or file-layout changes. Do not bump it for UI fixes or other changes
-that leave this contract intact. Do not add a format fallback or migration.
+Review every persistence change against this contract. Use schema migrations for
+supported database upgrades within the same storage format. Increment the format
+for unsupported changes to stored meaning, configuration, encryption, or file
+layout. A format mismatch remains an explicit refusal; schema migration support
+does not silently reinterpret an unrelated storage format.
 
 The [CLI updater](cli-updates.md) uses exact source/target image declarations to
 decide whether an update can proceed. Its implementation and checks are local

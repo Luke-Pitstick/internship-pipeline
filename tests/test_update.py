@@ -24,6 +24,7 @@ from pipeline_runtime import (  # noqa: E402
     LABEL,
     Failure,
     Manifest,
+    RuntimeCommandFailure,
     RuntimeSpec,
     atomic_json,
     host_lock,
@@ -261,6 +262,72 @@ def test_pre_activation_failure_preserves_original_and_restores_availability(wor
     assert state["volumes"][source.volume_name] == original
     assert not (root / "command").is_symlink()
     assert not update.pending(root)
+
+
+def test_failed_preflight_saves_private_engine_evidence_before_rollback(workspace, monkeypatch):
+    root, source, state = workspace
+    original = update.image_run
+
+    def fail_validation(*args, **kwargs):
+        if "internship_pipeline.update_validation" in args:
+            raise RuntimeCommandFailure(
+                "docker",
+                "run",
+                subprocess.CompletedProcess([], 1, "", "private synthetic validation traceback"),
+            )
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(update, "image_run", fail_validation)
+    with pytest.raises(Failure, match="Failed during validating") as caught:
+        update.apply(root)
+    assert "private synthetic" not in str(caught.value)
+    folder = root / "updates" / private_json(root / "update.json")["transaction"]
+    log = folder / "failure.json"
+    diagnostic = private_json(log)
+    assert str(log) in str(caught.value)
+    assert diagnostic["phase"] == "validating"
+    assert diagnostic["exit_code"] == 1
+    assert diagnostic["stderr"] == "private synthetic validation traceback"
+    assert log.stat().st_mode & 0o077 == 0
+    assert state["containers"][source.container_name]["State"]["Running"]
+    assert not update.pending(root)
+
+
+def test_unhealthy_rollback_remains_pending_until_original_is_ready(workspace, monkeypatch):
+    root, source, state = workspace
+    state["fail"] = "validation"
+    original = update.wait_ready
+
+    def unhealthy(runtime, manifest, **kwargs):
+        if manifest == source:
+            raise Failure("Original app is not ready")
+        return original(runtime, manifest, **kwargs)
+
+    monkeypatch.setattr(update, "wait_ready", unhealthy)
+    with pytest.raises(Failure, match="Recovery is incomplete.*Original app is not ready"):
+        update.apply(root)
+    assert update.pending(root)
+    monkeypatch.setattr(update, "wait_ready", original)
+    assert update.apply(root)["recovered"]
+    assert not update.pending(root)
+
+
+def test_failure_to_write_diagnostics_does_not_prevent_rollback(workspace, monkeypatch):
+    root, source, state = workspace
+    state["fail"] = "validation"
+    original = update.atomic_json
+
+    def no_space(path, value):
+        if path.name == "failure.json":
+            raise OSError("No space left")
+        return original(path, value)
+
+    monkeypatch.setattr(update, "atomic_json", no_space)
+    with pytest.raises(Failure, match="diagnostics could not be saved"):
+        update.apply(root)
+    assert not update.pending(root)
+    assert load_manifest(root / "installation.json") == source
+    assert state["containers"][source.container_name]["State"]["Running"]
 
 
 @pytest.mark.parametrize(

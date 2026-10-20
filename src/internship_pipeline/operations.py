@@ -21,6 +21,12 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from internship_pipeline.identity import SCHEMA as IDENTITY_SCHEMA
 from internship_pipeline.models import Settings
+from internship_pipeline.schema_migrations import (
+    IDENTITY_MIGRATIONS,
+    STATE_MIGRATIONS,
+    SchemaError,
+    schema_version,
+)
 from internship_pipeline.storage import SCHEMA as STATE_SCHEMA
 from internship_pipeline.storage import Store
 from internship_pipeline.storage_format import STORAGE_FORMAT
@@ -81,16 +87,23 @@ def _copy_tree(source: Path, destination: Path) -> None:
 def _verify_database(db: sqlite3.Connection, name: str) -> None:
     if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
         raise OperationError("Database integrity check failed.")
-    # Validate against the same base schemas that initialize each distinct database.
-    # Optional feature tables may be absent on a fresh installation.
+    # A source snapshot is checked at its recorded version, before the target
+    # migrates its restored copy. Never require target-only tables in an old backup.
+    migrations = STATE_MIGRATIONS if name == "state.sqlite3" else IDENTITY_MIGRATIONS
+    version = schema_version(db, migrations)
     with sqlite3.connect(":memory:") as expected:
         expected.executescript(STATE_SCHEMA if name == "state.sqlite3" else IDENTITY_SCHEMA)
+        for upgrade in migrations[:version]:
+            upgrade(expected)
         for row in expected.execute("SELECT name FROM sqlite_master WHERE type='table'"):
             table = row[0]
             columns = {column[1] for column in expected.execute(f"PRAGMA table_info({table})")}
             actual = {column[1] for column in db.execute(f"PRAGMA table_info({table})")}
             if not columns <= actual:
-                raise OperationError("Database does not contain the required application schema.")
+                raise OperationError(
+                    f"{name} schema version {version} is missing required columns in {table}: "
+                    + ", ".join(sorted(columns - actual))
+                )
 
 
 def _snapshot(source: Path, destination: Path) -> None:
@@ -248,7 +261,7 @@ def verify_backup(source: Path) -> dict[str, Any]:
                 _verify_database(db, name)
         _credentials(source)
         return manifest
-    except OperationError as exc:
+    except (OperationError, SchemaError) as exc:
         raise OperationError(f"Backup verification failed: {exc}") from None
     except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
         raise OperationError(

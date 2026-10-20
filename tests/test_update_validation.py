@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -17,12 +19,17 @@ from internship_pipeline.update_validation import Readiness, check_application, 
 
 
 @pytest.fixture
-def restored(tmp_path):
+def restored(tmp_path, request):
     source = tmp_path / "source"
     settings = Settings(database_path=source / "state.sqlite3", artifact_dir=source / "artifacts")
-    store = Store(settings.database_path)
+    if getattr(request, "param", False):
+        source.mkdir()
+        with sqlite3.connect(settings.database_path) as db:
+            db.executescript((Path(__file__).parent / "fixtures/state-schema-v0.sql").read_text())
+    else:
+        Store(settings.database_path)
     Identity(source / "identity.sqlite3")
-    ModelConnectionStore(store.path, source / "model-credentials.key")
+    ModelConnectionStore(settings.database_path, source / "model-credentials.key")
     settings.artifact_dir.mkdir()
     (settings.artifact_dir / "synthetic.pdf").write_bytes(b"synthetic-retained-document")
     candidate = tmp_path / "candidate"
@@ -69,6 +76,30 @@ def test_real_application_preflight_uses_candidate_data_without_external_transpo
     asyncio.run(check_application(restored))
     validate(restored)
     assert (restored / "artifacts/synthetic.pdf").read_bytes() == b"synthetic-retained-document"
+
+
+@pytest.mark.parametrize("restored", [True], indirect=True)
+def test_update_from_before_scoring_limits_migrates_candidate_schema(
+    restored, tmp_path, monkeypatch
+):
+    # Use the actual historical schema, not a snapshot initialized by target code.
+    backup = restored.parent / "backup"
+    before = {p.name: p.read_bytes() for p in backup.iterdir() if p.is_file()}
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("Synthetic application")
+    monkeypatch.setenv("PIPELINE_WEB_DIR", str(web))
+    monkeypatch.setenv("PIPELINE_DATA_DIR", str(restored))
+    monkeypatch.delenv("PIPELINE_SUPERVISOR_STATUS", raising=False)
+
+    validate(restored)
+    asyncio.run(check_application(restored))
+    validate(restored)
+
+    with sqlite3.connect(restored / "state.sqlite3") as db:
+        assert db.execute("SELECT COUNT(*) FROM scoring_limits").fetchone()[0] == 0
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 1
+    assert before == {p.name: p.read_bytes() for p in backup.iterdir() if p.is_file()}
 
 
 def test_missing_frontend_fails_real_application_preflight(restored, tmp_path, monkeypatch):

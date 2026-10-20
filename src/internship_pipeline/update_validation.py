@@ -101,6 +101,13 @@ def main() -> int:
     with installation_lock(root, offline=True):
         validate(root)
     if args.check:
+        # Explicitly upgrade only the isolated candidate, before application preflight.
+        from internship_pipeline.identity import Identity
+        from internship_pipeline.storage import Store
+
+        with installation_lock(root, offline=True):
+            Store(root / "state.sqlite3")
+            Identity(root / "identity.sqlite3")
         asyncio.run(check_application(root))
         with installation_lock(root, offline=True):
             validate(root)

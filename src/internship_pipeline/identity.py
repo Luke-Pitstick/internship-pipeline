@@ -14,6 +14,8 @@ from typing import Any
 
 from pwdlib import PasswordHash
 
+from internship_pipeline.schema_migrations import IDENTITY_MIGRATIONS, migrate
+
 ANONYMOUS_WINDOW = 300
 ANONYMOUS_ADDRESS_LIMIT = 20
 ANONYMOUS_GLOBAL_LIMIT = 100
@@ -56,7 +58,7 @@ class Identity:
         self.dummy_hash = self.passwords.hash(secrets.token_urlsafe(32))
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
-            connection.executescript(SCHEMA)
+            migrate(connection, IDENTITY_MIGRATIONS, baseline=SCHEMA)
         path.chmod(0o600)
 
     @contextmanager

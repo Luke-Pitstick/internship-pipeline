@@ -199,6 +199,16 @@ class RuntimeUnavailable(Failure):
     """The selected engine cannot be reached; its installed desktop may need starting."""
 
 
+class RuntimeCommandFailure(Failure):
+    """Keep bounded engine evidence for private diagnostics, never in the display text."""
+
+    def __init__(self, runtime: str, action: str, result: subprocess.CompletedProcess[str]):
+        super().__init__(f"{runtime} {action} failed (exit {result.returncode}).")
+        self.returncode = result.returncode
+        self.stdout = result.stdout[-65536:]
+        self.stderr = result.stderr[-65536:]
+
+
 @dataclass(frozen=True)
 class RuntimeSpec:
     name: str
@@ -447,10 +457,7 @@ class Runtime:
                     f"The saved runtime health check failed at {endpoint} "
                     f"(exit {result.returncode}).{diagnostic}"
                 )
-            raise Failure(
-                f"{self.spec.name} {args[0]} failed; check the saved "
-                f"runtime, image access and installation resources."
-            )
+            raise RuntimeCommandFailure(self.spec.name, args[0], result)
         if len(result.stdout) + len(result.stderr) > 2 * 1024 * 1024:
             raise Failure(
                 "Runtime output exceeded the inspection limit; narrow the request and retry."

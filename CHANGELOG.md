@@ -10,6 +10,10 @@
 - Profile entry headings sit inside their card borders.
 - Updates show installer-bundle download and verification progress once while
   continuing to verify supporting files silently.
+- Updates validate older backups against their recorded schema and apply pending
+  SQLite migrations atomically to the restored candidate copy. Original data and
+  backups remain available for rollback; failed updates verify restored app health
+  and retain private diagnostics for the failed phase.
 
 Use the [update guide](docs/cli-updates.md) to update an existing installation.
 Storage format remains **2**; updates require matching declared storage formats.

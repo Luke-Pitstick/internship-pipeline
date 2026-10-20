@@ -21,6 +21,7 @@ from pipeline_runtime import (
     Failure,
     Manifest,
     Runtime,
+    RuntimeCommandFailure,
     atomic_json,
     atomic_text,
     load_manifest,
@@ -168,7 +169,7 @@ def set_phase(root: Path, journal: dict[str, Any], phase: str) -> None:
         "stopping": "Stopping the app",
         "snapshot": "Saving a verified backup",
         "restoring": "Preparing your saved data",
-        "validating": "Checking the new version",
+        "validating": "Migrating saved data and checking the new version",
         "committing": "Selecting the new version",
         "activating": "Completing the update",
         "complete": "Update complete",
@@ -324,6 +325,7 @@ def rollback(
             runtime.run("start", source.container_name, timeout=30)
         if not (runtime.require_owned(source).get("State") or {}).get("Running"):
             raise Failure("Original application could not restart; preserve the source data.")
+        wait_ready(runtime, source, timeout=120)
     else:
         stop(runtime, source)
     set_phase(root, journal, "rolled_back")
@@ -643,19 +645,35 @@ def apply(root: Path, release: Release | None = None) -> dict[str, Any]:
         set_phase(root, journal, "activating")
         return activate(root, journal, folder, manifest, target)
     except (Failure, OSError, ValueError, KeyboardInterrupt) as exc:
+        failed_phase = journal["phase"]
+        diagnostic: dict[str, Any] = {
+            "phase": failed_phase,
+            "version": release.version,
+            "error": str(exc),
+        }
+        if isinstance(exc, RuntimeCommandFailure):
+            diagnostic.update(exit_code=exc.returncode, stdout=exc.stdout, stderr=exc.stderr)
+        diagnostic_path = folder / "failure.json"
+        try:
+            atomic_json(diagnostic_path, diagnostic)
+            details = f"Private diagnostics: {diagnostic_path}"
+        except (OSError, Failure):
+            # A full/unavailable disk must not prevent rollback.
+            details = "Private diagnostics could not be saved; preserve the update directory."
+        context = f"Failed during {failed_phase}: {exc} {details}"
         if journal["phase"] != "activating":
             try:
                 rollback(root, journal, folder, manifest, target)
             except (Failure, OSError, ValueError) as recovery_error:
                 raise Failure(
                     "Recovery is incomplete. Preserve all data and rerun "
-                    "internship-pipeline update. " + str(recovery_error)
+                    f"internship-pipeline update. {recovery_error} {context}"
                 ) from None
             raise Failure(
                 "Update failed before activation; the original installation was restored. "
-                + str(exc)
+                + context
             ) from None
         raise Failure(
             "Update is committed. Preserve candidate data and rerun "
-            "internship-pipeline update to finish starting it. " + str(exc)
+            "internship-pipeline update to finish starting it. " + context
         ) from None

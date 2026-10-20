@@ -2,7 +2,8 @@
 
 The host command implements explicit updates to the latest complete published
 release when both images declare the same [storage format](storage-format.md).
-There is no background updater or database migration. The public installer follows
+Database schema upgrades run transactionally on an isolated restored copy.
+There is no background updater. The public installer follows
 only complete published releases; draft assets are unavailable to normal updates.
 
 Stable releases and numbered release candidates share numeric version ordering;
@@ -39,7 +40,9 @@ Downloads, archive/hash verification, the target image pull, and storage-format
 checks happen before downtime. The updater then stops the app and uses the exact
 source image to create a verified backup in a separate labelled volume. It restores
 that backup into a fresh data root and verifies the new image against the copy.
-The offline preflight constructs the real app and checks its readiness route
+The offline preflight verifies the snapshot at its recorded database revisions,
+applies the target image's pending schema migrations to the restored copy, and
+constructs the real app and checks its readiness route
 in-process without running its lifespan or supervisor, then rechecks retained files.
 The target image never opens the original data volume writable.
 
@@ -66,7 +69,8 @@ explicit public bootstrap above. Do not edit the manifest, clear journal phases,
 delete restore markers, or rerun a restore into an uncertain destination.
 
 - Before activation, a failed update restores the original manifest/command and
-  its previous running state. The uncertain candidate copy is retained.
+  its previous running state. For a previously running app, recovery waits for
+  readiness before declaring success. The uncertain candidate copy is retained.
 - Once normal work may have started, recovery keeps the candidate data and finishes
   activation. It never switches back to a snapshot that could discard new work or
   repeat a notification/model request.
@@ -79,6 +83,10 @@ overlap. An incomplete `update.json` blocks ordinary lifecycle actions until the
 update is recovered. Transaction records live in `updates/TRANSACTION_UUID/`;
 the active `command` pointer selects an immutable bundle there after cutover.
 `release.json` records the selected version, source SHA, image digest, and format.
+Failed transactions retain `failure.json` with the failed phase and error.
+Failed engine commands also retain their exit code and bounded stdout/stderr in
+that private file (mode 0600). The terminal shows the diagnostic path without
+printing raw engine output, which may contain private application details.
 
 Copy and preflight processes run in named, installation-labelled maintenance
 containers. Recovery verifies their image, mounts, and container identity and stops
@@ -90,6 +98,9 @@ copy process holding its data locks indefinitely.
 Native tests verify backup/restored-copy integrity and the readiness-only handler.
 They also exercise actual app initialization and reject a missing frontend without
 contacting external transports.
+Schema tests cover the historical v1.0.1 database, existing scoring settings,
+transaction rollback, process death during migration, concurrent openers, and
+refusal to open a newer unsupported schema.
 Synthetic engine tests cover running/stopped installations, repeated updates,
 successive generations, rollback, interrupted command/manifest changes, activation
 recovery, saved-engine ownership, and lifecycle locking.

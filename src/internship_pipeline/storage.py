@@ -18,7 +18,9 @@ from internship_pipeline.models import (
     MatchResult,
     utcnow,
 )
+from internship_pipeline.schema_migrations import STATE_MIGRATIONS, migrate, schema_version
 
+# Version-zero baseline. Add subsequent schema changes as ordered migrations.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS targets (
     id TEXT PRIMARY KEY, kind TEXT NOT NULL, config TEXT NOT NULL, provider TEXT NOT NULL,
@@ -56,9 +58,6 @@ CREATE TABLE IF NOT EXISTS assessment_attempts (
     reserved_tokens INTEGER NOT NULL, input_tokens INTEGER, output_tokens INTEGER
 );
 CREATE INDEX IF NOT EXISTS assessment_attempt_identity ON assessment_attempts(identity);
-CREATE TABLE IF NOT EXISTS scoring_limits (
-    id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL
-);
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY, kind TEXT NOT NULL, key TEXT NOT NULL UNIQUE,
     payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
@@ -106,8 +105,9 @@ class Store:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
+            schema_version(connection, STATE_MIGRATIONS)
             connection.execute("PRAGMA journal_mode=WAL")
-            connection.executescript(SCHEMA)
+            migrate(connection, STATE_MIGRATIONS, baseline=SCHEMA)
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:

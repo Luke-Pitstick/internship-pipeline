@@ -352,7 +352,7 @@ def main() -> None:
     release = Release.parse(metadata, version)
     original_download = update_bootstrap.download
 
-    def staged_download(url: str, expected: str) -> bytes:
+    def staged_download(url: str, expected: str, *, progress: bool = True) -> bytes:
         if not url.startswith(release.base + "/"):
             raise RuntimeError("Update requested an unrelated release artifact")
         return checked_file(assets / url.rsplit("/", 1)[-1], expected)
