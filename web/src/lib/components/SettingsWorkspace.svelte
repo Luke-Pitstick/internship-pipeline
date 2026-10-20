@@ -250,7 +250,6 @@
   .settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
   .validation-summary { color: #a83424; overflow-wrap: anywhere; }
   :global(.fact-entry) { border: 0; border-top: 1px solid var(--border); padding: 20px 0; margin: 24px 0; min-width: 0; }
-  :global(.fact-entry legend) { font-weight: 600; padding: 0 12px 0 0; }
   :global(.field-error) { color: #a83424; font-size: 13px; margin: 6px 0; }
   :global([aria-invalid=true]) { border-color: #a83424; }
   :global(.form-group select) { max-width: 100%; width: 100%; margin-top: 7px; }
@@ -285,7 +284,6 @@
   .settings-workspace :global(.settings-save p) { font-size: 13px; }
   .settings-workspace :global(.settings-save button) { white-space: nowrap; }
   .settings-workspace :global(.fact-entry) { padding: 20px; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: var(--radius); margin: 20px 0; }
-  .settings-workspace :global(.fact-entry legend) { padding: 0 8px; }
   .settings-workspace :global(.fact-entry input), .settings-workspace :global(.fact-entry textarea), .settings-workspace :global(.fact-entry select) { background: var(--surface); }
   .settings-workspace :global(.form-group input), .settings-workspace :global(.form-group select), .settings-workspace :global(.form-group textarea) { scroll-margin: 24px 0 120px; }
   .integration-nav { display: flex; gap: 8px; margin: 0 0 28px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }

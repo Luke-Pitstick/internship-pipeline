@@ -38,8 +38,8 @@
 <div class="form-group">
   <div class="section-actions"><h3>Education</h3><button type="button" class="secondary" disabled={disabled || profile.education.length >= 20} onclick={() => profile.education.unshift({id: id(), status: 'unknown', institution: '', degree: '', field: '', graduation_date: null})}>Add education</button></div>
   {#each profile.education as education, i (education.id)}
-    <fieldset class="fact-entry"><legend>Education {i + 1}</legend>
-      <div class="entry-actions"><button type="button" class="subtle remove-entry" disabled={disabled} onclick={() => profile.education.splice(i, 1)}>Remove education {i + 1}</button></div>
+    <fieldset class="fact-entry" {disabled} aria-labelledby={`${education.id}-heading`}>
+      <div class="entry-actions"><h4 id={`${education.id}-heading`}>Education {i + 1}</h4><button type="button" class="subtle remove-entry" disabled={disabled} onclick={() => profile.education.splice(i, 1)}>Remove education {i + 1}</button></div>
       <label for={`profile.education.${i}.institution`}>Institution</label><input id={`profile.education.${i}.institution`} name={`profile.education.${i}.institution`} bind:value={education.institution} maxlength="200" aria-invalid={!!errors[`profile.education.${i}.institution`]} />{@render error(`profile.education.${i}.institution`)}
       <label for={`profile.education.${i}.degree`}>Degree</label><input id={`profile.education.${i}.degree`} name={`profile.education.${i}.degree`} bind:value={education.degree} maxlength="200" aria-invalid={!!errors[`profile.education.${i}.degree`]} />{@render error(`profile.education.${i}.degree`)}
       <label for={`education-field-${education.id}`}>Field of study</label><input id={`education-field-${education.id}`} bind:value={education.field} maxlength="200" />
@@ -51,7 +51,8 @@
 <style>
   .section-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
   .section-actions h3 { margin: 0; }
-  .entry-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .entry-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .entry-actions h4 { margin: 0; font-size: 1rem; }
   .remove-entry { color: #a83424; }
   .empty-section { color: var(--muted); margin: 20px 0 0; }
 </style>
