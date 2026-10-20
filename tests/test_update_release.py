@@ -8,6 +8,7 @@ import subprocess
 import sys
 from dataclasses import asdict, replace
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -103,7 +104,13 @@ def test_reviewed_bootstrap_pins_the_selected_update_instead_of_resolving_again(
     bundle = tmp_path / "bundle"
     bundle.mkdir()
     monkeypatch.setattr(sys, "path", list(sys.path))
-    monkeypatch.setattr(bootstrap_installer, "download", lambda *args: b"verified-bundle")
+    downloads = []
+
+    def download(*args, **kwargs):
+        downloads.append(kwargs)
+        return b"verified-bundle"
+
+    monkeypatch.setattr(bootstrap_installer, "download", download)
     monkeypatch.setattr(bootstrap_installer, "unpack", lambda *args: bundle)
     monkeypatch.setattr(releases, "fetch", lambda url: json.dumps(metadata()).encode())
     launches = []
@@ -133,6 +140,7 @@ def test_reviewed_bootstrap_pins_the_selected_update_instead_of_resolving_again(
     assert json.loads((bundle / ".selected-release.json").read_text())["image"] == RELEASE.image
     assert (bundle / ".selected-release.json").stat().st_mode & 0o077 == 0
     assert "--update" in launches[0]
+    assert downloads == [{"progress": False}]
 
 
 @pytest.mark.parametrize("different_bootstrap", [False, True])
@@ -161,7 +169,7 @@ def test_staged_release_verifies_complete_archive_and_bootstrap_agreement(
         ).read_bytes(),
     }
 
-    def download(url, digest):
+    def download(url, digest, *, progress=True):
         payload = payloads[url.rsplit("/", 1)[-1]]
         assert hashlib.sha256(payload).hexdigest() == digest
         return payload
@@ -176,3 +184,45 @@ def test_staged_release_verifies_complete_archive_and_bootstrap_agreement(
         bundle = release.stage(target)
         assert (bundle / "pipeline_update.py").is_file()
         assert (bundle / "internship-pipeline").stat().st_mode & 0o100
+
+
+@pytest.mark.parametrize("interactive", [False, True])
+def test_staging_reports_installer_download_once(tmp_path, monkeypatch, capsys, interactive):
+    deploy = Path(__file__).resolve().parents[1] / "deploy"
+    built = build_bundle(deploy, tmp_path / "assets", RELEASE.version, RELEASE.source_commit)
+    payloads = {
+        "bootstrap_installer.py": (deploy / "bootstrap_installer.py").read_bytes(),
+        "install.sh": b"#!/bin/sh\nexit 0\n",
+        built["archive"]: (tmp_path / "assets" / built["archive"]).read_bytes(),
+    }
+    release = replace(
+        RELEASE,
+        bootstrap_sha256=hashlib.sha256(payloads["bootstrap_installer.py"]).hexdigest(),
+        launcher_sha256=hashlib.sha256(payloads["install.sh"]).hexdigest(),
+        bundle_sha256=built["archive_sha256"],
+    )
+    requests = []
+
+    def open_response(request, **kwargs):
+        requests.append(request.full_url)
+        payload = payloads[request.full_url.rsplit("/", 1)[-1]]
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.status = 200
+        response.headers = {"Content-Length": str(len(payload))}
+        response.geturl.return_value = request.full_url
+        response.read1.side_effect = [payload, b""]
+        return response
+
+    opener = Mock()
+    opener.open.side_effect = open_response
+    monkeypatch.setattr(bootstrap_installer.urllib.request, "build_opener", lambda *args: opener)
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: interactive)
+    monkeypatch.setenv("TERM", "xterm")
+    release.stage(tmp_path)
+    output = capsys.readouterr().err
+    assert len(requests) == 3
+    assert output.count("Downloading installer bundle…") == 1
+    assert output.count("Installer bundle verified.") == 1
+    assert output.count("[====================] 100%") == int(interactive)

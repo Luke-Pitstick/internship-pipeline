@@ -362,7 +362,7 @@ def test_bootstrap_launches_only_after_verification_and_removes_temp_bundle(
 
     monkeypatch.setattr(bootstrap.subprocess, "run", launch)
     assert bootstrap.main([*bootstrap_args(), "--", "--port", "9191"]) == 7
-    download.assert_called_once_with(URL, "a" * 64)
+    download.assert_called_once_with(URL, "a" * 64, progress=True)
     assert not Path(calls[0][1]).exists()
 
 

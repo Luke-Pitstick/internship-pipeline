@@ -110,8 +110,8 @@ class Release:
         from bootstrap_installer import download, unpack
 
         # Verify every published executable asset before retaining the target bundle.
-        download(self.base + "/bootstrap_installer.py", self.bootstrap_sha256)
-        download(self.base + "/install.sh", self.launcher_sha256)
+        download(self.base + "/bootstrap_installer.py", self.bootstrap_sha256, progress=False)
+        download(self.base + "/install.sh", self.launcher_sha256, progress=False)
         payload = download(
             f"{self.base}/internship-pipeline-installer-{self.version}.tar.gz", self.bundle_sha256
         )

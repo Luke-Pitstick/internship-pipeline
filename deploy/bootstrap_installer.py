@@ -67,7 +67,7 @@ class HTTPSRedirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)  # type: ignore[arg-type]
 
 
-def download(url: str, expected_sha256: str) -> bytes:
+def download(url: str, expected_sha256: str, *, progress: bool = True) -> bytes:
     require_https(url)
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
         raise ValueError("Supply the complete lowercase SHA-256 from the reviewed trust source.")
@@ -88,8 +88,9 @@ def download(url: str, expected_sha256: str) -> bytes:
                 raise ValueError("Download is empty or exceeds the installer size limit.")
         chunks: list[bytes] = []
         size = 0
-        interactive = sys.stderr.isatty() and os.environ.get("TERM") != "dumb"
-        print("  Downloading installer bundle…", file=sys.stderr, flush=True)
+        interactive = progress and sys.stderr.isatty() and os.environ.get("TERM") != "dumb"
+        if progress:
+            print("  Downloading installer bundle…", file=sys.stderr, flush=True)
         try:
             while True:
                 if time.monotonic() > deadline:
@@ -116,7 +117,8 @@ def download(url: str, expected_sha256: str) -> bytes:
     payload = b"".join(chunks)
     if not hmac.compare_digest(hashlib.sha256(payload).hexdigest(), expected_sha256):
         raise ValueError("Installer SHA-256 mismatch; nothing was extracted or executed.")
-    print("  Installer bundle verified.", file=sys.stderr, flush=True)
+    if progress:
+        print("  Installer bundle verified.", file=sys.stderr, flush=True)
     return payload
 
 
@@ -222,7 +224,8 @@ def main(argv: list[str] | None = None) -> int:
                 )
         if args.release_image is not None:
             image_args = ["--default-image", args.release_image]
-        payload = download(args.bundle_url, args.sha256)
+        # Updates report bundle progress when staging the selected release.
+        payload = download(args.bundle_url, args.sha256, progress="--update" not in forwarded)
         with tempfile.TemporaryDirectory(prefix="pipeline-reviewed-installer-") as temporary:
             bundle = unpack(payload, Path(temporary), args.version)
             if "--update" in forwarded:
