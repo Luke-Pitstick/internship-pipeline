@@ -21,13 +21,11 @@ from internship_pipeline.profile_settings import ProfileSettings, Snapshot
 from internship_pipeline.providers.connections import ConnectionInput, metadata
 from internship_pipeline.run_limits import RunLimitError, finish, run_admission
 from internship_pipeline.run_limits import reserve as reserve_run
+from internship_pipeline.scoring_limits import read_limits
 from internship_pipeline.storage import Store, enqueue
 
 Outcome = Literal["satisfied", "violated", "not_stated", "ambiguous"]
 MAX_ATTEMPTS = 3
-MAX_HOURLY_ATTEMPTS = 60
-MAX_DAILY_ATTEMPTS = 200
-MAX_DAILY_RESERVED = 5_000_000
 MAX_RESPONSE_BYTES = 131_072
 
 
@@ -540,11 +538,12 @@ class Assessments:
             ).fetchone()
             if count >= MAX_ATTEMPTS:
                 raise EvaluationError("evaluation_budget_exhausted")
+            _, limits = read_limits(db)
             window = (
                 86400
-                if daily[0] >= MAX_DAILY_ATTEMPTS or daily[1] + reserve > MAX_DAILY_RESERVED
+                if daily[0] >= limits.daily_calls or daily[1] + reserve > limits.daily_tokens
                 else 3600
-                if hourly >= MAX_HOURLY_ATTEMPTS
+                if hourly >= limits.hourly_calls
                 else None
             )
             if window:

@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS assessment_attempts (
     reserved_tokens INTEGER NOT NULL, input_tokens INTEGER, output_tokens INTEGER
 );
 CREATE INDEX IF NOT EXISTS assessment_attempt_identity ON assessment_attempts(identity);
+CREATE TABLE IF NOT EXISTS scoring_limits (
+    id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY, kind TEXT NOT NULL, key TEXT NOT NULL UNIQUE,
     payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',

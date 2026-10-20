@@ -6,6 +6,9 @@
   recovery and session expiry no longer leave the open form unable to sign in.
   Incorrect credentials show “Incorrect username or password.”
 - The Save job button uses the same accent outline as Mark as applied.
+- AI Models settings expose rolling hourly and daily scoring-call limits and the
+  daily token budget, with current usage and paused-job counts. Saving limits wakes
+  budget-paused jobs without invalidating completed scores.
 
 Use the [update guide](docs/cli-updates.md) to update an existing installation.
 Storage format remains **2**; updates require matching declared storage formats.
