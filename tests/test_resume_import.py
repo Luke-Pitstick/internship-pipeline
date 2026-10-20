@@ -120,7 +120,7 @@ def test_filled_form_saves_owner_edits_with_only_matching_source_provenance(
     edited = filled.profile.facts[0]
     edited.text = "Owner-corrected supporting fact."
     filled.profile.name = "Reviewed Synthetic Candidate"
-    filled.profile.education[0].field = "Computing"
+    filled.profile.education[0].field = "Owner-corrected field"
     filled.profile.requires_sponsorship = False
     filled.preferences.soft.skills = ["Rust"]
     review.settings = filled

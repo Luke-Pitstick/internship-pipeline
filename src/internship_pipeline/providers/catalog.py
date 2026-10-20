@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Literal
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
@@ -46,7 +46,7 @@ async def list_models(
     key: str | None,
     *,
     transport: httpx.AsyncBaseTransport | None = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     url = CATALOG_URLS[endpoint]
     anthropic = "api.anthropic.com" in url
     public = "openrouter.ai" in url
@@ -56,7 +56,7 @@ async def list_models(
     if anthropic:
         headers = {"x-api-key": key or "", "anthropic-version": "2023-06-01"}
     params: dict[str, str | int] = {"limit": 1000} if anthropic else {}
-    models: dict[str, dict[str, str]] = {}
+    models: dict[str, dict[str, Any]] = {}
     cursors: set[str] = set()
     size = 0
     deadline = time.monotonic() + 30
@@ -103,6 +103,16 @@ async def list_models(
                         and (not key or (key not in name and key not in slug))
                     ):
                         models[slug] = {"id": slug, "name": name}
+                        if public:
+                            architecture = item.get("architecture")
+                            modalities = (
+                                architecture.get("input_modalities", [])
+                                if isinstance(architecture, dict)
+                                else []
+                            )
+                            models[slug]["pdf_input"] = (
+                                isinstance(modalities, list) and "file" in modalities
+                            )
                 if not anthropic or not body.get("has_more"):
                     return list(models.values())
                 cursor = body.get("last_id")

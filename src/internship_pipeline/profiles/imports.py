@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
+from internship_pipeline.model_connections import ModelConnectionStore
 from internship_pipeline.models import Record, utcnow
 from internship_pipeline.profile_settings import (
     Education,
@@ -28,10 +29,13 @@ from internship_pipeline.profile_settings import (
     Snapshot,
 )
 from internship_pipeline.profiles.draft import suggestions
+from internship_pipeline.profiles.entries import entry_fields
 from internship_pipeline.profiles.extract import MAX_UPLOAD, DocumentError, tex_source
+from internship_pipeline.profiles.layout import reading_order
 from internship_pipeline.storage import Store
 
 _PROCESS_SLOT = threading.BoundedSemaphore(1)
+_MODEL_SLOT = threading.BoundedSemaphore(1)
 
 
 class Selection(Record):
@@ -40,7 +44,7 @@ class Selection(Record):
     institution: str = Field(default="", max_length=200)
     degree: str = Field(default="", max_length=200)
     skills: list[str] = Field(default_factory=list, max_length=30)
-    source_line_ids: list[str] = Field(default_factory=list, max_length=7)
+    source_line_ids: list[str] = Field(default_factory=list, max_length=39)
     value: str = Field(default="", max_length=2000)
 
 
@@ -96,14 +100,23 @@ class ResumeImports:
                 );
             """)
 
-    def upload(self, data: bytes, kind: str, expected_revision: int) -> dict[str, Any]:
+    def upload(
+        self,
+        data: bytes,
+        kind: str,
+        expected_revision: int,
+        *,
+        extracted: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
         if kind not in {"pdf", "docx", "tex"}:
             raise DocumentError("Only PDF, DOCX and TEX are supported.")
         if not data or len(data) > MAX_UPLOAD:
             raise DocumentError("Upload a nonempty document of at most 5 MiB.")
         if self.settings.read().revision != expected_revision:
             raise RevisionConflict("Settings changed. Reload saved settings before importing.")
-        lines = extract_bounded(data, kind)
+        lines = extract_bounded(data, kind) if extracted is None else extracted
+        if kind == "pdf" and extracted is None:
+            lines = reading_order(lines)
         if self.settings.read().revision != expected_revision:
             raise RevisionConflict("Settings changed during extraction. Reload and upload again.")
         identifier = str(uuid4())
@@ -293,11 +306,19 @@ class ResumeImports:
                     status="confirmed",
                     institution=selection.institution,
                     degree=selection.degree,
+                    field=selection.degree.partition(" in ")[2],
                 )
                 profile.education.append(entry)
                 field, value = entry.id, entry.model_dump(mode="json")
             else:
-                if any(f.text == text and f.kind == selection.kind for f in profile.facts):
+                details = entry_fields(text, selection.kind)
+                fact_text = details.pop("text", text)
+                if any(
+                    f.text == fact_text
+                    and f.kind == selection.kind
+                    and all(getattr(f, key) == value for key, value in details.items())
+                    for f in profile.facts
+                ):
                     continue
                 # Import identity remains stable between preview and save, and across replacement.
                 stable_id = imported_id(selection.kind + "\0" + text)
@@ -305,8 +326,9 @@ class ResumeImports:
                     id=stable_id,
                     status="confirmed",
                     kind=cast(Literal["experience", "project", "skill"], selection.kind),
-                    text=text,
+                    text=fact_text,
                     skills=selection.skills,
+                    **details,
                 )
                 profile.facts.append(fact)
                 field, value = fact.id, fact.model_dump(mode="json")
@@ -380,7 +402,11 @@ class ResumeImports:
         }
 
 
-def build_resume_import_router(store: Store, owner: Callable[..., Any]) -> APIRouter:
+def build_resume_import_router(
+    store: Store,
+    owner: Callable[..., Any],
+    connections: ModelConnectionStore,
+) -> APIRouter:
     service = ResumeImports(store)
     router = APIRouter(prefix="/api/resume-imports", dependencies=[Depends(owner)])
 
@@ -397,7 +423,12 @@ def build_resume_import_router(store: Store, owner: Callable[..., Any]) -> APIRo
             ) from None
 
     @router.post("/upload")
-    async def upload(request: Request, format: str, expected_revision: int) -> Any:
+    async def upload(
+        request: Request,
+        format: str,
+        expected_revision: int,
+        use_model: bool = True,
+    ) -> Any:
         if expected_revision < 0:
             raise HTTPException(422, "Use the saved nonnegative profile revision.")
         body = bytearray()
@@ -405,9 +436,42 @@ def build_resume_import_router(store: Store, owner: Callable[..., Any]) -> APIRo
             body.extend(chunk)
             if len(body) > MAX_UPLOAD:
                 raise HTTPException(413, "Upload at most 5 MiB.")
-        return await run_in_threadpool(
-            safely, lambda: service.upload(bytes(body), format, expected_revision)
+        if service.settings.read().revision != expected_revision:
+            raise HTTPException(409, "Settings changed. Reload before importing.")
+        extracted = None
+        warnings = []
+        method = "local"
+        if format == "pdf" and use_model:
+            from internship_pipeline.profiles import pdf_model
+
+            selected = await pdf_model.connection(connections)
+            if selected:
+                if not _MODEL_SLOT.acquire(blocking=False):
+                    raise HTTPException(429, "Another PDF is processing. Try again shortly.")
+                try:
+                    pages = await run_in_threadpool(
+                        safely, lambda: extract_bounded(bytes(body), "pdf-native")
+                    )
+                    config, key = selected
+                    try:
+                        extracted = await pdf_model.read_pdf(config, key, bytes(body), len(pages))
+                        method = "native_pdf"
+                    except DocumentError as exc:
+                        warnings.append(str(exc))
+                    if connections.summary()["general"]["revision"] != config.expected_revision:
+                        raise HTTPException(409, "Model settings changed. Upload again.")
+                finally:
+                    _MODEL_SLOT.release()
+        result = await run_in_threadpool(
+            safely,
+            lambda: service.upload(
+                bytes(body),
+                format,
+                expected_revision,
+                extracted=extracted,
+            ),
         )
+        return {**result, "method": method, "warnings": warnings}
 
     @router.post("/{identifier}/preview")
     def preview(identifier: str, body: Review) -> Any:

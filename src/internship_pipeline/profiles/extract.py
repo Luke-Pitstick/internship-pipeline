@@ -31,6 +31,22 @@ def tex_text(source: str) -> str:
     preamble, _, body = visible.partition(r"\begin{document}")
     body = body.rpartition(r"\end{document}")[0]
     custom = {}
+    single_name = bool(re.search(r"\\documentclass(?:\[[^\]]*\])?\s*\{altacv\}", preamble))
+    # Public signatures of common resume classes whose definitions live in .cls files.
+    known = {
+        "cvsection": "{",
+        "cventry": "{{{{{{",
+        "cvevent": "{{{{",
+        "cvitem": "[{{",
+        "cvskill": "{{",
+        "name": "{" if single_name else "{{",
+        "firstname": "{",
+        "familyname": "{",
+        "email": "{",
+        "phone": "[{",
+        "homepage": "{",
+        "social": "[{",
+    }
     # Read signatures only: definition bodies can deliberately contain unbalanced
     # environments (list-start/list-end commands), and must never be expanded.
     declarations = re.finditer(
@@ -52,14 +68,30 @@ def tex_text(source: str) -> str:
             if arg is not None
         ]
         text = " | ".join(value for value in values if value)
+        if node.macroname == "cvitem" and len(values) >= 2:
+            text = values[-2] + ": " + values[-1]
+        if node.macroname == "cventry" and len(values) == 6 and values[-1]:
+            text = " | ".join(value for value in values[:-1] if value)
+            text += "\n* " + values[-1]
         # Most resume templates hide item and row boundaries in these commands.
         bullet = "• " if node.macroname.lower().endswith("item") else ""
         return "\n" + bullet + text + "\n"
 
+    def link(node: Any, l2tobj: Any) -> str:
+        target, label = [
+            l2tobj.nodelist_to_text([arg]) if arg is not None else ""
+            for arg in node.nodeargd.argnlist
+        ]
+        target = target.removeprefix("mailto:")
+        if target == label or not target.startswith(("https://", "http://")) and "@" not in target:
+            return label
+        return target if "@" in target else f"{label} | {target}"
+
+    signatures = {**known, **custom}
     parser.add_context_category(
         "resume-commands",
         prepend=True,
-        macros=[macrospec.MacroSpec(name, spec) for name, spec in custom.items()]
+        macros=[macrospec.MacroSpec(name, spec) for name, spec in signatures.items()]
         + [
             macrospec.MacroSpec("href", "{{"),
             macrospec.MacroSpec("url", "{"),
@@ -72,16 +104,27 @@ def tex_text(source: str) -> str:
     context.add_context_category(
         "resume-text",
         prepend=True,
-        macros=[latex2text.MacroTextSpec(name, simplify_repl=arguments) for name in custom]
+        macros=[
+            latex2text.MacroTextSpec(name, simplify_repl=arguments)
+            for name in signatures
+            if name not in {"name", "firstname", "familyname", "email", "cvsection"}
+        ]
         + [
             latex2text.MacroTextSpec(name, simplify_repl="\n%(3)s\n")
             for name in ("section", "subsection", "subsubsection")
         ]
         + [
             latex2text.MacroTextSpec("par", simplify_repl="\n"),
-            latex2text.MacroTextSpec("href", simplify_repl="%(2)s"),
+            latex2text.MacroTextSpec("href", simplify_repl=link),
             latex2text.MacroTextSpec("url", simplify_repl="%(1)s"),
             latex2text.MacroTextSpec("textcolor", simplify_repl="%(3)s"),
+            latex2text.MacroTextSpec(
+                "name", simplify_repl="\n%(1)s\n" if single_name else "\n%(1)s %(2)s\n"
+            ),
+            latex2text.MacroTextSpec("firstname", simplify_repl="%(1)s "),
+            latex2text.MacroTextSpec("familyname", simplify_repl="%(1)s\n"),
+            latex2text.MacroTextSpec("email", simplify_repl="\n%(1)s\n"),
+            latex2text.MacroTextSpec("cvsection", simplify_repl="\n%(1)s\n"),
         ]
         + [
             latex2text.MacroTextSpec(name, discard=True)
@@ -89,7 +132,16 @@ def tex_text(source: str) -> str:
         ],
         specials=[latex2text.SpecialsTextSpec("&", " | ")],
     )
-    parsed, _, _ = latexwalker.LatexWalker(body, latex_context=parser).get_latex_nodes()
+    # moderncv stores contact values before the document. Read only known literal
+    # declarations, never definitions, class files, includes, or arbitrary expansion.
+    contact = re.findall(
+        r"(?m)^\s*(\\(?:name\s*\{[^{}\n]*\}(?:\s*\{[^{}\n]*\})?|"
+        r"(?:firstname|familyname|email)\s*\{[^{}\n]*\}))",
+        preamble,
+    )
+    parsed, _, _ = latexwalker.LatexWalker(
+        "\n".join(contact) + "\n" + body, latex_context=parser
+    ).get_latex_nodes()
     # No input directory is configured: input/include never read external files.
     return cast(str, latex2text.LatexNodes2Text(latex_context=context).nodelist_to_text(parsed))
 
@@ -114,7 +166,7 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
     chunks: list[tuple[str, str]] = []
     if kind == "tex":
         chunks.append(("TeX document body", tex_text(tex_source(data))))
-    elif kind == "pdf":
+    elif kind in {"pdf", "pdf-native"}:
         from pypdf import PdfReader
 
         if not data.startswith(b"%PDF-"):
@@ -130,13 +182,18 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
                 continue
             if len(contents.get_data()) > MAX_PDF_CONTENT:
                 raise DocumentError("PDF page content exceeds 2 MiB. Export a simpler PDF.")
+            if kind == "pdf-native":
+                continue
             text = (
                 page.extract_text(extraction_mode="layout", layout_mode_space_vertically=False)
                 or ""
             )
-            # Keep visual columns distinct before the shared whitespace normalization.
-            text = "\n".join(re.sub(r" {3,}", " | ", row.strip()) for row in text.splitlines())
             chunks.append((f"Page {index + 1}", text))
+        if kind == "pdf-native":
+            return [
+                {"id": str(i + 1), "location": f"Page {i + 1}", "text": ""}
+                for i in range(len(reader.pages))
+            ]
     elif kind == "docx":
         from docx import Document
         from docx.table import Table
@@ -191,6 +248,9 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
     lines: list[dict[str, str]] = []
     for location, text in chunks:
         for raw in text.splitlines():
+            layout = raw if kind == "pdf" else ""
+            if layout:
+                raw = re.sub(r" {3,}", " | ", raw.strip())
             clean = " ".join(raw.replace("\u00ad", "").split())
             clean = clean.translate(LIGATURES)
             if not clean:
@@ -200,6 +260,8 @@ def extract(data: bytes, kind: str) -> list[dict[str, str]]:
                     "A text block exceeds 2,000 characters. Re-export with paragraphs."
                 )
             lines.append({"id": str(len(lines)), "location": location, "text": clean})
+            if layout:
+                lines[-1]["layout"] = layout
     if len(lines) > 500:
         raise DocumentError("Use a resume with at most 500 text lines.")
     if not lines:

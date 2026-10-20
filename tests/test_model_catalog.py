@@ -49,10 +49,14 @@ def test_provider_catalog_headers_names_and_order(provider):
     models = asyncio.run(
         list_models(GENERAL_ENDPOINTS[provider], KEY, transport=httpx.MockTransport(respond))
     )
-    assert models == [
+    expected = [
         {"id": "z-model", "name": "z-model" if provider == "openai" else "Z Model"},
         {"id": "a-model", "name": "a-model" if provider == "openai" else "A Model"},
     ]
+    if provider == "openrouter":
+        for item in expected:
+            item["pdf_input"] = False
+    assert models == expected
     assert len(calls) == 1
 
 

@@ -13,6 +13,7 @@
   let file = $state<File>();
   let fileInput = $state<HTMLInputElement>();
   let busy = $state(false);
+  let useModel = $state(true);
   let feedback = $state('');
   let failure = $state(false);
   let conflict = $state(false);
@@ -41,7 +42,7 @@
     }
     busy = true; failure = false; feedback = 'Uploading and reading your résumé…';
     try {
-      const draft = await api.upload<ImportDraft>(`/api/resume-imports/upload?format=${extension}&expected_revision=${profileRevision}`, file);
+      const draft = await api.upload<ImportDraft>(`/api/resume-imports/upload?format=${extension}&expected_revision=${profileRevision}&use_model=${useModel}`, file);
       feedback = 'Filling your profile with the extracted details…';
       const selection = review(draft, [], false);
       const preview = await api.request<ImportPreview>(`/api/resume-imports/${draft.id}/preview`, selection);
@@ -53,7 +54,8 @@
       source = draft.lines;
       if (fileInput) fileInput.value = '';
       file = undefined; onpending(false);
-      feedback = `Profile fields filled. Review and edit them below, then choose ${saveLabel}. Missing details stay blank.`;
+      const method = draft.method === 'native_pdf' ? 'Your PDF model read the résumé.' : 'Your résumé was parsed locally.';
+      feedback = `${method} Profile fields filled. Review and edit them below, then choose ${saveLabel}. Missing details stay blank. ${draft.warnings.join(' ')}`;
     } catch (reason) {
       failure = true; feedback = (reason as Error).message;
       conflict = reason instanceof ApiError && reason.status === 409;
@@ -70,7 +72,11 @@
   <p class="field-help">Upload a PDF, DOCX or LaTeX (.tex) file to fill your profile fields. Review and correct them before saving. A saved .tex import also becomes your template for AI tailoring.</p>
   <label class="upload-label" for="resume-document">Resume document</label>
   <input id="resume-document" aria-describedby="resume-file-help" bind:this={fileInput} type="file" accept=".tex,.pdf,.docx,application/x-tex,text/x-tex,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={blocked} onchange={event => chooseFile(event.currentTarget.files?.[0])} />
-  <p class="field-help" id="resume-file-help">PDF or Word (.docx), up to 5 MiB; UTF-8 LaTeX (.tex), up to 100,000 characters. Scanned PDFs need selectable text. TeX is read without compiling; render a tailored PDF when you request it.</p>
+  <p class="field-help" id="resume-file-help">PDF or Word (.docx), up to 5 MiB; UTF-8 LaTeX (.tex), up to 100,000 characters. Word and TeX are parsed locally without AI. Local PDF parsing needs selectable text; a supported PDF model can also read scans.</p>
+  {#if file?.name.toLowerCase().endsWith('.pdf')}
+    <label><input type="checkbox" bind:checked={useModel} disabled={busy} /> Use my PDF-capable model when available</label>
+    <p class="field-help">Sends this PDF to your saved, tested API model if it supports native PDF input. Provider usage charges apply. Otherwise, parsing stays local. ChatGPT account connections use local parsing.</p>
+  {/if}
   {#if file}<p class="selected-file">{file.name} <span>· {Math.max(1, Math.round(file.size / 1024))} KB</span></p>{/if}
   {#if file}<button type="button" class="subtle" disabled={busy || disabled} onclick={cancel}>Discard selected résumé file</button>{/if}
   <button type="button" class="secondary" disabled={!file || blocked} onclick={upload}>{busy ? 'Filling profile…' : 'Fill profile from resume'}</button>

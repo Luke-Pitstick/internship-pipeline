@@ -30,6 +30,12 @@ test('LaTeX resume macros fill editable education, skills, experience and projec
   await expect(page.getByLabel('Email', {exact: true})).toHaveValue('synthetic@example.test');
   await expect(page.getByLabel('Institution', {exact: true})).toHaveValue('Example University');
   await expect(page.getByLabel('Degree', {exact: true})).toHaveValue('B.S. in Computer Science');
+  const experience = page.getByRole('group', {name: 'Experience 1', exact: true});
+  await expect(experience.getByLabel('Job title', {exact: true})).toHaveValue('Software Engineering Intern');
+  await expect(experience.getByLabel('Company', {exact: true})).toHaveValue('Example Labs');
+  await expect(experience.getByLabel('Start date', {exact: true})).toHaveValue('2025-06');
+  await expect(experience.getByLabel('End date', {exact: true})).toHaveValue('2025-08');
+  await experience.getByLabel('Job title', {exact: true}).fill('Reviewed Software Engineering Intern');
   expect((await (await page.request.get('/api/profile-settings')).json()).revision).toBe(before.revision);
   await page.getByLabel('Degree', {exact: true}).fill('Bachelor of Science in Computer Science');
   await page.getByRole('button', {name: 'Save changes', exact: true}).click();
@@ -37,6 +43,10 @@ test('LaTeX resume macros fill editable education, skills, experience and projec
   await page.reload();
   const saved = await (await page.request.get('/api/profile-settings')).json();
   expect(saved.profile.education[0].degree).toBe('Bachelor of Science in Computer Science');
+  expect(saved.profile.facts.find((fact: {kind: string}) => fact.kind === 'experience')).toMatchObject({
+    title: 'Reviewed Software Engineering Intern', company: 'Example Labs',
+    location: 'Remote', start_date: '2025-06', end_date: '2025-08'
+  });
   expect(saved.profile.facts.some((fact: {kind: string; text: string}) => fact.kind === 'experience' && fact.text.includes('reducing request latency by 35%.'))).toBe(true);
   expect(saved.profile.facts.some((fact: {kind: string; text: string}) => fact.kind === 'project' && fact.text.includes('public forecast dashboard'))).toBe(true);
   expect(saved.profile.facts.flatMap((fact: {skills: string[]}) => fact.skills)).toEqual(['Python', 'SQL', 'C++', 'TypeScript', 'Git', 'Docker']);
@@ -146,6 +156,7 @@ test('resume autofill preserves saved facts, supports replacement and discard, a
   expect(saved.profile.facts.some((item: {text: string}) => item.text === 'Python, Go')).toBe(true);
 
   await page.getByLabel('Resume document').setInputFiles('tests/fixtures/resume.synthetic.pdf');
+  await page.getByLabel('Use my PDF-capable model when available').uncheck();
   await page.getByRole('button', {name: 'Fill profile from resume'}).click();
   await expect(page.getByRole('status').filter({hasText: 'Profile fields filled.'})).toBeVisible();
   const competing = await page.request.post('/api/profile-settings', {headers: {'X-CSRF-Token': session.csrf}, data: {

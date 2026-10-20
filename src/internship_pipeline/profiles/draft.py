@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from internship_pipeline.profiles.entries import entry_start
+
 HEADINGS = {
     "skills": "skill",
     "technical skills": "skill",
@@ -152,8 +154,18 @@ def suggestions(lines: list[dict[str, str]]) -> list[dict[str, Any]]:
             # A bullet can wrap across PDF drawing operations or source paragraphs.
             # Stop at the next bullet, heading, entry row, or labeled skill category.
             rows = [line]
-            for following in lines[index + 1 : index + 8]:
+            entry = proposed != "skill" and entry_start(lines, index, proposed)
+            for next_index, following in enumerate(lines[index + 1 : index + 40], index + 1):
                 text = following["text"]
+                if entry:
+                    if heading(text) is not None or (
+                        next_index > index + 1 and entry_start(lines, next_index, proposed)
+                    ):
+                        break
+                    if sum(len(row["text"]) + 1 for row in [*rows, following]) > 2000:
+                        break
+                    rows.append(following)
+                    continue
                 if (
                     heading(text) is not None
                     or BULLET.match(text)

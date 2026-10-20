@@ -111,6 +111,7 @@ def test_realistic_resume_fills_all_sections_and_saves_literal_evidence(tmp_path
     assert len(profile.education) == 1
     assert profile.education[0].institution == "Example University"
     assert profile.education[0].degree == "B.S. in Computer Science"
+    assert profile.education[0].field == "Computer Science"
     assert profile.education[0].graduation_date is None
     assert {skill for fact in profile.facts for skill in fact.skills} == {
         "Python",
@@ -121,6 +122,12 @@ def test_realistic_resume_fills_all_sections_and_saves_literal_evidence(tmp_path
         "Docker",
     }
     experience = [fact.text for fact in profile.facts if fact.kind == "experience"]
+    jobs = [fact for fact in profile.facts if fact.kind == "experience"]
+    assert len(jobs) == 1
+    assert jobs[0].title == "Software Engineering Intern"
+    assert jobs[0].company == "Example Labs"
+    assert jobs[0].location == "Remote"
+    assert (jobs[0].start_date, jobs[0].end_date) == ("2025-06", "2025-08")
     api = next(text for text in experience if "Built an API" in text)
     assert "reducing request latency by 35%." in api
     assert len([text for text in experience if "Shipped a dashboard" in text]) == 1
@@ -238,3 +245,148 @@ Programming Languages}
         "Programming Languages",
         "Python, SQL",
     ]
+
+
+def test_moderncv_preamble_contacts_entries_and_links(tmp_path):
+    source = r"""
+\documentclass{moderncv}
+\name{Synthetic}{Candidate}
+\email{synthetic@example.test}
+\begin{document}
+\makecvtitle
+\section{Education}
+\cventry{2023 -- 2027}{B.S. in Computer Science}{Example University}{Boulder}{}{}
+\section{Experience}
+\cventry{June 2024 -- Present}{Software Engineer}{Example Labs}{Remote}{}
+ {Built a reporting service.}
+\section{Projects}
+Weather Dashboard\\
+\begin{itemize}
+\item Built a \href{https://example.test/weather}{weather dashboard}.
+\end{itemize}
+\section{Skills}
+\cvitem{Languages}{Python, SQL}
+\end{document}
+"""
+    service = ResumeImports(Store(tmp_path / "state.sqlite3"))
+    draft = service.upload(source.encode(), "tex", 0)
+    filled, _ = service.prepare(draft["id"], reviewed(draft))
+    profile = filled.profile
+    assert profile.name == "Synthetic Candidate"
+    assert profile.email == "synthetic@example.test"
+    assert profile.education[0].institution == "Example University"
+    job = next(f for f in profile.facts if f.kind == "experience")
+    assert (job.title, job.company, job.location) == ("Software Engineer", "Example Labs", "Remote")
+    assert job.start_date == "2024-06" and job.current and job.end_date is None
+    project = next(f for f in profile.facts if f.kind == "project")
+    assert project.title == "Weather Dashboard"
+    assert project.links == ["https://example.test/weather"]
+    assert next(f for f in profile.facts if f.kind == "skill").skills == ["Python", "SQL"]
+
+
+def test_separate_jobs_year_only_dates_and_bullet_dates_do_not_leak(tmp_path):
+    rows = [
+        "Synthetic Candidate",
+        "Experience",
+        "Research Assistant | Example University | 2022 - 2023",
+        "* Analyzed observations from January 2020 - June 2021.",
+        "Software Engineer | Example Labs | May 2024 - Present",
+        "* Built a reporting service.",
+        "* Published results.",
+        "Interests",
+        "Hiking",
+    ]
+    service = ResumeImports(Store(tmp_path / "state.sqlite3"))
+    draft = service.upload(docx_bytes(rows), "docx", 0)
+    filled, _ = service.prepare(draft["id"], reviewed(draft))
+    jobs = filled.profile.facts
+    assert len(jobs) == 2
+    assert (jobs[0].title, jobs[0].company) == ("Research Assistant", "Example University")
+    assert jobs[0].start_date is None and jobs[0].end_date is None
+    assert "2022 - 2023" in jobs[0].text
+    assert jobs[1].start_date == "2024-05" and jobs[1].current
+    assert "Published results." in jobs[1].text
+    assert "2022 - 2023" in next(
+        row["source_text"]
+        for row in service.prepare(draft["id"], reviewed(draft))[1]
+        if row["field"] == jobs[0].id
+    )
+
+
+def test_altacv_name_and_event_commands(tmp_path):
+    source = r"""
+\documentclass[10pt]{altacv}
+\name{Synthetic Candidate}
+\email{synthetic@example.test}
+\begin{document}
+\makecvheader
+\cvsection{Experience}
+\cvevent{Software Engineer}{Example Labs}{06/2024 -- Present}{Remote}
+\begin{itemize}
+\item Built a reporting service.
+\end{itemize}
+\end{document}
+"""
+    service = ResumeImports(Store(tmp_path / "state.sqlite3"))
+    draft = service.upload(source.encode(), "tex", 0)
+    filled, _ = service.prepare(draft["id"], reviewed(draft))
+    assert filled.profile.name == "Synthetic Candidate"
+    job = filled.profile.facts[0]
+    assert (job.title, job.company) == ("Software Engineer", "Example Labs")
+    assert job.start_date == "2024-06" and job.current
+
+
+def test_independent_pdf_columns_fill_separate_sections(tmp_path):
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=612, height=792)
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    page[NameObject("/Resources")] = DictionaryObject(
+        {
+            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font}),
+        }
+    )
+    left = [
+        "Synthetic Candidate",
+        "synthetic@example.test",
+        "SKILLS",
+        "Python, SQL",
+        "EDUCATION",
+        "Example University",
+        "B.S. in Computing",
+    ]
+    right = [
+        "",
+        "",
+        "EXPERIENCE",
+        "Software Engineer | Example Labs",
+        "June 2024 - Present",
+        "* Built a reporting service.",
+        "* Published results.",
+    ]
+    operations = [
+        f"BT /F1 9 Tf 1 0 0 1 {x} {750 - i * 18} Tm ({text}) Tj ET"
+        for x, column in [(50, left), (300, right)]
+        for i, text in enumerate(column)
+        if text
+    ]
+    stream = DecodedStreamObject()
+    stream.set_data("\n".join(reversed(operations)).encode())
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    output = io.BytesIO()
+    writer.write(output)
+    service = ResumeImports(Store(tmp_path / "state.sqlite3"))
+    draft = service.upload(output.getvalue(), "pdf", 0)
+    filled, _ = service.prepare(draft["id"], reviewed(draft))
+    profile = filled.profile
+    assert profile.name == "Synthetic Candidate"
+    assert profile.education[0].institution == "Example University"
+    assert next(f for f in profile.facts if f.kind == "skill").skills == ["Python", "SQL"]
+    job = next(f for f in profile.facts if f.kind == "experience")
+    assert (job.title, job.company) == ("Software Engineer", "Example Labs")
+    assert job.start_date == "2024-06" and job.current
