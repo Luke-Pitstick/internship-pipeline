@@ -445,7 +445,7 @@ class Assessments:
                     raise EvaluationError("evaluation_budget_exhausted")
                 db.execute(
                     "UPDATE tasks SET status='pending',available_at=?,error=NULL "
-                    "WHERE key=? AND status='failed'",
+                    "WHERE key=? AND status IN ('failed','done')",
                     (time.time(), task_key),
                 )
             enqueue(
@@ -456,6 +456,43 @@ class Assessments:
                 time.time(),
             )
         return fingerprint
+
+    def enqueue_unscored(self) -> dict[str, int]:
+        """Manually queue the existing unscored backlog without provider I/O."""
+        with self.store.connection() as db:
+            profile, revision = current_revisions(db)
+            if not profile or not resolved_model(db, revision):
+                raise EvaluationError(
+                    "Save your profile and save and test Jev before scoring jobs."
+                )
+            scored = {row[0] for row in db.execute("SELECT DISTINCT job_id FROM assessments")}
+        counts = {"queued": 0, "already_queued": 0, "skipped": 0}
+        for job in self.store.list_jobs():
+            if job.id in scored:
+                continue
+            if (
+                job.status != "open"
+                or job.applied_at is not None
+                or not job.posting.description.strip()
+                or not is_internship(job.posting.title, job.posting.description)
+            ):
+                counts["skipped"] += 1
+                continue
+            with self.store.connection() as db:
+                task = db.execute(
+                    "SELECT status FROM tasks WHERE key=?",
+                    ("assessment:" + current_identity(db, job),),
+                ).fetchone()
+            if task and task[0] in {"pending", "running"}:
+                counts["already_queued"] += 1
+                continue
+            try:
+                self.enqueue(job.id, retry=True)
+            except EvaluationError:
+                counts["skipped"] += 1
+            else:
+                counts["queued"] += 1
+        return counts
 
     def reconcile(self) -> None:
         """Queue current identities periodically; no model calls or collection dependency."""

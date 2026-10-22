@@ -31,12 +31,22 @@
     } catch (reason) { error = (reason as Error).message; }
     finally { busy = false; }
   }
+  async function scoreUnscored() {
+    busy = true; error = ''; message = '';
+    try {
+      const result = await api.request<{queued: number; already_queued: number; skipped: number}>('/api/scoring-limits/score-unscored', {});
+      message = `${result.queued.toLocaleString()} jobs queued for Jev scoring. ${result.already_queued.toLocaleString()} already queued or scoring. ${result.skipped.toLocaleString()} skipped (not actionable, missing a description, or retry limit reached). Scoring runs in the background within your saved limits.`;
+    } catch (reason) { error = (reason as Error).message; }
+    finally { busy = false; }
+  }
   onMount(load);
 </script>
 
 <section class="scoring-limits" aria-labelledby="scoring-limits-title">
   <h3 id="scoring-limits-title">Scoring limits</h3>
   <p>Control Jev scoring for new and already collected jobs. Limits use rolling one-hour and 24-hour windows across all jobs.</p>
+  <p>Score previously collected, unscored internships using your saved profile and tested Jev connection. Closed jobs, applied jobs, and jobs without descriptions are skipped. This uses your Jev API allowance and may incur provider charges.</p>
+  <button class="secondary" type="button" disabled={busy} onclick={scoreUnscored}>Score all unscored jobs with Jev</button>
   <p class="field-help">Tokens include input and output. Calls with unknown usage keep a conservative token reservation. These limits control usage, not a dollar spending cap.</p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   {#if message}<p role="status">{message}</p>{/if}

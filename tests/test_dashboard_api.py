@@ -178,3 +178,54 @@ def test_mark_applied_does_not_create_missing_database(api: DashboardAPI) -> Non
     with pytest.raises(DashboardUnavailable):
         api.mark_applied("relevant")
     assert not api.settings.database_path.exists()
+
+
+def test_job_scope_is_reused_and_changed_content_is_reclassified(api, monkeypatch):
+    from internship_pipeline import job_workspace
+
+    classify = job_workspace.is_internship
+    calls = []
+
+    def counted(title, description):
+        calls.append(title)
+        return classify(title, description)
+
+    monkeypatch.setattr(job_workspace, "is_internship", counted)
+    assert api.jobs()["pagination"]["total"] == 4
+    assert len(calls) == 5  # COUNT and page selection share the classification.
+    api.jobs(view="Needs review")
+    api.jobs(sort="company")
+    assert len(calls) == 5
+
+    with sqlite3.connect(api.settings.database_path) as db:
+        item = Job.model_validate_json(
+            db.execute("SELECT data FROM jobs WHERE id='fulltime'").fetchone()[0]
+        )
+        item.posting.title = "Software Intern"
+        item.content_hash = "changed-content"
+        db.execute(
+            "UPDATE jobs SET data=?,content_hash=? WHERE id=?",
+            (item.model_dump_json(), item.content_hash, item.id),
+        )
+    assert api.jobs()["pagination"]["total"] == 5
+    assert len(calls) == 6
+
+
+def test_job_scope_cache_evicts_old_content(monkeypatch):
+    from internship_pipeline import job_workspace
+
+    calls = []
+
+    def classify(title, description):
+        calls.append(title)
+        return title == "Intern"
+
+    monkeypatch.setattr(job_workspace, "is_internship", classify)
+    scope = job_workspace.InternshipScope(capacity=2)
+    assert scope.classify("one", "Intern", "")
+    assert not scope.classify("two", "Engineer", "")
+    assert scope.classify("one", "Intern", "")
+    assert scope.classify("three", "Intern", "")
+    assert len(calls) == 3
+    assert not scope.classify("two", "Engineer", "")
+    assert len(calls) == 4

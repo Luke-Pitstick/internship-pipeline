@@ -158,6 +158,19 @@ See the [update guide](docs/cli-updates.md) for update instructions and
 
 ## Data and recovery
 
+Collection discards postings that fail the internship/co-op check before storing them or
+queuing evaluations. Startup also removes existing non-internship postings, except jobs
+with saved/application history, notes, decisions, résumés, or integration records. Low AI
+match scores do not trigger deletion. Call/token usage records remain intact.
+
+To preview or run cleanup explicitly with your installation's configuration:
+
+```sh
+internship-pipeline --config /path/to/settings.yaml discard-non-internships --dry-run
+internship-pipeline --config /path/to/settings.yaml discard-non-internships
+```
+
+
 Your jobs, settings, credentials, and documents are kept in persistent storage. Follow the
 [backup and recovery guide](docs/support.md#full-backup-and-fresh-restore) to make a complete
 backup or restore an installation.

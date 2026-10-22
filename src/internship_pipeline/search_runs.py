@@ -634,6 +634,15 @@ class SearchRuns:
                 result = result.model_copy(update={"error": None})
             elif result.error:
                 result = result.model_copy(update={"error": "source_request_failed"})
+            result = result.model_copy(
+                update={
+                    "jobs": [
+                        posting
+                        for posting in result.jobs
+                        if is_internship(posting.title, posting.description)
+                    ]
+                }
+            )
             # Persist the fetch before ingestion; resume it without another public request.
             collected_at = time.time()
             with self.store.transaction() as db:

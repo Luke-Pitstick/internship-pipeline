@@ -6,6 +6,7 @@ import hashlib
 import json
 import sqlite3
 import time
+from collections import OrderedDict
 from typing import Any
 
 from internship_pipeline.assessments import current_revisions, resolved_model, rubric_revision
@@ -114,9 +115,28 @@ def update(path: Any, job_id: str, body: dict[str, Any]) -> dict[str, Any] | Non
         return state(db, job_id)
 
 
+class InternshipScope:
+    """Bounded classification cache keyed by the posting's content revision."""
+
+    def __init__(self, capacity: int = 100_000) -> None:
+        self.capacity = capacity
+        self._values: OrderedDict[str, bool] = OrderedDict()
+
+    def classify(self, content_hash: str, title: str, description: str | None) -> bool:
+        if content_hash in self._values:
+            self._values.move_to_end(content_hash)
+            return self._values[content_hash]
+        result = is_internship(title, description)
+        self._values[content_hash] = result
+        if len(self._values) > self.capacity:
+            self._values.popitem(last=False)
+        return result
+
+
 def page(
     db: sqlite3.Connection,
     *,
+    scope: InternshipScope,
     number: int,
     size: int,
     search: str,
@@ -151,9 +171,9 @@ def page(
     decision = "COALESCE(w.decision,json_extract(a.result,'$.recommendation'),'review')"
     filters = ["1=1"]
     if view in {"All", "Recommendations", "Needs review"}:
-        db.create_function("is_internship", 2, is_internship, deterministic=True)
+        db.create_function("is_internship", 3, scope.classify, deterministic=True)
         filters.append(
-            "is_internship(json_extract(j.data,'$.posting.title'),"
+            "is_internship(j.content_hash,json_extract(j.data,'$.posting.title'),"
             "json_extract(j.data,'$.posting.description'))"
         )
     params: list[Any] = []

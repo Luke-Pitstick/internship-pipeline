@@ -581,3 +581,38 @@ def test_saved_job_search_discovers_employer_boards_automatically(tmp_path, monk
     candidates = store.candidate_companies()
     assert len(candidates) == 1
     assert candidates[0].careers_url == "https://jobs.ashbyhq.com/example.ai"
+
+
+def test_non_internships_are_removed_before_durable_fetch_checkpoint(tmp_path, monkeypatch):
+    store, runs, saved = setup(tmp_path)
+
+    async def fetch(*args):
+        return FetchResult(
+            jobs=[
+                posting(),
+                posting("fulltime").model_copy(
+                    update={
+                        "title": "Senior Engineer",
+                        "description": "Permanent full-time position.",
+                    }
+                ),
+            ]
+        )
+
+    monkeypatch.setattr("internship_pipeline.sources.ats.fetch_company", fetch)
+    run = runs.start(saved["id"])["run"]
+    original_ingest = store.ingest
+
+    def inspect_checkpoint(*args, **kwargs):
+        with store.connection() as db:
+            stored = FetchResult.model_validate_json(
+                db.execute("SELECT result FROM search_runs WHERE id=?", (run["id"],)).fetchone()[0]
+            )
+        assert len(stored.jobs) == 1
+        assert stored.jobs[0].source_id == posting().source_id
+        return original_ingest(*args, **kwargs)
+
+    monkeypatch.setattr(store, "ingest", inspect_checkpoint)
+    assert asyncio.run(runs.process_next(Settings(database_path=store.path)))
+    assert len(store.list_jobs()) == 1
+    assert runs.view()["run"]["collected"] == 1

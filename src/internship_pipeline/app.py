@@ -411,6 +411,13 @@ def create_app(
                 raise HTTPException(404, "Job not found")
             return result
 
+        @private.post("/scoring-limits/score-unscored", status_code=202)
+        def score_unscored() -> dict[str, int]:
+            try:
+                return assessments.enqueue_unscored()
+            except EvaluationError as exc:
+                raise HTTPException(409, str(exc)) from None
+
         @private.post("/jobs/{job_id}/evaluate", status_code=202)
         def evaluate(job_id: str) -> dict[str, str]:
             try:

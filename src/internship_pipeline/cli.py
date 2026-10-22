@@ -116,6 +116,10 @@ def parser() -> argparse.ArgumentParser:
     )
     commands.add_parser("serve", help="Supervise all continuous workers in one service")
     commands.add_parser("status", help="Show sanitized task and provider health")
+    discard = commands.add_parser(
+        "discard-non-internships", help="Discard untracked postings outside internship/co-op scope"
+    )
+    discard.add_argument("--dry-run", action="store_true", help="Report counts without deleting")
     jobs = commands.add_parser("jobs", help="List observed jobs")
     jobs.add_argument("--backlog", action="store_true")
     retry = commands.add_parser("retry", help="Explicitly retry failed work")
@@ -300,11 +304,17 @@ def _main(argv: list[str] | None = None) -> int:
         settings = load_settings(args.config)
         store = Store(settings.database_path)
         if args.command == "serve":
+            from internship_pipeline.job_retention import discard_non_internships
             from internship_pipeline.supervisor import run_workers
 
+            discard_non_internships(store)
             return run_workers(args.config)
         if args.command == "status":
             print(json.dumps(store.health(), indent=2))
+        elif args.command == "discard-non-internships":
+            from internship_pipeline.job_retention import discard_non_internships
+
+            print(json.dumps(discard_non_internships(store, dry_run=args.dry_run)))
         elif args.command == "jobs":
             for job in store.list_jobs(args.backlog):
                 print(

@@ -241,6 +241,7 @@ class Store:
         now: datetime | None = None,
         checkpoint: Callable[[sqlite3.Connection], None] | None = None,
     ) -> list[Job]:
+        from internship_pipeline.internships import is_internship
         from internship_pipeline.normalization import canonical_url, content_hash
 
         now = now or utcnow()
@@ -254,6 +255,8 @@ class Store:
             for posting in result.jobs:
                 identity = (posting.source, posting.board_id, posting.source_id)
                 seen.add(identity)
+                if not is_internship(posting.title, posting.description):
+                    continue
                 url = canonical_url(posting.apply_url)
                 company_key = " ".join(posting.company.casefold().split())
                 observation = connection.execute(

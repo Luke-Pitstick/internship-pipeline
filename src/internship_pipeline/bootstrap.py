@@ -66,7 +66,11 @@ def _main(*, reload: bool = False) -> int:
     root.mkdir(parents=True, exist_ok=True)
     config = Path(os.getenv("PIPELINE_CONFIG", str(root / "config/settings.yaml")))
     settings = runtime_settings(root, config)
-    Store(settings.database_path)
+    from internship_pipeline.job_retention import discard_non_internships
+
+    discarded = discard_non_internships(Store(settings.database_path))
+    if discarded["discarded"]:
+        print(f"Discarded {discarded['discarded']} non-internship postings.", flush=True)
     identity = Identity(root / "identity.sqlite3")
     if token := identity.setup_token():
         origin = os.getenv("PIPELINE_ORIGIN", "http://localhost:8080").rstrip("/")

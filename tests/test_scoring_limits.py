@@ -97,3 +97,83 @@ def test_raising_limits_wakes_existing_jobs_and_worker_uses_saved_limits(
     assert view(service, job)["state"] == "complete"
     assert not worker.process_next(["match"])
     assert len(calls) == 1
+
+
+def test_bulk_scoring_requires_owner_csrf_and_configuration(client: TestClient):
+    path = "/api/scoring-limits/score-unscored"
+    assert client.post(path, json={}).status_code == 401
+    headers = claim(client)
+    assert client.post(path, json={}).status_code == 403
+    response = client.post(path, json={}, headers=headers)
+    assert response.status_code == 409
+    assert "save and test Jev" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("status", [None, "failed", "done", "pending", "running"])
+def test_bulk_scoring_queues_backlog_and_deduplicates(tmp_path, monkeypatch, status):
+    from test_assessments import response, setup, view
+
+    from internship_pipeline import assessments
+
+    service, job = setup(tmp_path)
+    fingerprint = service.enqueue(job.id)
+    with service.store.transaction() as db:
+        db.execute("DELETE FROM tasks WHERE key != ?", ("assessment:" + fingerprint,))
+        if status is None:
+            db.execute("DELETE FROM tasks")
+        else:
+            db.execute("UPDATE tasks SET status=?", (status,))
+    already = int(status in {"pending", "running"})
+    assert service.enqueue_unscored() == {
+        "queued": 1 - already,
+        "already_queued": already,
+        "skipped": 0,
+    }
+    assert service.enqueue_unscored() == {"queued": 0, "already_queued": 1, "skipped": 0}
+    with service.store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 1
+
+    async def success(config, key, body, transport=None):
+        return response(body)
+
+    monkeypatch.setattr(assessments, "request", success)
+    service.evaluate(job.id, fingerprint)
+    assert view(service, job)["state"] == "complete"
+    assert service.enqueue_unscored() == {"queued": 0, "already_queued": 0, "skipped": 0}
+
+
+@pytest.mark.parametrize(
+    "reason", ["closed", "applied", "description", "not_internship", "attempts"]
+)
+def test_bulk_scoring_skips_jobs_that_cannot_be_scored(tmp_path, reason):
+    from test_assessments import setup
+
+    from internship_pipeline.assessments import MAX_ATTEMPTS
+
+    service, job = setup(tmp_path)
+    fingerprint = service.enqueue(job.id)
+    if reason == "closed":
+        job.status = "closed"
+    elif reason == "applied":
+        from datetime import UTC, datetime
+
+        job.applied_at = datetime.now(UTC)
+    elif reason == "description":
+        job.posting.description = " "
+    elif reason == "not_internship":
+        job.posting.title = "Senior engineer"
+        job.posting.description = "Full time senior engineer"
+    with service.store.transaction() as db:
+        db.execute("UPDATE jobs SET data=? WHERE id=?", (job.model_dump_json(), job.id))
+        db.execute("DELETE FROM tasks")
+        if reason == "attempts":
+            for _ in range(MAX_ATTEMPTS):
+                db.execute(
+                    "INSERT INTO assessment_attempts"
+                    "(identity,job_id,started,status,reserved_tokens) "
+                    "VALUES(?,?,0,'error',1)",
+                    (fingerprint, job.id),
+                )
+    assert service.enqueue_unscored() == {"queued": 0, "already_queued": 0, "skipped": 1}
+    with service.store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0

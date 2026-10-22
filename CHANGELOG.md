@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.5
+
+- Jobs reuse internship classifications across page loads and refreshes, avoiding
+  repeated full-inventory parsing and startup query timeouts.
+- Collection discards non-internship postings before storage and evaluation. Startup
+  removes existing untracked non-internships while preserving saved jobs, applications,
+  notes, decisions, résumés, integration records, and usage accounting.
+- A `discard-non-internships` command supports explicit cleanup and dry-run counts.
+- Scoring settings can queue all previously unscored internships with Jev, respecting
+  configured limits and skipping jobs that are no longer actionable.
+- Profile education headings and checkbox alignment match the surrounding fields.
+
+Storage format remains **2**. The first startup may take longer while existing
+non-internship postings are removed; later loads scan the smaller retained inventory.
+
 ## 1.0.3
 
 - Résumé imports fill structured experience, project, and education fields, with

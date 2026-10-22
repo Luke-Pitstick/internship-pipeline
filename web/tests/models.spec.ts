@@ -177,3 +177,37 @@ test('catalogs handle delayed provider switches, public lookup, empty results an
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+
+test('manual Jev scoring reports errors and queue results without losing limit drafts', async ({page}) => {
+  const token = JSON.parse(await readFile(process.env.PIPELINE_BROWSER_SETUP ?? 'test-results/setup.json', 'utf8')).token;
+  await page.goto(`/settings/#setup=${token}`);
+  await page.getByLabel('Username', {exact:true}).fill('synthetic-owner');
+  await page.getByLabel('Password', {exact:true}).fill('synthetic-owner-password');
+  await page.getByRole('button', {name:await page.getByRole('button', {name:'Create owner account'}).isVisible() ? 'Create owner account' : 'Sign in', exact:true}).click();
+  await page.getByRole('button', {name:'AI Models', exact:true}).click();
+  const limits = page.getByRole('region', {name:'Scoring limits', exact:true});
+  const score = limits.getByRole('button', {name:'Score all unscored jobs with Jev', exact:true});
+  await expect(score).toBeEnabled();
+  await score.click();
+  await expect(limits.getByRole('alert')).toContainText('save and test Jev');
+  await limits.getByLabel('Scoring calls per hour').fill('333');
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => release = resolve);
+  await page.route('**/api/scoring-limits/score-unscored', async route => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().headers()['x-csrf-token']).toBeTruthy();
+    await pending;
+    await route.fulfill({status:202, json:{queued:800, already_queued:12, skipped:3}});
+  });
+  await score.click();
+  await expect(score).toBeDisabled();
+  release();
+  await expect(limits.getByRole('status')).toContainText('800 jobs queued for Jev scoring. 12 already queued or scoring. 3 skipped');
+  await expect(limits.getByRole('alert')).toHaveCount(0);
+  await expect(score).toBeEnabled();
+  await expect(limits.getByLabel('Scoring calls per hour')).toHaveValue('333');
+  await page.setViewportSize({width:390, height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await limits.screenshot({path:'test-results/manual-jev-scoring.png'});
+});

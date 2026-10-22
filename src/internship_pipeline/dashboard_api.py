@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
 import threading
@@ -16,6 +17,8 @@ from typing import Any
 from internship_pipeline.config import load_settings
 from internship_pipeline.models import Job, Settings
 from internship_pipeline.normalization import canonical_url
+
+logger = logging.getLogger(__name__)
 
 JOB_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}")
 MAX_PDF_BYTES = 10 * 1024 * 1024
@@ -63,12 +66,11 @@ class DashboardUnavailable(RuntimeError):
 class DashboardAPI:
     def __init__(self, settings: Settings | Path) -> None:
         self._configuration = settings
-        from internship_pipeline.job_workspace import initialize
+        from internship_pipeline.job_workspace import InternshipScope, initialize
 
         initialize(self.settings.database_path)
         self._lock = threading.Lock()
-        self._snapshot: dict[str, Any] | None = None
-        self._cached_at = float("-inf")
+        self._scope = InternshipScope()
 
     @property
     def settings(self) -> Settings:
@@ -86,7 +88,9 @@ class DashboardAPI:
         try:
             connection.execute("PRAGMA query_only=ON")
             connection.execute("BEGIN")
-            deadline = time.monotonic() + 5
+            # A cold inventory may need to classify newly collected descriptions.
+            # Later reads reuse content-revision results, including after navigation.
+            deadline = time.monotonic() + 15
             connection.set_progress_handler(lambda: time.monotonic() > deadline, 10000)
             yield connection
         finally:
@@ -117,6 +121,7 @@ class DashboardAPI:
             except ValueError:
                 raise
             except Exception as exc:
+                logger.error("Dashboard jobs read failed (%s)", type(exc).__name__)
                 raise DashboardUnavailable("Jobs are temporarily unavailable") from exc
 
     def detail(self, job_id: str) -> dict[str, Any] | None:
@@ -174,6 +179,7 @@ class DashboardAPI:
 
             ids, total, page = job_workspace.page(
                 connection,
+                scope=self._scope,
                 number=page,
                 size=page_size,
                 search=search,
@@ -326,7 +332,6 @@ class DashboardAPI:
                         connection.execute(
                             "UPDATE jobs SET data=? WHERE id=?", (job.model_dump_json(), job_id)
                         )
-                self._snapshot = None
                 return {
                     "id": job_id,
                     "status": "applied" if applied else "not_applied",
